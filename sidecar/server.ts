@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
-import type { MindState, Teaching } from "../lib/mind/types";
-import { integrateLLM, thinkLLM } from "./faculty-llm";
+import type { MindState } from "../lib/mind/types";
+import { childMessage, integrateLLM } from "./faculty-llm";
 
 const POLL_BASE = process.env.POLLINATIONS_BASE || "https://image.pollinations.ai";
 
@@ -85,19 +85,19 @@ const server = createServer(async (req, res) => {
       return res.end(buf);
     }
 
-    if (req.method === "POST" && req.url === "/think") {
+    // The child's opening message (no learning yet).
+    if (req.method === "POST" && req.url === "/open") {
       const { mind } = (await readBody(req)) as { mind: MindState };
-      const result = await thinkLLM(mind);
-      return send(res, 200, { ...result, mind });
+      const message = await childMessage(mind, null);
+      return send(res, 200, { mind, message });
     }
 
-    if (req.method === "POST" && req.url === "/integrate") {
-      const { mind, teaching } = (await readBody(req)) as {
-        mind: MindState;
-        teaching: Teaching;
-      };
-      const next = await integrateLLM(mind, teaching);
-      return send(res, 200, { mind: next });
+    // The parent replied: learn from it, then speak again.
+    if (req.method === "POST" && req.url === "/reply") {
+      const { mind, text } = (await readBody(req)) as { mind: MindState; text: string };
+      await integrateLLM(mind, text || "");
+      const message = await childMessage(mind, text || "");
+      return send(res, 200, { mind, message });
     }
 
     send(res, 404, { error: "not found" });

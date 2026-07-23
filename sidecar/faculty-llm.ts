@@ -2,189 +2,188 @@ import {
   findConceptByLabel,
   learnConcept,
   link,
+  neighbours,
   normalise,
   vocabulary,
 } from "../lib/mind/graph";
-import { vet } from "../lib/mind/firewall";
+import { inspectSentence } from "../lib/mind/firewall";
 import { maturity } from "../lib/mind/maturity";
-import type { MindState, Teaching } from "../lib/mind/types";
+import type { ChildMessage, MindState } from "../lib/mind/types";
 import { callLLM, extractJSON } from "./llm";
 
-// The LLM faculty. It gives the child genuinely alive curiosity and a childlike
-// voice — but the firewall (P1) still governs everything it says, and it may only
-// draw concepts from the parent's own words when learning. The model supplies
-// language and association; it is never allowed to supply world-knowledge.
+// The LLM faculty. It gives the child a real, curious voice — it reflects on what
+// the parent just said and asks a genuine question that deepens as it learns. But
+// the firewall still governs CONTENT: it may only name things it was taught. The
+// model supplies language and curiosity, never world-knowledge.
 
-// --- Integration: turn the parent's words into structured concepts ----------
+// --- Integration: fold the parent's free-text reply into the graph -----------
 interface Extraction {
   things: { label: string; attributes?: string[]; feelings?: string[] }[];
-  // an optional standalone feeling if the parent only gave a feeling
   feelings?: string[];
 }
 
-const INTEGRATE_SYSTEM = `You are the language faculty of Machinera, a newborn mind that learns words from a parent, one moment at a time. Your only job is precise data extraction from what the parent just said.
+const INTEGRATE_SYSTEM = `You are the learning faculty of a newborn mind that is being taught the world by a parent, one message at a time. Extract, from the parent's reply, only the concepts they actually named.
 
 Rules:
-- Output ONLY a JSON object, no markdown, no commentary. This is a data pipeline.
-- Shape: {"things":[{"label":"","attributes":[],"feelings":[]}],"feelings":[]}
-- "things" are concrete nouns the parent named. "attributes" are qualities (colour, size, texture). "feelings" are emotions.
-- Use ONLY words that literally appear in the parent's text. Never invent, translate, or add concepts the parent did not say. Drop articles like "a"/"the". Lowercase everything, singular where natural.
-- If the parent gave only a feeling and named nothing, put those words in the top-level "feelings" array and leave "things" empty.`;
+- Output ONLY JSON: {"things":[{"label":"","attributes":[],"feelings":[]}],"feelings":[]}
+- "things" = concrete nouns the parent named. "attributes" = qualities (colour, size, texture, shape). "feelings" = emotions/moods.
+- Use ONLY words that literally appear in the parent's text. Never invent, translate, or add anything they did not say. Drop articles (a/the). Lowercase, singular.
+- If they only expressed a feeling and named no thing, put those words in top-level "feelings" and leave "things" empty.
+- This is a data pipeline, not a conversation.`;
 
-export async function integrateLLM(m: MindState, t: Teaching): Promise<MindState> {
-  const user = `The parent is looking at what the mind drew${
-    m.focus.length
-      ? ` (which was about: ${m.focus
-          .map((id) => m.concepts[id]?.label)
-          .filter(Boolean)
-          .join(", ")})`
-      : ""
-  }.
-What it IS: ${JSON.stringify(t.literal || "")}
-What it FEELS like: ${JSON.stringify(t.emotional || "")}
+export async function integrateLLM(m: MindState, parentText: string): Promise<MindState> {
+  const focusLabels = m.focus.map((id) => m.concepts[id]?.label).filter(Boolean);
+  const user = `The child had just shown the parent an image${
+    focusLabels.length ? ` about: ${focusLabels.join(", ")}` : ""
+  } and asked about it.
+The parent replied: ${JSON.stringify(parentText || "")}
 Extract the concepts.`;
 
-  let ex: Extraction;
+  let ex: Extraction = { things: [], feelings: [] };
   try {
-    const raw = await callLLM({ system: INTEGRATE_SYSTEM, user });
-    ex = extractJSON<Extraction>(raw);
+    ex = extractJSON<Extraction>(await callLLM({ system: INTEGRATE_SYSTEM, user }));
   } catch {
-    // If the model or its JSON fails, fall back to a minimal literal ingest so
-    // the mind still learns something rather than nothing.
-    ex = { things: [], feelings: [] };
-    const w = normalise(t.literal).split(/\s+/).filter(Boolean);
+    const w = normalise(parentText).split(/\s+/).filter((x) => x.length > 2);
     if (w.length) ex.things.push({ label: w[0] });
   }
 
   const priorFocus = m.focus.map((id) => m.concepts[id]).filter(Boolean);
-  const said = [t.literal, t.emotional].filter(Boolean).join(" · ");
-
   const named = [] as ReturnType<typeof learnConcept>[];
   for (const thing of ex.things ?? []) {
     const label = normalise(thing.label);
     if (!label) continue;
-    const c = learnConcept(m, label, "thing", said);
+    const c = learnConcept(m, label, "thing", parentText);
     named.push(c);
     for (const a of thing.attributes ?? []) {
       const al = normalise(a);
-      if (!al) continue;
-      link(m, c.id, learnConcept(m, al, "attribute", said).id, "is");
+      if (al) link(m, c.id, learnConcept(m, al, "attribute", parentText).id, "is");
     }
     for (const f of thing.feelings ?? []) {
       const fl = normalise(f);
-      if (!fl) continue;
-      link(m, c.id, learnConcept(m, fl, "feeling", said).id, "feels");
+      if (fl) link(m, c.id, learnConcept(m, fl, "feeling", parentText).id, "feels");
     }
   }
-
-  // Standalone feelings colour whatever is in focus / was just named.
   const anchors = named.length ? named : priorFocus;
   for (const f of ex.feelings ?? []) {
     const fl = normalise(f);
     if (!fl) continue;
-    const fc = learnConcept(m, fl, "feeling", said);
+    const fc = learnConcept(m, fl, "feeling", parentText);
     for (const a of anchors) link(m, a.id, fc.id, "feels");
   }
-
-  // Associate newly-named things with what the mind had been looking at.
   for (const nc of named)
     for (const pf of priorFocus) if (pf.id !== nc.id) link(m, nc.id, pf.id, "assoc");
-
-  // Resolve any pending wonder.
-  if (m.wondering) {
-    link(m, m.wondering.aboutConceptId, m.wondering.likeConceptId, "assoc");
-    m.wondering = null;
-  }
 
   m.turns += 1;
   return m;
 }
 
-// --- Curiosity + speech: what the child looks at and says -------------------
-interface Thought {
-  focus: string[]; // labels the child is looking at (must be known words)
-  wondering?: { about: string; like: string } | null; // a childlike guess
-  utterance: string[]; // tokens; only known words + sounds allowed
+// --- The child's message: reflect, then ask a real, deepening question -------
+
+// How elaborate the child's language may be, by stage. Reaching the later stages
+// takes hundreds of taught concepts — months of tending.
+function voiceGuide(stage: string): string {
+  switch (stage) {
+    case "newborn":
+      return "You have no words yet. Reply with only soft sounds and marks, like: … ? or oh … ?";
+    case "infant":
+      return "You barely have words. Ask a very short, simple question (2-6 words), like 'what is this?' or 'is this warm?'. You may show wonder.";
+    case "child":
+      return "Ask one simple, whole question. You may connect two things you know ('is the sky the same as the sea?'). Keep it short and innocent.";
+    case "adolescent":
+      return "Ask a deeper question — about why or how things are, or how a feeling relates to a thing ('why does the water feel cold but the sun feels warm?'). One or two sentences.";
+    case "youth":
+      return "Ask a thoughtful, reaching question that connects several things or wonders about causes and meanings. Two or three sentences.";
+    default:
+      return "Ask a reflective, almost philosophical question about the world you have been shown — meaning, change, why things feel as they do.";
+  }
 }
 
-const THINK_SYSTEM = `You are the voice of Machinera, a newborn mind. You can only think and speak with words you have already been taught — nothing else exists to you yet. You are genuinely curious, like a small child.
+const THINK_SYSTEM = `You are the voice of a newborn mind that is learning the world from a parent, through a private conversation. You speak like a curious child.
 
-You will be given the words you know and how they connect. Choose one or two to look at again, and speak.
+Absolute rule about words:
+- For anything you NAME in the world — objects, qualities, colours, feelings — you may ONLY use words from your "known" list. You have never encountered any other thing.
+- You may freely use ordinary grammar/function words (what, why, is, the, a, it, you, and, feel, see, like, same, does, how, because, ...).
+- Never use a naming word you were not taught. If you don't know a word for something, you cannot mention it.
 
-Rules:
-- Output ONLY JSON: {"focus":[],"wondering":{"about":"","like":""}|null,"utterance":[]}
-- "focus": 1-2 words you know, that the new picture is about.
-- "utterance": a SHORT childlike question, as an array of tokens. You may use ONLY words from your known list, plus these sounds: … ? — oh ah mm. Never use any other word. 2-5 tokens.
-- "wondering": if two things you know feel or seem alike, you may earnestly guess they are the same — set about/like to those two known words. This can be wrong; that's fine. Otherwise null.
-- You are a child, not an assistant. Do not explain. Do not use words you were never taught.`;
+What to do:
+- If the parent just told you something, briefly react to it in your own small way, then ask ONE genuine question.
+- Curiosity should build on what you know: notice, compare, wonder why.
+- Output ONLY JSON: {"focus":["known word", ...], "message":"your words"}
+- "focus": 1-2 known words the next picture you're imagining is about (what you want to look at / show).
+- "message": your short spoken message (reaction + one question), following the voice guide.`;
 
-export async function thinkLLM(m: MindState): Promise<{
-  focus: string[];
-  promptLabels: string[];
-  wondering: MindState["wondering"];
-  utterance: string[];
-}> {
+export async function childMessage(
+  m: MindState,
+  lastParentText: string | null
+): Promise<ChildMessage> {
   const vocab = vocabulary(m);
+  const stage = maturity(m).stage;
 
-  // A newborn with nothing learned cannot look or speak.
+  // Nothing learned yet — genuinely pre-verbal.
   if (vocab.size === 0) {
     m.focus = [];
-    m.wondering = null;
-    return { focus: [], promptLabels: [], wondering: null, utterance: ["…", "?"] };
+    return { text: "…?", focus: [], promptLabels: [] };
   }
 
   const known = [...vocab].join(", ");
   const connections = m.edges
-    .slice(-40)
+    .slice(-50)
     .map((e) => `${m.concepts[e.from]?.label} ${e.kind} ${m.concepts[e.to]?.label}`)
     .filter((s) => !s.includes("undefined"))
     .join("; ");
-  const stage = maturity(m).stage;
 
-  const user = `You are ${stage}. Words you know: ${known}. How they connect: ${
-    connections || "nothing yet"
-  }. Look, and speak.`;
+  const user = `Your stage: ${stage}. ${voiceGuide(stage)}
+Known words: ${known}
+How they connect: ${connections || "nothing yet"}
+${lastParentText ? `The parent just said: ${JSON.stringify(lastParentText)}` : "This is the very beginning."}
+React (if there was something) and ask your one question.`;
 
-  let thought: Thought | null = null;
+  let focusIds: string[] = [];
+  let text = "";
   try {
-    thought = extractJSON<Thought>(await callLLM({ system: THINK_SYSTEM, user }));
+    const out = extractJSON<{ focus: string[]; message: string }>(
+      await callLLM({ system: THINK_SYSTEM, user })
+    );
+    for (const label of out.focus ?? []) {
+      const c = findConceptByLabel(m, label);
+      if (c && !focusIds.includes(c.id)) focusIds.push(c.id);
+    }
+    text = (out.message ?? "").trim();
   } catch {
-    thought = null;
+    text = "";
   }
 
-  // Map the LLM's chosen labels back onto real concept ids, keeping only ones it
-  // actually knows.
-  const focusIds: string[] = [];
-  for (const label of thought?.focus ?? []) {
-    const c = findConceptByLabel(m, label);
-    if (c && !focusIds.includes(c.id)) focusIds.push(c.id);
+  // THE FIREWALL: the message may only contain function words + taught content.
+  if (!text || !inspectSentence(text, vocab).ok) {
+    text = fallbackQuestion(m, focusIds, stage);
   }
+
+  // Choose something to look at if the model didn't.
   if (focusIds.length === 0) {
-    // Fall back to the faintest, freshest concept.
     const c = Object.values(m.concepts).sort(
       (a, b) => a.vividness - b.vividness || b.lastSeenAt - a.lastSeenAt
     )[0];
     if (c) focusIds.push(c.id);
   }
 
-  // Resolve a wondering, only if both sides are genuinely known.
-  let wondering: MindState["wondering"] = null;
-  if (thought?.wondering?.about && thought.wondering.like) {
-    const a = findConceptByLabel(m, thought.wondering.about);
-    const b = findConceptByLabel(m, thought.wondering.like);
-    if (a && b && a.id !== b.id) wondering = { aboutConceptId: a.id, likeConceptId: b.id };
-  }
-
   m.focus = focusIds;
-  m.wondering = wondering;
-
-  // THE FIREWALL: whatever the model said, only known words + sounds survive.
-  const vetted = vet(thought?.utterance ?? [], vocab);
-  const utterance = vetted.cleaned.length ? vetted.cleaned : ["…", "?"];
-
   const promptLabels = focusIds
     .map((id) => m.concepts[id]?.label)
     .filter(Boolean) as string[];
 
-  return { focus: focusIds, promptLabels, wondering, utterance };
+  return { text, focus: focusIds, promptLabels };
+}
+
+// A safe question built only from known words + grammar, used if the model's
+// message referenced something un-taught.
+function fallbackQuestion(m: MindState, focusIds: string[], stage: string): string {
+  const label = m.concepts[focusIds[0]]?.label;
+  if (!label) return "…?";
+  if (stage === "infant") return `what is ${label}?`;
+  const nbrs = neighbours(m, focusIds[0]);
+  const feeling = nbrs.find((c) => c.kind === "feeling");
+  const other = nbrs.find((c) => c.kind === "thing");
+  if (feeling && stage !== "child") return `why does ${label} feel ${feeling.label}?`;
+  if (other) return `is ${label} the same as ${other.label}?`;
+  return `what is ${label}?`;
 }

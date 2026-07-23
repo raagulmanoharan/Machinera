@@ -33,17 +33,17 @@ export interface MindState {
   wondering: { aboutConceptId: string; likeConceptId: string } | null;
 }
 
-export type Stage = "newborn" | "infant" | "child" | "growing" | "grown";
+export type Stage =
+  | "newborn"
+  | "infant"
+  | "child"
+  | "adolescent"
+  | "youth"
+  | "grown";
 
 export interface Maturity {
-  score: number; // 0..1, deliberately slow
+  score: number; // 0..1, unfolds over months
   stage: Stage;
-}
-
-// What the parent offers on a turn. Either field may be blank.
-export interface Teaching {
-  literal: string; // "what it is"
-  emotional: string; // "what it feels like"
 }
 
 // A rendered image the child is showing.
@@ -51,11 +51,18 @@ export type Vision =
   | { kind: "svg"; markup: string }
   | { kind: "image"; dataUrl: string };
 
-// The full state of a single turn handed to the client.
-export interface TurnView {
-  vision: Vision;
-  // The child's utterance, already vetted by the firewall. Tokens, not prose.
-  utterance: string[];
-  maturity: Maturity;
-  focusLabels: string[]; // labels of concepts in focus (may be empty at turn zero)
+// What the child says on its turn: a real message (reflection + a question) plus
+// what it wants to picture. The message text is already firewalled.
+export interface ChildMessage {
+  text: string;
+  focus: string[]; // concept ids the image is built from ([] = abstraction)
+  promptLabels: string[]; // learned labels the image may use
+}
+
+// A conversation turn as the UI sees it.
+export interface Message {
+  id: string;
+  from: "child" | "parent";
+  text: string;
+  vision?: Vision; // only child messages that "show" something
 }
