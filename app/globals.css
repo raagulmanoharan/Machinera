@@ -1,0 +1,259 @@
+/* Machinera, after "Her".
+   Not a chat, not a dashboard — a warm presence you're raising. The mind is a
+   soft field of living light; it shares a thought at a time; you speak or write
+   to it. The technology recedes; the relationship remains. */
+
+:root {
+  color-scheme: dark;
+
+  --bg-0: #06080a;
+  --cream: #f6ece1;
+  --soft: #ddccbd;
+  --muted: #a68a7c;
+  --line: rgba(255, 186, 150, 0.16);
+  --line-lit: rgba(255, 158, 128, 0.55);
+
+  --amber: 255, 184, 120;
+  --coral: 255, 143, 118;
+  --rose: 244, 135, 155;
+  --accent: #ff9e80;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg-0);
+  color: var(--cream);
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* a dark, filmic void — the warmth lives in the orb's glow and smoke, not the
+   backdrop, so the crystal reads like a light held in the dark */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 62% at 50% 46%, #1c2124 0%, #12161a 55%, #0b0e11 100%);
+}
+/* vignette + film grain */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 100% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.4) 100%);
+}
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 61;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.field {
+  position: relative;
+  z-index: 1;
+  height: var(--vh, 100dvh);
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 28px;
+  --grow: 0.2;
+  transition: height 0.2s ease;
+}
+
+/* the presence and its voice, held together in the centre — nothing pinned to
+   the top edge, so the screen reads as one warm space, not a header + body */
+.center {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(28px, 6vh, 64px);
+}
+/* showing an image: tighten the stack so the small orb, the image and the
+   question read as one group */
+.field.has-vision .center {
+  gap: clamp(18px, 3.2vh, 28px);
+}
+
+/* ---------- the presence: the mind as a living glass orb (WebGL) ----------
+   The orb is a real 3D sphere. At rest it is warm plasma; when the mind imagines
+   something the generated image blooms inside it, refracted like a dream held in
+   glass. The canvas is transparent, so the warm dusk shows through around it. */
+.orb {
+  position: relative;
+  flex: 0 0 auto;
+  width: min(96vw, 420px);
+  aspect-ratio: 1;
+  transition: width 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation: orbrise 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.orb canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+@keyframes orbrise {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+
+/* while you compose, the orb and its question move up and shrink — still present
+   as context — leaving a calm space below to answer */
+.field.composing .center {
+  justify-content: flex-start;
+  padding-top: clamp(16px, 4vh, 40px);
+  gap: 16px;
+}
+.field.composing .orb {
+  width: min(50vw, 220px);
+}
+.field.composing .utter {
+  font-size: clamp(16px, 4.2vw, 20px);
+  max-width: 28ch;
+  opacity: 0.82;
+}
+
+/* the mind's voice — plain-spoken, warm, unfussy */
+.utter {
+  margin: 0;
+  max-width: 20ch;
+  text-align: center;
+  font-family: var(--font-ui), system-ui, sans-serif;
+  font-size: clamp(22px, 5.4vw, 29px);
+  line-height: 1.42;
+  font-weight: 400;
+  letter-spacing: 0.1px;
+  color: var(--cream);
+  text-wrap: balance;
+  text-shadow: 0 0 40px rgba(var(--amber), 0.14);
+  animation: rise 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  max-height: 52vh;
+  transition: opacity 0.4s ease, max-height 0.5s ease, margin 0.5s ease;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); filter: blur(5px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+
+/* your response — barely there until you reach for it */
+/* a real, contained input box + a prominent mic — voice is the primary way in,
+   typing is the alternative. Standard keyboard-input layout. */
+.composer {
+  flex: 0 0 auto;
+  margin-bottom: calc(22px + env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  align-items: flex-end;
+  gap: 11px;
+}
+
+.inbox {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: rgba(255, 244, 235, 0.05);
+  border: 1px solid var(--line);
+  border-radius: 23px;
+  padding: 6px 6px 6px 18px;
+  min-height: 48px;
+  transition: border-color 0.3s, background 0.3s;
+}
+.composer:focus-within .inbox {
+  border-color: var(--line-lit);
+  background: rgba(255, 244, 235, 0.07);
+}
+
+.inbox textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--cream);
+  font-family: var(--font-ui), sans-serif;
+  font-size: 16.5px;
+  line-height: 1.45;
+  letter-spacing: 0.1px;
+  padding: 9px 0;
+  max-height: 132px;
+}
+.inbox textarea::placeholder {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.send {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  color: #26110c;
+  background: radial-gradient(circle at 40% 32%, #ffd3b0, var(--accent) 72%);
+  box-shadow: 0 0 16px rgba(var(--coral), 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pop 0.2s ease both;
+}
+.send:active { transform: scale(0.92); }
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+
+/* the mic — the primary, voice-first action */
+.mic {
+  flex: 0 0 auto;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--amber), 0.35);
+  cursor: pointer;
+  color: var(--accent);
+  background: rgba(var(--amber), 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+.mic:active { transform: scale(0.94); }
+.mic.on {
+  background: radial-gradient(circle at 40% 32%, #ffd3b0, var(--accent) 74%);
+  color: #24100c;
+  border-color: transparent;
+  animation: micpulse 1.4s ease-in-out infinite;
+}
+@keyframes micpulse {
+  0%, 100% { box-shadow: 0 0 18px rgba(var(--coral), 0.45); }
+  50% { box-shadow: 0 0 34px rgba(var(--coral), 0.8); }
+}
