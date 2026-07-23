@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { boot, openChild, reply as replyToChild } from "@/lib/engine";
+import { primeVoice, speak, startListening, stopSpeaking, type Recording } from "@/lib/voice";
 import type { MindState, Vision } from "@/lib/mind/types";
 
 export default function Page() {
@@ -11,12 +12,12 @@ export default function Page() {
   const [displayKey, setDisplayKey] = useState(0);
   const [thinking, setThinking] = useState(true);
   const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [draft, setDraft] = useState("");
   const [version, setVersion] = useState(0);
-  const [voiceOK, setVoiceOK] = useState(false);
   const started = useRef(false);
-  const recog = useRef<any>(null);
-  const finalRef = useRef("");
+  const primed = useRef(false);
+  const recRef = useRef<Recording | null>(null);
   const ta = useRef<HTMLTextAreaElement>(null);
 
   const present = useCallback((sp: { text: string; vision?: Vision }) => {
@@ -24,7 +25,19 @@ export default function Page() {
     setVision(sp.vision ?? null);
     setDisplayKey((k) => k + 1);
     setVersion((v) => v + 1);
+    // the mind speaks its words aloud (open-source voice)
+    if (sp.text) {
+      setSpeaking(true);
+      speak(sp.text).finally(() => setSpeaking(false));
+    }
   }, []);
+
+  const prime = () => {
+    if (!primed.current) {
+      primed.current = true;
+      primeVoice();
+    }
+  };
 
   const grow = () => {
     const el = ta.current;
@@ -40,6 +53,7 @@ export default function Page() {
       setDraft("");
       requestAnimationFrame(grow);
       setThinking(true);
+      stopSpeaking();
       try {
         present(await replyToChild(mind.current, s));
       } finally {
@@ -70,47 +84,27 @@ export default function Page() {
     return () => vv.removeEventListener("resize", onResize);
   }, []);
 
-  // voice-first: speak to it, the way you would to a person
-  useEffect(() => {
-    const SR = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    if (!SR) return;
-    setVoiceOK(true);
-    const r = new SR();
-    r.lang = "en-US";
-    r.interimResults = true;
-    r.continuous = false;
-    r.onresult = (e: any) => {
-      let s = "";
-      for (let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript;
-      setDraft(s);
-      requestAnimationFrame(grow);
-      if (e.results[e.results.length - 1].isFinal) finalRef.current = s;
-    };
-    r.onerror = () => setListening(false);
-    r.onend = () => {
+  const toggleMic = useCallback(async () => {
+    prime();
+    if (listening) {
+      const r = recRef.current;
+      recRef.current = null;
       setListening(false);
-      const s = finalRef.current.trim();
-      finalRef.current = "";
-      if (s) teachText(s);
-    };
-    recog.current = r;
-  }, [teachText]);
-
-  const toggleMic = () => {
-    const r = recog.current;
-    if (!r) return;
-    if (listening) r.stop();
-    else {
-      setDraft("");
-      finalRef.current = "";
-      setListening(true);
+      if (r) {
+        const t = await r.stop();
+        if (t) teachText(t);
+      }
+    } else {
       try {
-        r.start();
+        stopSpeaking();
+        const r = await startListening();
+        recRef.current = r;
+        setListening(true);
       } catch {
         setListening(false);
       }
     }
-  };
+  }, [listening, teachText]);
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -127,7 +121,7 @@ export default function Page() {
 
   return (
     <main
-      className={`field${thinking ? " is-thinking" : ""}${listening ? " is-listening" : ""}${draft.trim() ? " composing" : ""}${vision ? " has-vision" : ""}`}
+      className={`field${thinking ? " is-thinking" : ""}${listening ? " is-listening" : ""}${speaking ? " is-speaking" : ""}${draft.trim() ? " composing" : ""}${vision ? " has-vision" : ""}`}
       style={{ ["--grow" as any]: growFactor.toFixed(3) }}
     >
       <div className="grain" aria-hidden />
@@ -155,41 +149,37 @@ export default function Page() {
         </p>
       </div>
 
-      <div className={`prompt${draft.trim() ? " has-text" : ""}`}>
-        {voiceOK && (
-          <button
-            className="mic"
-            onClick={toggleMic}
-            aria-label={listening ? "stop" : "speak"}
-            type="button"
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <rect x="7" y="2" width="6" height="10" rx="3" fill="currentColor" />
-              <path d="M4 9a6 6 0 0 0 12 0M10 15v3M7 18h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-            </svg>
-          </button>
-        )}
-        <textarea
-          ref={ta}
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            grow();
-          }}
-          onKeyDown={onKey}
-          placeholder={listening ? "listening…" : "tell it what you see"}
-          rows={1}
-          autoFocus
-        />
+      <div className="composer">
+        <div className="inbox">
+          <textarea
+            ref={ta}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              grow();
+            }}
+            onKeyDown={onKey}
+            onFocus={prime}
+            placeholder={listening ? "listening…" : "tell it what you see"}
+            rows={1}
+          />
+          {draft.trim() && (
+            <button className="send" onClick={() => teachText(draft)} aria-label="tell it" type="button">
+              <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
+                <path d="M9 14V4M4.5 8.5 9 4l4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+        </div>
         <button
-          className="say"
-          onClick={() => teachText(draft)}
-          disabled={thinking || !draft.trim()}
-          aria-label="tell it"
+          className={`mic${listening ? " on" : ""}`}
+          onClick={toggleMic}
+          aria-label={listening ? "stop" : "speak to it"}
           type="button"
         >
-          <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
-            <path d="M9 14V4M4.5 8.5 9 4l4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" />
+            <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8.5 21h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
           </svg>
         </button>
       </div>

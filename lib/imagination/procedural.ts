@@ -49,14 +49,14 @@ export function renderProcedural(
     ? fHues[0]
     : concepts.length
     ? hueOf(concepts[0].label)
-    : 220; // quiet, un-taught blue for turn zero
+    : 28; // a warm, un-taught amber for turn zero — the dream of a newborn mind
 
   const clarity = mat.score; // 0 newborn -> 1 grown; drives sharpness
   const blur = Math.round(60 - clarity * 52); // heavy blur when newborn
   // A soft, foggy field — never a black box. Even an empty mind "sees" a dim,
   // dreamlike haze with faint light, like a photograph of nothing in particular.
-  const topLight = 24 + clarity * 12;
-  const botLight = 10 + clarity * 8;
+  const topLight = 34 + clarity * 12;
+  const botLight = 16 + clarity * 8;
   const breathHue = (baseHue + 30) % 360;
 
   const parts: string[] = [];

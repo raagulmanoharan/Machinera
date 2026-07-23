@@ -124,31 +124,37 @@ body::after {
   opacity: 0.82;
 }
 
+/* the outer glow — a soft warm atmosphere the light sits inside */
 .halo {
   position: absolute;
-  inset: -26%;
+  inset: -22%;
   border-radius: 50%;
-  filter: blur(46px);
+  filter: blur(50px);
   mix-blend-mode: screen;
   will-change: transform, opacity;
 }
 .halo.a {
-  background: radial-gradient(circle at 46% 42%, rgba(var(--amber), 0.95), rgba(var(--coral), 0.45) 46%, transparent 70%);
+  background: radial-gradient(circle at 46% 42%, rgba(var(--amber), 0.85), rgba(var(--coral), 0.4) 52%, transparent 76%);
   animation: floatA 9s ease-in-out infinite, hue 44s ease-in-out infinite;
 }
 .halo.b {
-  background: radial-gradient(circle at 58% 60%, rgba(var(--rose), 0.7), rgba(var(--amber), 0.3) 52%, transparent 74%);
+  background: radial-gradient(circle at 58% 60%, rgba(var(--rose), 0.6), rgba(var(--amber), 0.28) 56%, transparent 78%);
   animation: floatB 12s ease-in-out infinite;
-  opacity: 0.85;
+  opacity: 0.8;
 }
+/* the mind itself — a body of warm living light. Filled bright at the centre so
+   it reads as a glowing presence, not a dark disc ringed by fire. */
 .core {
   position: absolute;
-  width: 34%;
+  inset: 0;
+  margin: auto;
+  width: 82%;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle at 40% 34%, #fff4e6 0%, #ffd6a1 38%, rgba(var(--coral), 0.9) 74%, rgba(var(--coral), 0) 100%);
-  filter: blur(1.5px);
-  box-shadow: 0 0 70px rgba(var(--amber), 0.6), 0 0 120px rgba(var(--coral), 0.35);
+  background:
+    radial-gradient(circle at 42% 36%, #fff6ec 0%, #ffdcae 24%, rgba(var(--amber), 0.92) 46%, rgba(var(--coral), 0.62) 66%, rgba(var(--coral), 0) 82%);
+  filter: blur(2px);
+  box-shadow: 0 0 80px rgba(var(--amber), 0.5), 0 0 150px rgba(var(--coral), 0.3);
   animation: breathe 6.5s ease-in-out infinite;
 }
 
@@ -177,6 +183,10 @@ body::after {
 
 .is-thinking .core { animation-duration: 2.6s; }
 .is-thinking .halo.a { animation-duration: 4.5s, 44s; }
+/* while it speaks aloud, the light quickens gently in time with the voice */
+.is-speaking .core { animation-duration: 1.9s; }
+.is-speaking .halo.a { animation-duration: 3.4s, 44s; }
+.is-speaking .halo.b { animation-duration: 4.2s; }
 
 /* a ripple while it listens to you */
 .is-listening .presence::before {
@@ -195,6 +205,8 @@ body::after {
 /* the mind's dream — a vision glimpsed within the warmth */
 .dream {
   position: absolute;
+  inset: 0;
+  margin: auto;
   width: 92%;
   aspect-ratio: 1;
   border-radius: 50%;
@@ -248,24 +260,36 @@ body::after {
 }
 
 /* your response — barely there until you reach for it */
-.prompt {
+/* a real, contained input box + a prominent mic — voice is the primary way in,
+   typing is the alternative. Standard keyboard-input layout. */
+.composer {
   flex: 0 0 auto;
-  margin-bottom: calc(30px + env(safe-area-inset-bottom));
+  margin-bottom: calc(22px + env(safe-area-inset-bottom));
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   display: flex;
   align-items: flex-end;
-  gap: 14px;
-  padding: 8px 6px 10px;
-  border-bottom: 1px solid var(--line);
-  transition: border-color 0.5s;
-}
-.prompt:focus-within,
-.prompt.has-text {
-  border-color: var(--line-lit);
+  gap: 11px;
 }
 
-.prompt textarea {
+.inbox {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: rgba(255, 244, 235, 0.05);
+  border: 1px solid var(--line);
+  border-radius: 23px;
+  padding: 6px 6px 6px 18px;
+  min-height: 48px;
+  transition: border-color 0.3s, background 0.3s;
+}
+.composer:focus-within .inbox {
+  border-color: var(--line-lit);
+  background: rgba(255, 244, 235, 0.07);
+}
+
+.inbox textarea {
   flex: 1;
   resize: none;
   border: none;
@@ -276,55 +300,60 @@ body::after {
   font-size: 16.5px;
   line-height: 1.45;
   letter-spacing: 0.1px;
-  padding: 8px 0;
+  padding: 9px 0;
   max-height: 132px;
 }
-.prompt textarea::placeholder {
+.inbox textarea::placeholder {
   color: var(--muted);
   font-size: 15px;
 }
 
-.mic,
-.say {
+.send {
   flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
+  color: #26110c;
+  background: radial-gradient(circle at 40% 32%, #ffd3b0, var(--accent) 72%);
+  box-shadow: 0 0 16px rgba(var(--coral), 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.15s, opacity 0.3s, background 0.3s, color 0.3s;
+  animation: pop 0.2s ease both;
 }
+.send:active { transform: scale(0.92); }
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+
+/* the mic — the primary, voice-first action */
 .mic {
-  background: rgba(var(--amber), 0.1);
-  border: 1px solid var(--line);
+  flex: 0 0 auto;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--amber), 0.35);
+  cursor: pointer;
   color: var(--accent);
+  background: rgba(var(--amber), 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, background 0.3s, color 0.3s, box-shadow 0.3s;
 }
-.is-listening .mic {
-  background: var(--accent);
+.mic:active { transform: scale(0.94); }
+.mic.on {
+  background: radial-gradient(circle at 40% 32%, #ffd3b0, var(--accent) 74%);
   color: #24100c;
-  box-shadow: 0 0 22px rgba(var(--coral), 0.6);
+  border-color: transparent;
   animation: micpulse 1.4s ease-in-out infinite;
 }
 @keyframes micpulse {
-  0%, 100% { box-shadow: 0 0 16px rgba(var(--coral), 0.4); }
-  50% { box-shadow: 0 0 30px rgba(var(--coral), 0.75); }
+  0%, 100% { box-shadow: 0 0 18px rgba(var(--coral), 0.45); }
+  50% { box-shadow: 0 0 34px rgba(var(--coral), 0.8); }
 }
-
-.say {
-  background: radial-gradient(circle at 40% 32%, #ffd3b0, var(--accent) 72%);
-  color: #26110c;
-  box-shadow: 0 0 18px rgba(var(--coral), 0.4);
-  opacity: 0;
-  transform: scale(0.7);
-  pointer-events: none;
-}
-.prompt.has-text .say {
-  opacity: 1;
-  transform: none;
-  pointer-events: auto;
-}
-.say:disabled { opacity: 0; }
-.say:active { transform: scale(0.92); }
