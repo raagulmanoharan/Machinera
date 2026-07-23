@@ -149,3 +149,6 @@ to something, not using a product.
 - Learning: **genuine (firewall principle), never pretend-dumbness.**
 - Purpose includes: **the parent learning to articulate thought and feeling.**
 - Default image model: **Z-Image Turbo (Apache-2.0), behind a swappable adapter.**
+- Reasoning faculty: **local by default; a real LLM via the sidecar** (companion service,
+  key stays server-side), and the firewall governs the LLM output exactly as it governs the
+  local faculty — the model supplies language/association, never world-knowledge.

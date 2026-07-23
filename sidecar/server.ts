@@ -1,0 +1,73 @@
+import { createServer } from "node:http";
+import type { MindState, Teaching } from "../lib/mind/types";
+import { integrateLLM, thinkLLM } from "./faculty-llm";
+
+// The sidecar: a small companion service that runs alongside the (static) app and
+// gives its Mind a real LLM faculty, while keeping any API key server-side. The
+// app talks to it only when NEXT_PUBLIC_SIDECAR_URL is set; otherwise it uses the
+// built-in local faculty. Nothing about the core app changes.
+
+const PORT = Number(process.env.PORT || 8787);
+
+const CORS = {
+  "access-control-allow-origin": process.env.SIDECAR_ALLOW_ORIGIN || "*",
+  "access-control-allow-methods": "POST, GET, OPTIONS",
+  "access-control-allow-headers": "content-type",
+};
+
+function send(res: any, code: number, body: unknown) {
+  const json = JSON.stringify(body);
+  res.writeHead(code, { "content-type": "application/json", ...CORS });
+  res.end(json);
+}
+
+function readBody(req: any): Promise<any> {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.on("data", (c: Buffer) => (data += c.toString()));
+    req.on("end", () => {
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch (e) {
+        reject(e);
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
+const server = createServer(async (req, res) => {
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, CORS);
+    return res.end();
+  }
+  try {
+    if (req.method === "GET" && req.url === "/health") {
+      return send(res, 200, { ok: true, provider: process.env.SIDECAR_PROVIDER || "claude-cli" });
+    }
+
+    if (req.method === "POST" && req.url === "/think") {
+      const { mind } = (await readBody(req)) as { mind: MindState };
+      const result = await thinkLLM(mind);
+      return send(res, 200, { ...result, mind });
+    }
+
+    if (req.method === "POST" && req.url === "/integrate") {
+      const { mind, teaching } = (await readBody(req)) as {
+        mind: MindState;
+        teaching: Teaching;
+      };
+      const next = await integrateLLM(mind, teaching);
+      return send(res, 200, { mind: next });
+    }
+
+    send(res, 404, { error: "not found" });
+  } catch (err: any) {
+    console.error("sidecar error:", err?.message || err);
+    send(res, 500, { error: String(err?.message || err) });
+  }
+});
+
+server.listen(PORT, () => {
+  console.log(`Machinera sidecar listening on :${PORT}`);
+});

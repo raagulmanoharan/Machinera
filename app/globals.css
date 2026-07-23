@@ -43,6 +43,33 @@ body {
   padding: 40px 24px 64px;
 }
 
+.mode {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--faint);
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.mode.live {
+  color: #9fe6c4;
+  border-color: #24503f;
+}
+
+.mode.live::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4fd39b;
+  margin-right: 8px;
+  vertical-align: middle;
+  box-shadow: 0 0 8px #4fd39b;
+}
+
 .vision {
   width: min(64vh, 88vw, 560px);
   aspect-ratio: 1;

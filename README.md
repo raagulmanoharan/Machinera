@@ -38,13 +38,14 @@ npm run dev
 ```
 
 It runs **fully offline by default** — the newborn's imagination is rendered procedurally
-and the reasoning faculty is local. No API keys required. Your mind persists to `.data/`.
+and the reasoning faculty is local. No API keys required. Each visitor's mind persists in
+their own browser (`localStorage`), so everyone raises their own private mind.
 
 ## The two engines
 
 | Engine | What it does | Default | Upgrade |
 | --- | --- | --- | --- |
-| **The Mind** | holds the memory graph, gets curious, speaks, integrates your answers | local faculty (`lib/mind/faculty.ts`) | optional LLM faculty (firewalled) |
+| **The Mind** | holds the memory graph, gets curious, speaks, integrates your answers | local faculty (`lib/mind/faculty.ts`) | **real LLM faculty** via the sidecar (`sidecar/`) |
 | **The Imagination** | turns the current thought into an image | procedural abstraction (`lib/imagination/procedural.ts`) | **Z-Image Turbo** once the mind matures (`lib/imagination/zimage.ts`) |
 
 Maturity (`lib/mind/maturity.ts`) drives everything: below a threshold the image stays
@@ -52,24 +53,48 @@ abstract; above it, if a real model is configured, the Imagination hands off —
 steps / lower guidance for a younger mind, so even real renders start dreamy and tighten
 as it grows.
 
+### Real LLM faculty — the sidecar
+
+The Mind can be powered by a real LLM without touching the (static) app, using the
+**sidecar pattern**: a small companion service (`sidecar/`) runs alongside the site, holds
+any API key server-side, and serves the faculty. The app calls it only when
+`NEXT_PUBLIC_SIDECAR_URL` is set; otherwise it uses the built-in local faculty.
+
+Crucially, the [firewall](lib/mind/firewall.ts) still governs the LLM's output: every word
+it speaks is vetted against the taught vocabulary, and on learning it may only extract
+concepts from the parent's own words. The LLM supplies language and association — never
+world-knowledge. So the mind stays genuinely ignorant of anything it wasn't taught, even
+with a frontier model behind it.
+
+```bash
+# terminal 1 — the sidecar (defaults to the local `claude` CLI as the LLM)
+npm run sidecar
+# terminal 2 — the app, pointed at it
+NEXT_PUBLIC_SIDECAR_URL=http://localhost:8787 npm run dev
+```
+
+Providers are pluggable (`sidecar/llm.ts`): set `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY`
+(+ `SIDECAR_OPENAI_BASE` for any OpenAI-compatible endpoint), or the local Claude CLI by
+default. A live sidecar shows a green **LIVE · LLM FACULTY** badge in the app.
+
 ### Turning on real image generation
 
-Copy `.env.example` to `.env.local` and set `ZIMAGE_ENDPOINT` (a Z-Image Turbo or
-compatible text-to-image endpoint). See `docs/open-source-image-generation-research.md`
+Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_ZIMAGE_ENDPOINT` (a Z-Image Turbo
+or compatible text-to-image endpoint). See `docs/open-source-image-generation-research.md`
 for why Z-Image Turbo (6B, Apache-2.0) is the default choice.
 
 ## Layout
 
 ```
-app/                     Next.js app router
+app/                     Next.js app (static export)
   page.tsx               the single screen (image · voice · two-mode input · mind)
-  api/mind/next          form the next thought (curiosity → image → question)
-  api/mind/teach         integrate the parent's answer, then form the next thought
-  api/mind/state         the mind laid bare (for the graph panel)
-lib/mind/                the Mind: graph, firewall, maturity, faculty, store, turn
+lib/engine.ts            client engine: local faculty, or the sidecar if configured
+lib/mind/                the Mind: graph, firewall, maturity, faculty, turn, browser-store
 lib/imagination/         the Imagination: procedural + Z-Image adapter + handoff
+sidecar/                 the real-LLM faculty service (server, llm providers, faculty)
 components/              Vision, MindPanel
 docs/                    experience design + open-source image-model research
+.github/workflows/       GitHub Pages deploy
 ```
 
 ## Design

@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import VisionView from "@/components/Vision";
 import MindPanel from "@/components/MindPanel";
-import { boot, teach as teachMind, think as thinkMind } from "@/lib/engine";
+import {
+  boot,
+  teach as teachMind,
+  think as thinkMind,
+  usingSidecar,
+} from "@/lib/engine";
 import { maturity as computeMaturity } from "@/lib/mind/maturity";
 import type { MindState, TurnView } from "@/lib/mind/types";
 
@@ -60,8 +65,12 @@ export default function Page() {
   }, [version]);
 
   return (
-    <main className="stage">
+    <main className="stage" data-busy={thinking}>
       <section className="center">
+        <div className={`mode${usingSidecar() ? " live" : ""}`}>
+          {usingSidecar() ? "live · llm faculty" : "local faculty"}
+        </div>
+
         <VisionView vision={turn?.vision ?? null} thinking={thinking} />
 
         <div className="voice">
