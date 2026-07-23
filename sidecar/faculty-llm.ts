@@ -156,6 +156,15 @@ React (if there was something) and ask your one question.`;
     text = "";
   }
 
+  // Visual-first: showing what it pictures is the mind's primary mode of being.
+  // The LLM tends to under-show, so we guarantee it — the parent should reliably
+  // see the mind's imagination. A words-only turn is allowed only occasionally
+  // (about one in four), and only when the mind itself leaned that way.
+  if (vocab.size > 0 && !show) {
+    const wordsOnlyTurn = m.turns % 4 === 3;
+    if (!wordsOnlyTurn) show = true;
+  }
+
   // THE FIREWALL: the message may only contain function words + taught content.
   if (!text || !inspectSentence(text, vocab).ok) {
     text = fallbackQuestion(m, focusIds, stage);
