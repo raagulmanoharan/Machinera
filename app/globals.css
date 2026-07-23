@@ -45,7 +45,7 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(66% 58% at 50% 44%, #14171b 0%, #0a0c0f 56%, #050608 100%);
+    radial-gradient(70% 62% at 50% 46%, #1c2124 0%, #12161a 55%, #0b0e11 100%);
 }
 /* vignette + film grain */
 body::after {

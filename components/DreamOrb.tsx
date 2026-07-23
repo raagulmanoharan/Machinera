@@ -46,19 +46,19 @@ const ORB_FRAG = /* glsl */ `
     float bend = 1.0 + pow(1.0 - facing, 2.0) * 0.28;
     vec2 iuv = 0.5 + base * 0.47 * bend;
     vec3 img = texture2D(uImage, clamp(iuv, 0.0, 1.0)).rgb;
-    // bright, luminous, and dreamy: lift the blacks so nothing is harsh — a soft
-    // memory rather than a crisp photo
-    img = pow(img, vec3(0.88)) * 1.08;
-    img = img * 0.86 + 0.12;
+    // bright, luminous, and dreamy: a soft lift so nothing is harsh, but gentle
+    // enough that pale dreams don't blow out to white
+    img = pow(img, vec3(0.92)) * 1.03;
+    img = img * 0.92 + 0.06;
 
     // a soft crystalline body when the mind is holding nothing yet
     vec3 empty = mix(vec3(0.30, 0.38, 0.46), vec3(0.78, 0.86, 0.94), pow(facing, 1.3));
     vec3 col = mix(empty, img, uHasImage);
     // a gentle atmospheric haze inside the glass — the dream is soft, not sharp
-    col = mix(col, vec3(0.86, 0.89, 0.94), 0.10);
+    col = mix(col, vec3(0.86, 0.89, 0.94), 0.07);
     // frosted translucent sheen over the upper glass, light diffusing within it
     float sheen = smoothstep(0.95, 0.0, length(base - vec2(-0.22, 0.30)));
-    col = mix(col, col + vec3(0.92, 0.95, 1.0) * 0.6, sheen * 0.55);
+    col = mix(col, col + vec3(0.92, 0.95, 1.0) * 0.45, sheen * 0.32);
 
     // soft bright fresnel rim — the glass edge catching light
     float fres = pow(1.0 - facing, 2.6);
@@ -112,9 +112,11 @@ const SMOKE_FRAG = /* glsl */ `
     float wisp = smoothstep(0.46, 0.72, f);
     float inner = smoothstep(0.66, 0.98, r);        // gathers around the bubble
     float outer = 1.0 - smoothstep(1.05, 1.95, r);  // thins softly into the dark
-    float a = clamp(wisp * inner * outer * 0.55, 0.0, 1.0);
-    // pale, cool-white mist — it takes warmth only from the glow behind it
-    vec3 col = vec3(0.86, 0.88, 0.92);
+    float a = clamp(wisp * inner * outer * 0.6, 0.0, 1.0);
+    // pale mist, glowing warm where it hugs the bubble (backlit), cooling outward
+    vec3 warm = vec3(1.0, 0.86, 0.62);
+    vec3 pale = vec3(0.84, 0.86, 0.90);
+    vec3 col = mix(pale, warm, smoothstep(1.25, 0.82, r) * 0.7);
     gl_FragColor = vec4(col, a * (0.9 + 0.2 * uActivity));
   }
 `;
@@ -174,9 +176,9 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
 
     // broad soft warm wash, far behind
     const glowTexA = makeGlowTexture([
-      [0.0, "rgba(255,210,150,0.42)"],
-      [0.45, "rgba(255,175,110,0.22)"],
-      [0.8, "rgba(255,160,110,0.05)"],
+      [0.0, "rgba(255,214,158,0.5)"],
+      [0.45, "rgba(255,182,120,0.3)"],
+      [0.8, "rgba(255,165,115,0.08)"],
       [1.0, "rgba(0,0,0,0)"],
     ]);
     const glowMatA = new THREE.MeshBasicMaterial({
