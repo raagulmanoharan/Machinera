@@ -53,22 +53,33 @@ export function renderProcedural(
 
   const clarity = mat.score; // 0 newborn -> 1 grown; drives sharpness
   const blur = Math.round(60 - clarity * 52); // heavy blur when newborn
-  const bgLight = 6 + clarity * 6;
+  // A soft, foggy field — never a black box. Even an empty mind "sees" a dim,
+  // dreamlike haze with faint light, like a photograph of nothing in particular.
+  const topLight = 24 + clarity * 12;
+  const botLight = 10 + clarity * 8;
+  const breathHue = (baseHue + 30) % 360;
 
   const parts: string[] = [];
   parts.push(
-    `<defs><filter id="soft"><feGaussianBlur stdDeviation="${blur}"/></filter></defs>`
+    `<defs>` +
+      `<filter id="soft"><feGaussianBlur stdDeviation="${blur}"/></filter>` +
+      `<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">` +
+      `<stop offset="0" stop-color="hsl(${baseHue} 30% ${topLight}%)"/>` +
+      `<stop offset="1" stop-color="hsl(${baseHue} 35% ${botLight}%)"/>` +
+      `</linearGradient>` +
+      `<radialGradient id="glow" cx="50%" cy="42%" r="60%">` +
+      `<stop offset="0" stop-color="hsl(${breathHue} 45% ${topLight + 22}%)" stop-opacity="0.7"/>` +
+      `<stop offset="1" stop-color="hsl(${breathHue} 45% ${topLight}%)" stop-opacity="0"/>` +
+      `</radialGradient>` +
+      `</defs>`
   );
+  parts.push(`<rect width="${size}" height="${size}" fill="url(#bg)"/>`);
+  // A slow breathing glow — the mind's "attention".
   parts.push(
-    `<rect width="${size}" height="${size}" fill="hsl(${baseHue} 25% ${bgLight}%)"/>`
-  );
-
-  // A slow breathing field is always present — the mind's "attention".
-  const breathHue = (baseHue + 30) % 360;
-  parts.push(
-    `<circle cx="${size / 2}" cy="${size / 2}" r="${size * 0.5}" ` +
-      `fill="hsl(${breathHue} 40% ${18 + clarity * 20}%)" ` +
-      `opacity="${0.25 + clarity * 0.2}" filter="url(#soft)"/>`
+    `<rect width="${size}" height="${size}" fill="url(#glow)" opacity="${(
+      0.5 +
+      clarity * 0.3
+    ).toFixed(2)}"/>`
   );
 
   // One form per focus concept; count/definition grow with vividness + maturity.

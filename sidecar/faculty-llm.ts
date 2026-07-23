@@ -109,7 +109,7 @@ What to do:
 - If the parent just told you something, briefly react to it in your own small way, then ask ONE genuine question.
 - Curiosity should build on what you know: notice, compare, wonder why.
 - Output ONLY JSON: {"focus":["known word", ...], "message":"your words"}
-- "focus": 1-2 known words the next picture you're imagining is about (what you want to look at / show).
+- "focus": the known words your next picture combines. When you are young, 1 word (a single thing). As you grow (child → adolescent → older), combine MORE of what you know into one richer, more imaginative scene — 2, 3, even 4 known words together (e.g. the sea AND the moon AND night). Your inner pictures should get more complex as your world does.
 - "message": your short spoken message (reaction + one question), following the voice guide.`;
 
 export async function childMessage(
