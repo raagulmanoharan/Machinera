@@ -60,15 +60,16 @@ const ORB_FRAG = /* glsl */ `
     float sheen = smoothstep(0.95, 0.0, length(base - vec2(-0.22, 0.30)));
     col = mix(col, col + vec3(0.92, 0.95, 1.0) * 0.45, sheen * 0.32);
 
-    // soft bright fresnel rim — the glass edge catching light
-    float fres = pow(1.0 - facing, 2.6);
-    col = mix(col, vec3(0.96, 0.98, 1.0), fres * 0.7);
-    // soft specular glints — a hint of light on the glass, not hard dots
-    col += vec3(1.0) * smoothstep(0.2, 0.0, length(base - vec2(-0.34, 0.42))) * 0.4;
-    col += vec3(1.0) * smoothstep(0.12, 0.0, length(base - vec2(0.28, -0.24))) * 0.2;
+    // only the faintest rim light — no hard bright ring to outline the circle
+    float fres = pow(1.0 - facing, 3.2);
+    col = mix(col, vec3(0.92, 0.95, 1.0), fres * 0.18);
+    // the dissolving rim glows warm, so the edge melts into light and mist rather
+    // than dimming to a dark ring as it fades
+    col += vec3(1.0, 0.82, 0.55) * smoothstep(0.55, 0.98, radius) * 0.28;
 
-    // the very edge fades so the bubble melts into the mist
-    float a = mix(smoothstep(1.0, 0.90, radius), 1.0, 0.4);
+    // the edge dissolves to nothing over a wide band, so the bubble melts into
+    // the mist with no hard circular silhouette — the glass has no visible edge
+    float a = smoothstep(1.0, 0.72, radius);
     gl_FragColor = vec4(col, a);
   }
 `;
@@ -110,7 +111,7 @@ const SMOKE_FRAG = /* glsl */ `
     float f = fbm(p*1.6 + w*2.0 + ang*0.1);
     // carve delicate wisps: keep the bright filaments, let the gaps go clear
     float wisp = smoothstep(0.46, 0.72, f);
-    float inner = smoothstep(0.66, 0.98, r);        // gathers around the bubble
+    float inner = smoothstep(0.5, 0.9, r);          // veils the dissolving rim
     float outer = 1.0 - smoothstep(1.05, 1.95, r);  // thins softly into the dark
     float a = clamp(wisp * inner * outer * 0.6, 0.0, 1.0);
     // pale mist, glowing warm where it hugs the bubble (backlit), cooling outward
