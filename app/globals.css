@@ -75,11 +75,82 @@ body {
   inset: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 128px 14px 80px;
+  padding: 172px 14px 80px;
   display: flex;
   flex-direction: column;
   font-size: 17px;
   letter-spacing: -0.24px;
+}
+
+/* ---------- iOS status bar ---------- */
+.statusbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 0 24px;
+  background: var(--bg);
+  color: var(--recv-text);
+}
+
+.sb-time {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  min-width: 54px;
+}
+
+.sb-island {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 8px;
+  width: 122px;
+  height: 33px;
+  border-radius: 20px;
+  background: #000;
+}
+
+.sb-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sb-right svg {
+  display: block;
+}
+
+.sb-batt {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+.sb-batt-shell {
+  width: 23px;
+  height: 12px;
+  border-radius: 3.5px;
+  border: 1px solid color-mix(in srgb, var(--recv-text) 40%, transparent);
+  padding: 1.5px;
+  display: block;
+}
+.sb-batt-fill {
+  display: block;
+  height: 100%;
+  width: 78%;
+  border-radius: 1.5px;
+  background: var(--recv-text);
+}
+.sb-batt-cap {
+  width: 1.5px;
+  height: 4px;
+  border-radius: 0 1px 1px 0;
+  background: color-mix(in srgb, var(--recv-text) 40%, transparent);
+  display: block;
 }
 
 .stamp {
@@ -95,11 +166,11 @@ body {
 /* ---------- header ---------- */
 .nav {
   position: absolute;
-  top: 0;
+  top: 44px;
   left: 0;
   right: 0;
   z-index: 10;
-  padding: 10px 14px 12px;
+  padding: 8px 14px 12px;
   background: var(--bar);
   backdrop-filter: blur(22px) saturate(180%);
   -webkit-backdrop-filter: blur(22px) saturate(180%);
@@ -114,8 +185,8 @@ body {
 }
 
 .nav-avatar {
-  width: 62px;
-  height: 62px;
+  width: 66px;
+  height: 66px;
   border-radius: 50%;
   background: radial-gradient(circle at 34% 28%, #dbe6ff, #7d92ff 52%, #3a3f86);
   position: relative;
@@ -153,7 +224,7 @@ body {
 .nav-back,
 .nav-video {
   position: absolute;
-  top: 12px;
+  top: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -166,8 +237,15 @@ body {
 .nav-back {
   left: 14px;
   height: 37px;
-  padding: 0 15px;
+  padding: 0 13px 0 11px;
   border-radius: 19px;
+  gap: 5px;
+}
+.nav-count {
+  color: var(--recv-text);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.2px;
 }
 .nav-video {
   right: 14px;

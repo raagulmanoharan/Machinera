@@ -98,11 +98,35 @@ export default function Page() {
 
   return (
     <div className="app">
+      <div className="statusbar">
+        <span className="sb-time">9:41</span>
+        <span className="sb-island" />
+        <span className="sb-right">
+          <svg className="sb-signal" width="18" height="12" viewBox="0 0 18 12" fill="currentColor">
+            <rect x="0" y="8" width="3" height="4" rx="1" />
+            <rect x="5" y="5.5" width="3" height="6.5" rx="1" />
+            <rect x="10" y="3" width="3" height="9" rx="1" />
+            <rect x="15" y="0.5" width="3" height="11.5" rx="1" />
+          </svg>
+          <svg className="sb-wifi" width="17" height="12" viewBox="0 0 17 12" fill="currentColor">
+            <path d="M8.5 2C5.4 2 2.6 3.2.6 5.2a1 1 0 0 0 0 1.4 1 1 0 0 0 1.4 0A9 9 0 0 1 8.5 4a9 9 0 0 1 6.5 2.6 1 1 0 0 0 1.4 0 1 1 0 0 0 0-1.4A11.5 11.5 0 0 0 8.5 2Z" />
+            <path d="M8.5 6a6 6 0 0 0-4.2 1.7 1 1 0 0 0 0 1.4 1 1 0 0 0 1.4 0A3.7 3.7 0 0 1 8.5 8a3.7 3.7 0 0 1 2.8 1.1 1 1 0 0 0 1.4 0 1 1 0 0 0 0-1.4A6 6 0 0 0 8.5 6Z" />
+            <circle cx="8.5" cy="11" r="1.2" />
+          </svg>
+          <span className="sb-batt">
+            <span className="sb-batt-shell">
+              <span className="sb-batt-fill" />
+            </span>
+            <span className="sb-batt-cap" />
+          </span>
+        </span>
+      </div>
       <nav className="nav">
         <div className="nav-back">
-          <svg width="12" height="21" viewBox="0 0 12 21" fill="none">
+          <svg width="11" height="20" viewBox="0 0 12 21" fill="none">
             <path d="M10 2L2 10.5l8 8.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
+          <span className="nav-count">1</span>
         </div>
         <div className="nav-center">
           <div className="nav-avatar" />
