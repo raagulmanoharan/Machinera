@@ -47,31 +47,53 @@ const ORB_FRAG = /* glsl */ `
 
   void main() {
     float facing = clamp(vNV.z, 0.0, 1.0);
-    float rim = pow(1.0 - facing, 2.3);
+    float rim = pow(1.0 - facing, 2.2);
+    vec2 base = vNV.xy;            // -1..1 across the visible sphere
+    float radius = length(base);
 
-    // the dream, as a crystal-ball fisheye of the image — kept luminous
-    vec2 wob = vec2(sin(uTime*0.5 + vNV.y*3.0), cos(uTime*0.4 + vNV.x*3.0)) * 0.012;
-    vec2 iuv = clamp(0.5 + vNV.xy * 0.52 + wob, 0.0, 1.0);
-    vec3 img = texture2D(uImage, iuv).rgb * 1.18;
+    // the resting mind — a slow warm haze the memories coalesce out of
+    float t = uTime * 0.2;
+    float pl = sm(base*2.5 + t)*0.6 + sm(base*5.0 - t*1.2)*0.4;
+    vec3 haze = mix(CORAL*0.5, AMBER, pl);
+    haze += CREAM * pow(facing, 2.5) * (0.45 + 0.15*sin(uTime*1.1));
 
-    // the resting mind — a slow warm plasma
-    float t = uTime * 0.22;
-    float pl = sm(vNV.xy*2.5 + t)*0.6 + sm(vNV.xy*5.0 - t*1.2)*0.4;
-    vec3 plasma = mix(CORAL*0.5, AMBER, pl);
-    plasma += CREAM * pow(facing, 2.5) * (0.5 + 0.15*sin(uTime*1.1));
+    // --- the conjured memory, projected inside the glass ---
+    // parallax by view angle so the projection feels suspended in a volume, not
+    // painted on the surface; sample R/G/B at slightly different offsets for a
+    // holographic chromatic shimmer.
+    vec2 drift = vec2(sin(uTime*0.4 + base.y*4.0), cos(uTime*0.33 + base.x*4.0)) * 0.010;
+    vec2 uvc = 0.5 + base * 0.47 + drift;
+    float depth = 1.0 - facing;
+    vec2 par = base * (0.05 + 0.05 * depth);   // deeper toward the rim
+    vec2 ca = base * 0.014;                      // chromatic aberration
+    float r = texture2D(uImage, clamp(uvc + par + ca, 0.0, 1.0)).r;
+    float g = texture2D(uImage, clamp(uvc + par,      0.0, 1.0)).g;
+    float b = texture2D(uImage, clamp(uvc + par - ca, 0.0, 1.0)).b;
+    vec3 img = vec3(r, g, b) * 1.22;
 
-    vec3 col = mix(plasma, img, uHasImage);
+    // half-formed: drifting noise decides where the memory has resolved and where
+    // it is still dissolving back into haze — a thought only partly conjured
+    float form = sm(base*3.0 + uTime*0.15)*0.6 + sm(base*6.5 - uTime*0.11)*0.4;
+    form = smoothstep(0.22, 0.85, form + 0.34);
+    // it lives in the inner volume and melts to glass/haze before the rim
+    float volume = smoothstep(0.98, 0.18, radius);
+    float memory = form * volume;
 
-    // the orb always glows from within, like lit glass — a warm ambient floor and
-    // a soft inner core keep even a dim dream luminous, never a dark hole
-    col += AMBER * 0.14;
-    col += CREAM * pow(facing, 3.0) * 0.22 * (1.0 - 0.4 * uHasImage);
+    vec3 dream = mix(haze, img, memory);
+    // sit the memory in the warm amber of the mind
+    dream = mix(dream, dream * mix(vec3(1.0), AMBER, 0.6), 0.22);
 
-    // warm glass rim catching the light
-    col += mix(AMBER, CREAM, 0.35) * rim * (0.5 + 0.5*uActivity);
-    // only the extreme edge falls into the dusk
-    col *= 0.88 + 0.12*facing;
+    vec3 col = mix(haze, dream, uHasImage);
 
+    // --- the glass bowl it is held in ---
+    col += AMBER * 0.12;                                            // warm floor
+    col += CREAM * pow(facing, 3.0) * 0.16 * (1.0 - 0.3*uHasImage); // inner light
+    col += mix(AMBER, CREAM, 0.4) * rim * (0.5 + 0.5*uActivity);    // fresnel rim
+    // a soft specular glint, like light catching the curve of the glass
+    float spec = smoothstep(0.30, 0.0, length(base - vec2(-0.34, 0.40)));
+    col += CREAM * spec * facing * 0.5;
+
+    col *= 0.9 + 0.1*facing;
     gl_FragColor = vec4(col, 1.0);
   }
 `;
