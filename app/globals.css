@@ -6,7 +6,7 @@
 :root {
   color-scheme: dark;
 
-  --bg-0: #0c0708;
+  --bg-0: #06080a;
   --cream: #f6ece1;
   --soft: #ddccbd;
   --muted: #a68a7c;
@@ -36,7 +36,8 @@ body {
   overflow: hidden;
 }
 
-/* a warm dusk — filmic, hazy, soft at the edges */
+/* a dark, filmic void — the warmth lives in the orb's glow and smoke, not the
+   backdrop, so the crystal reads like a light held in the dark */
 body::before {
   content: "";
   position: fixed;
@@ -44,8 +45,7 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(115% 85% at 50% 34%, #35191b 0%, #1c0f11 55%, #0c0708 100%),
-    radial-gradient(60% 40% at 50% 8%, rgba(var(--amber), 0.1), transparent 70%);
+    radial-gradient(66% 58% at 50% 44%, #14171b 0%, #0a0c0f 56%, #050608 100%);
 }
 /* vignette + film grain */
 body::after {

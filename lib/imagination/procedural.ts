@@ -55,8 +55,8 @@ export function renderProcedural(
   const blur = Math.round(60 - clarity * 52); // heavy blur when newborn
   // A soft, foggy field — never a black box. Even an empty mind "sees" a dim,
   // dreamlike haze with faint light, like a photograph of nothing in particular.
-  const topLight = 34 + clarity * 12;
-  const botLight = 16 + clarity * 8;
+  const topLight = 52 + clarity * 10;
+  const botLight = 34 + clarity * 8;
   const breathHue = (baseHue + 30) % 360;
 
   const parts: string[] = [];
