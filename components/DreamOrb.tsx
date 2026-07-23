@@ -102,13 +102,13 @@ const SMOKE_FRAG = /* glsl */ `
   void main() {
     vec2 p = vL;
     float r = length(p);
-    float ang = atan(p.y, p.x);
     float t = uTime * 0.05;
-    // large, slow, domain-warped billows — soft airy veils, not dense turbulence
+    // large, slow, domain-warped billows — soft airy veils, not dense turbulence.
+    // (No atan/angle term: atan2 wraps on the -x axis and would sear a hard seam.)
     vec2 sw = vec2(cos(t), sin(t)) * 0.2;
     vec2 q = vec2(fbm(p*1.1 + sw + t*0.6), fbm(p*1.1 + vec2(3.2,1.3) - t*0.6));
     vec2 w = vec2(fbm(p*1.1 + q*1.8 + vec2(1.7,9.2) + t), fbm(p*1.1 + q*1.8 + vec2(8.3,2.8) - t));
-    float f = fbm(p*1.6 + w*2.0 + ang*0.1);
+    float f = fbm(p*1.6 + w*2.0);
     // carve delicate wisps: keep the bright filaments, let the gaps go clear
     float wisp = smoothstep(0.46, 0.72, f);
     float inner = smoothstep(0.5, 0.9, r);          // veils the dissolving rim
