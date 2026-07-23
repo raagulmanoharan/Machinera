@@ -127,7 +127,7 @@ export default function Page() {
 
   return (
     <main
-      className={`field${thinking ? " is-thinking" : ""}${listening ? " is-listening" : ""}${draft.trim() ? " composing" : ""}`}
+      className={`field${thinking ? " is-thinking" : ""}${listening ? " is-listening" : ""}${draft.trim() ? " composing" : ""}${vision ? " has-vision" : ""}`}
       style={{ ["--grow" as any]: growFactor.toFixed(3) }}
     >
       <div className="grain" aria-hidden />

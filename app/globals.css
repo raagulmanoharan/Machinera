@@ -107,18 +107,21 @@ body::after {
   transition: transform 0.7s ease, opacity 0.5s ease;
 }
 
-/* while you compose, the mind quietly recedes — its question steps aside so you
-   have a calm space to answer, and returns when you send */
+/* while you compose, the mind and its question move up and shrink — still there
+   as context — leaving a calm space below to answer */
+.field.composing .center {
+  justify-content: flex-start;
+  padding-top: clamp(18px, 5vh, 46px);
+  gap: 18px;
+}
 .field.composing .presence {
-  opacity: 0.5;
-  transform: scale(calc((0.74 + var(--grow) * 0.5) * 0.8));
+  transform: scale(calc((0.74 + var(--grow) * 0.5) * 0.56));
+  opacity: 0.9;
 }
 .field.composing .utter {
-  opacity: 0;
-  max-height: 0;
-  margin: 0;
-  overflow: hidden;
-  pointer-events: none;
+  font-size: clamp(16px, 4.2vw, 20px);
+  max-width: 28ch;
+  opacity: 0.82;
 }
 
 .halo {
@@ -150,8 +153,14 @@ body::after {
 }
 
 @keyframes breathe {
-  0%, 100% { transform: scale(1); opacity: 0.92; }
-  50% { transform: scale(1.09); opacity: 1; }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.09); }
+}
+/* when the mind is showing a vision, the bright core steps back so the image
+   itself becomes the focal light */
+.field.has-vision .core {
+  opacity: 0.22;
+  transition: opacity 0.8s ease;
 }
 @keyframes floatA {
   0%, 100% { transform: translate(-3%, -2%) scale(1); }
@@ -186,12 +195,13 @@ body::after {
 /* the mind's dream — a vision glimpsed within the warmth */
 .dream {
   position: absolute;
-  width: 70%;
+  width: 92%;
   aspect-ratio: 1;
   border-radius: 50%;
   overflow: hidden;
-  -webkit-mask-image: radial-gradient(circle, #000 52%, transparent 76%);
-  mask-image: radial-gradient(circle, #000 52%, transparent 76%);
+  -webkit-mask-image: radial-gradient(circle, #000 64%, transparent 88%);
+  mask-image: radial-gradient(circle, #000 64%, transparent 88%);
+  box-shadow: 0 0 60px rgba(var(--amber), 0.35);
   animation: bloom 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 .dream img,
@@ -206,8 +216,9 @@ body::after {
 .dream-warm {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 42%, rgba(var(--amber), 0.35), rgba(var(--coral), 0.28) 60%, rgba(var(--rose), 0.2) 100%);
+  background: radial-gradient(circle at 50% 42%, rgba(var(--amber), 0.4), rgba(var(--coral), 0.3) 62%, rgba(var(--rose), 0.22) 100%);
   mix-blend-mode: soft-light;
+  opacity: 0.55;
 }
 @keyframes bloom {
   from { opacity: 0; transform: scale(0.86); filter: blur(10px); }
