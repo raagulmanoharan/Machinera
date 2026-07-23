@@ -131,18 +131,19 @@ export default function Page() {
           <span className="halo a" />
           <span className="halo b" />
           <span className="core" />
-          {vision && (
-            <div className="dream" key={displayKey}>
-              {vision.kind === "svg" ? (
-                <div dangerouslySetInnerHTML={{ __html: vision.markup }} />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={vision.dataUrl} alt="" />
-              )}
-              <span className="dream-warm" />
-            </div>
-          )}
         </div>
+
+        {vision && (
+          <figure className="canvas" key={displayKey}>
+            {vision.kind === "svg" ? (
+              <div className="art" dangerouslySetInnerHTML={{ __html: vision.markup }} />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="art" src={vision.dataUrl} alt="" />
+            )}
+            <span className="canvas-glow" />
+          </figure>
+        )}
 
         <p className="utter" key={`u${displayKey}`}>
           {thinking ? "" : text}

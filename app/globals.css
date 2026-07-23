@@ -93,6 +93,11 @@ body::after {
   justify-content: center;
   gap: clamp(28px, 6vh, 64px);
 }
+/* showing an image: tighten the stack so the small orb, the image and the
+   question read as one group */
+.field.has-vision .center {
+  gap: clamp(18px, 3.2vh, 28px);
+}
 
 /* ---------- the presence: the mind as living light ---------- */
 .presence {
@@ -162,12 +167,6 @@ body::after {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.09); }
 }
-/* when the mind is showing a vision, the bright core steps back so the image
-   itself becomes the focal light */
-.field.has-vision .core {
-  opacity: 0.22;
-  transition: opacity 0.8s ease;
-}
 @keyframes floatA {
   0%, 100% { transform: translate(-3%, -2%) scale(1); }
   50% { transform: translate(3%, 3%) scale(1.06); }
@@ -183,6 +182,17 @@ body::after {
 
 .is-thinking .core { animation-duration: 2.6s; }
 .is-thinking .halo.a { animation-duration: 4.5s, 44s; }
+/* when the mind is showing you something, its light steps back to a small warm
+   companion above the image — the image itself becomes the focus */
+.field.has-vision .presence {
+  width: min(20vw, 84px);
+  transform: none;
+  opacity: 0.95;
+}
+.field.has-vision.composing .presence {
+  width: min(14vw, 60px);
+}
+
 /* while it speaks aloud, the light quickens gently in time with the voice */
 .is-speaking .core { animation-duration: 1.9s; }
 .is-speaking .halo.a { animation-duration: 3.4s, 44s; }
@@ -202,38 +212,47 @@ body::after {
   100% { transform: scale(1.7); opacity: 0; }
 }
 
-/* the mind's dream — a vision glimpsed within the warmth */
-.dream {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 92%;
+/* the mind's vision — what it is looking at, shown to you full and large. Soft
+   rounded frame with a warm glow so it sits inside the dusk rather than cutting a
+   hard rectangle out of it, but unmistakably an image, not an orb. */
+.canvas {
+  position: relative;
+  flex: 0 0 auto;
+  margin: 0;
+  width: min(80vw, 380px);
   aspect-ratio: 1;
-  border-radius: 50%;
+  border-radius: 30px;
   overflow: hidden;
-  -webkit-mask-image: radial-gradient(circle, #000 64%, transparent 88%);
-  mask-image: radial-gradient(circle, #000 64%, transparent 88%);
-  box-shadow: 0 0 60px rgba(var(--amber), 0.35);
-  animation: bloom 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  box-shadow:
+    0 0 0 1px rgba(var(--amber), 0.14),
+    0 26px 70px rgba(0, 0, 0, 0.55),
+    0 0 90px rgba(var(--amber), 0.28);
+  animation: bloom 1.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
-.dream img,
-.dream > div,
-.dream svg {
+.canvas .art {
   width: 100%;
   height: 100%;
   display: block;
   object-fit: cover;
-  filter: saturate(1.04) contrast(1.02);
+  filter: saturate(1.05) contrast(1.02);
 }
-.dream-warm {
+/* a whisper of warmth over the image + a soft inner edge, so it melts into the
+   ambient dusk at its border instead of ending abruptly */
+.canvas-glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 42%, rgba(var(--amber), 0.4), rgba(var(--coral), 0.3) 62%, rgba(var(--rose), 0.22) 100%);
+  pointer-events: none;
+  background:
+    radial-gradient(120% 120% at 50% 40%, transparent 60%, rgba(12, 7, 8, 0.5) 100%),
+    radial-gradient(circle at 50% 36%, rgba(var(--amber), 0.16), transparent 60%);
   mix-blend-mode: soft-light;
-  opacity: 0.55;
+}
+/* while composing, the image gives a little room but stays visible */
+.field.composing .canvas {
+  width: min(56vw, 260px);
 }
 @keyframes bloom {
-  from { opacity: 0; transform: scale(0.86); filter: blur(10px); }
+  from { opacity: 0; transform: scale(0.92) translateY(8px); filter: blur(12px); }
   to { opacity: 1; transform: none; filter: blur(0); }
 }
 
