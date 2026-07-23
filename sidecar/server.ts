@@ -1,6 +1,26 @@
 import { createServer } from "node:http";
+import { spawn } from "node:child_process";
 import type { MindState, Teaching } from "../lib/mind/types";
 import { integrateLLM, thinkLLM } from "./faculty-llm";
+
+const POLL_BASE = process.env.POLLINATIONS_BASE || "https://image.pollinations.ai";
+
+// Fetch an image via curl, which honours the environment's HTTPS_PROXY. Lets the
+// sidecar reach the image model even where only the proxy has external egress; a
+// browser on a normal network can also call the model directly (see pollinations.ts).
+function fetchImage(url: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const child = spawn("curl", ["-s", "-L", "--max-time", "120", url], {
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const chunks: Buffer[] = [];
+    child.stdout.on("data", (d: Buffer) => chunks.push(d));
+    child.on("error", reject);
+    child.on("close", (code) =>
+      code === 0 ? resolve(Buffer.concat(chunks)) : reject(new Error(`curl ${code}`))
+    );
+  });
+}
 
 // The sidecar: a small companion service that runs alongside the (static) app and
 // gives its Mind a real LLM faculty, while keeping any API key server-side. The
@@ -44,6 +64,25 @@ const server = createServer(async (req, res) => {
   try {
     if (req.method === "GET" && req.url === "/health") {
       return send(res, 200, { ok: true, provider: process.env.SIDECAR_PROVIDER || "claude-cli" });
+    }
+
+    // Image proxy: browser hits localhost, the sidecar reaches the model.
+    if (req.method === "GET" && req.url && req.url.startsWith("/image")) {
+      const u = new URL(req.url, "http://localhost");
+      const prompt = u.searchParams.get("prompt") || "";
+      const seed = u.searchParams.get("seed") || "0";
+      const w = u.searchParams.get("w") || "768";
+      const h = u.searchParams.get("h") || "768";
+      const target =
+        `${POLL_BASE}/prompt/${encodeURIComponent(prompt)}` +
+        `?width=${w}&height=${h}&nologo=true&seed=${seed}&model=flux`;
+      const buf = await fetchImage(target);
+      res.writeHead(200, {
+        "content-type": "image/jpeg",
+        "cache-control": "public, max-age=86400",
+        ...CORS,
+      });
+      return res.end(buf);
     }
 
     if (req.method === "POST" && req.url === "/think") {

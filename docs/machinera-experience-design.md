@@ -148,7 +148,10 @@ to something, not using a product.
 - Arc: **emergent / user-defined.**
 - Learning: **genuine (firewall principle), never pretend-dumbness.**
 - Purpose includes: **the parent learning to articulate thought and feeling.**
-- Default image model: **Z-Image Turbo (Apache-2.0), behind a swappable adapter.**
+- Image generation: **real text-to-image by default** (FLUX via a keyless endpoint), with
+  maturity driving the *style* (dreamlike→detailed) so the abstract→complex arc plays out on
+  real images; **Z-Image Turbo** is the bring-your-own-endpoint option. Empty mind → genuine
+  procedural abstraction. What is depicted is always firewalled to taught concepts.
 - Reasoning faculty: **local by default; a real LLM via the sidecar** (companion service,
   key stays server-side), and the firewall governs the LLM output exactly as it governs the
   local faculty — the model supplies language/association, never world-knowledge.

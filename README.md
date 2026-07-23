@@ -46,12 +46,17 @@ their own browser (`localStorage`), so everyone raises their own private mind.
 | Engine | What it does | Default | Upgrade |
 | --- | --- | --- | --- |
 | **The Mind** | holds the memory graph, gets curious, speaks, integrates your answers | local faculty (`lib/mind/faculty.ts`) | **real LLM faculty** via the sidecar (`sidecar/`) |
-| **The Imagination** | turns the current thought into an image | procedural abstraction (`lib/imagination/procedural.ts`) | **Z-Image Turbo** once the mind matures (`lib/imagination/zimage.ts`) |
+| **The Imagination** | turns the current thought into an image | **real text-to-image** (FLUX via Pollinations, keyless — `lib/imagination/pollinations.ts`) | **Z-Image Turbo** endpoint (`lib/imagination/zimage.ts`); procedural offline fallback |
 
-Maturity (`lib/mind/maturity.ts`) drives everything: below a threshold the image stays
-abstract; above it, if a real model is configured, the Imagination hands off — with fewer
-steps / lower guidance for a younger mind, so even real renders start dreamy and tighten
-as it grows.
+Maturity (`lib/mind/maturity.ts`) drives the **style**, not just a threshold: a young mind's
+images are formless and dreamlike, sharpening into detailed, vivid scenes as it grows — the
+abstract→complex arc, on real generated images. A mind with nothing learned yet can depict
+nothing, so turn zero is genuine procedural abstraction. What every image *depicts* is still
+firewalled — the prompt is built only from taught concepts.
+
+Real generation needs no API key: the browser (or the sidecar, if one is running) calls a
+free FLUX-backed endpoint. Set `NEXT_PUBLIC_IMAGINATION=procedural` to force the offline
+look, or configure a `ZIMAGE_ENDPOINT` to use your own Z-Image Turbo deployment instead.
 
 ### Real LLM faculty — the sidecar
 
