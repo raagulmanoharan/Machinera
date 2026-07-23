@@ -42,28 +42,34 @@ const ORB_FRAG = /* glsl */ `
     vec2 base = vNV.xy;              // -1..1 across the visible sphere
     float radius = length(base);
 
-    // crystal-ball refraction: an upright fisheye that bends harder near the rim
-    float bend = 1.0 + pow(1.0 - facing, 2.0) * 0.35;
-    vec2 iuv = 0.5 + base * 0.46 * bend;
+    // gentle crystal-ball refraction, upright, bending a little more at the rim
+    float bend = 1.0 + pow(1.0 - facing, 2.0) * 0.28;
+    vec2 iuv = 0.5 + base * 0.47 * bend;
     vec3 img = texture2D(uImage, clamp(iuv, 0.0, 1.0)).rgb;
+    // bright, luminous, and dreamy: lift the blacks so nothing is harsh — a soft
+    // memory rather than a crisp photo
+    img = pow(img, vec3(0.88)) * 1.08;
+    img = img * 0.86 + 0.12;
 
-    // a cool crystalline body when the mind is holding nothing yet
-    vec3 empty = mix(vec3(0.10, 0.16, 0.22), vec3(0.5, 0.62, 0.72), pow(facing, 1.5));
+    // a soft crystalline body when the mind is holding nothing yet
+    vec3 empty = mix(vec3(0.30, 0.38, 0.46), vec3(0.78, 0.86, 0.94), pow(facing, 1.3));
     vec3 col = mix(empty, img, uHasImage);
-    col *= 1.02;
+    // a gentle atmospheric haze inside the glass — the dream is soft, not sharp
+    col = mix(col, vec3(0.86, 0.89, 0.94), 0.10);
+    // frosted translucent sheen over the upper glass, light diffusing within it
+    float sheen = smoothstep(0.95, 0.0, length(base - vec2(-0.22, 0.30)));
+    col = mix(col, col + vec3(0.92, 0.95, 1.0) * 0.6, sheen * 0.55);
 
-    // bright fresnel rim — the glass edge catching light
-    float fres = pow(1.0 - facing, 3.0);
-    col = mix(col, vec3(0.95, 0.97, 1.0), fres * 0.6);
-    // a darker ring just inside the rim, reading as glass thickness
-    col *= 1.0 - 0.25 * smoothstep(0.72, 0.99, radius);
-    // specular glints, like light on the curve of the glass
-    float g1 = smoothstep(0.34, 0.0, length(base - vec2(-0.36, 0.40)));
-    col += vec3(1.0) * g1 * facing * 0.5;
-    float g2 = smoothstep(0.13, 0.0, length(base - vec2(0.30, -0.28)));
-    col += vec3(1.0) * g2 * 0.28;
+    // soft bright fresnel rim — the glass edge catching light
+    float fres = pow(1.0 - facing, 2.6);
+    col = mix(col, vec3(0.96, 0.98, 1.0), fres * 0.7);
+    // crisp specular glints
+    col += vec3(1.0) * smoothstep(0.16, 0.0, length(base - vec2(-0.34, 0.42))) * 0.7;
+    col += vec3(1.0) * smoothstep(0.09, 0.0, length(base - vec2(0.28, -0.24))) * 0.4;
 
-    gl_FragColor = vec4(col, 1.0);
+    // the very edge fades so the bubble melts into the mist
+    float a = mix(smoothstep(1.0, 0.90, radius), 1.0, 0.4);
+    gl_FragColor = vec4(col, a);
   }
 `;
 
@@ -89,42 +95,39 @@ const SMOKE_FRAG = /* glsl */ `
   }
   float fbm(vec2 p){
     float s = 0.0, a = 0.5; mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
-    for (int i = 0; i < 5; i++) { s += a * vn(p); p = m * p; a *= 0.5; }
+    for (int i = 0; i < 6; i++) { s += a * vn(p); p = m * p; a *= 0.5; }
     return s;
   }
   void main() {
     vec2 p = vL;
     float r = length(p);
     float ang = atan(p.y, p.x);
-    float t = uTime * 0.06;
-    vec2 sw = vec2(cos(t*1.3), sin(t*1.3)) * 0.15;
-    vec2 q = vec2(fbm(p*1.8 + sw + t), fbm(p*1.8 + vec2(5.2,1.3) - t));
-    vec2 w = vec2(fbm(p*1.8 + q*2.2 + vec2(1.7,9.2) + t*1.1), fbm(p*1.8 + q*2.2 + vec2(8.3,2.8) - t*0.9));
-    float smoke = fbm(p*3.1 + w*2.6 + ang*0.2);
-    smoke = pow(clamp(smoke, 0.0, 1.0), 2.1);
-    float inner = smoothstep(0.80, 1.02, r);        // veils the rim, clear inside
-    float outer = 1.0 - smoothstep(1.04, 1.52, r);  // gone before the corners
-    float a = clamp(smoke * inner * outer * 1.35, 0.0, 1.0);
-    vec3 pale = vec3(0.78, 0.78, 0.80);
-    float backlit = smoothstep(1.16, 0.98, r);
-    vec3 col = mix(pale, vec3(1.0, 0.70, 0.34), backlit * 0.9);
-    col *= 0.7 + 0.55 * smoke;
-    gl_FragColor = vec4(col, a * (0.85 + 0.3 * uActivity));
+    float t = uTime * 0.05;
+    // large, slow, domain-warped billows — soft airy veils, not dense turbulence
+    vec2 sw = vec2(cos(t), sin(t)) * 0.2;
+    vec2 q = vec2(fbm(p*1.1 + sw + t*0.6), fbm(p*1.1 + vec2(3.2,1.3) - t*0.6));
+    vec2 w = vec2(fbm(p*1.1 + q*1.8 + vec2(1.7,9.2) + t), fbm(p*1.1 + q*1.8 + vec2(8.3,2.8) - t));
+    float f = fbm(p*1.6 + w*2.0 + ang*0.1);
+    // carve delicate wisps: keep the bright filaments, let the gaps go clear
+    float wisp = smoothstep(0.46, 0.72, f);
+    float inner = smoothstep(0.66, 0.98, r);        // gathers around the bubble
+    float outer = 1.0 - smoothstep(1.05, 1.95, r);  // thins softly into the dark
+    float a = clamp(wisp * inner * outer * 0.55, 0.0, 1.0);
+    // pale, cool-white mist — it takes warmth only from the glow behind it
+    vec3 col = vec3(0.86, 0.88, 0.92);
+    gl_FragColor = vec4(col, a * (0.9 + 0.2 * uActivity));
   }
 `;
 
-// a soft radial-gradient sprite standing behind the orb — the orb occludes its
-// bright centre, leaving a warm bloom that hugs the silhouette and fades outward
-function makeGlowTexture(): THREE.Texture {
+// a soft radial-gradient sprite behind the bubble — the warm glow that backlights
+// the mist. Two are used: a broad diffuse wash and a brighter ring hugging the rim.
+function makeGlowTexture(stops: [number, string][]): THREE.Texture {
   const s = 256;
   const cv = document.createElement("canvas");
   cv.width = cv.height = s;
   const ctx = cv.getContext("2d")!;
   const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  g.addColorStop(0.0, "rgba(255,190,120,0.5)");
-  g.addColorStop(0.4, "rgba(255,150,90,0.28)");
-  g.addColorStop(0.75, "rgba(255,140,90,0.06)");
-  g.addColorStop(1.0, "rgba(0,0,0,0.0)");
+  for (const [o, c] of stops) g.addColorStop(o, c);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, s, s);
   const tex = new THREE.CanvasTexture(cv);
@@ -169,20 +172,38 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
     const group = new THREE.Group();
     scene.add(group);
 
-    // the bloom halo, drawn first and behind so the orb occludes its centre
-    const glowTex = makeGlowTexture();
-    const glowMat = new THREE.MeshBasicMaterial({
-      map: glowTex,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      depthTest: false,
-      opacity: 0.9,
+    // broad soft warm wash, far behind
+    const glowTexA = makeGlowTexture([
+      [0.0, "rgba(255,210,150,0.42)"],
+      [0.45, "rgba(255,175,110,0.22)"],
+      [0.8, "rgba(255,160,110,0.05)"],
+      [1.0, "rgba(0,0,0,0)"],
+    ]);
+    const glowMatA = new THREE.MeshBasicMaterial({
+      map: glowTexA, transparent: true, blending: THREE.AdditiveBlending,
+      depthWrite: false, depthTest: false, opacity: 0.9,
     });
-    const glow = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.2), glowMat);
-    glow.position.z = -0.8;
-    glow.renderOrder = -2;
-    group.add(glow);
+    const glowA = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 5.4), glowMatA);
+    glowA.position.z = -1.0;
+    glowA.renderOrder = -3;
+    group.add(glowA);
+
+    // a brighter gold ring hugging the bubble's rim — the backlight
+    const glowTexB = makeGlowTexture([
+      [0.0, "rgba(0,0,0,0)"],
+      [0.55, "rgba(255,216,170,0)"],
+      [0.74, "rgba(255,218,175,0.4)"],
+      [0.9, "rgba(255,200,150,0.09)"],
+      [1.0, "rgba(0,0,0,0)"],
+    ]);
+    const glowMatB = new THREE.MeshBasicMaterial({
+      map: glowTexB, transparent: true, blending: THREE.AdditiveBlending,
+      depthWrite: false, depthTest: false, opacity: 1.0,
+    });
+    const glowB = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 3.3), glowMatB);
+    glowB.position.z = -0.5;
+    glowB.renderOrder = -2;
+    group.add(glowB);
 
     const orb = new THREE.Mesh(
       new THREE.SphereGeometry(1, 128, 128),
@@ -200,8 +221,8 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
       depthWrite: false,
       depthTest: false,
     });
-    const smoke = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 4.0), smokeMat);
-    smoke.position.z = 0.6;
+    const smoke = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.2), smokeMat);
+    smoke.position.z = 0.5;
     smoke.renderOrder = 2;
     group.add(smoke);
 
@@ -256,11 +277,12 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
       uniforms.uActivity.value += (live.current.activity - uniforms.uActivity.value) * Math.min(1, dt * 4);
       uniforms.uHasImage.value += (live.current.targetHasImage - uniforms.uHasImage.value) * Math.min(1, dt * 2.2);
       // breathe, and size gently with maturity
-      const s = (0.78 + live.current.grow * 0.12) * (1 + 0.02 * Math.sin(uniforms.uTime.value * 0.9));
+      const s = (0.62 + live.current.grow * 0.1) * (1 + 0.02 * Math.sin(uniforms.uTime.value * 0.9));
       group.scale.setScalar(s);
-      // the halo pulses softly, brighter while the mind is active
-      glowMat.opacity =
-        (0.72 + 0.14 * Math.sin(uniforms.uTime.value * 1.3)) * (0.85 + 0.5 * uniforms.uActivity.value);
+      // the glow breathes softly, brighter while the mind is active
+      const pulse = 0.86 + 0.1 * Math.sin(uniforms.uTime.value * 1.1);
+      glowMatA.opacity = pulse * (0.85 + 0.4 * uniforms.uActivity.value);
+      glowMatB.opacity = pulse * (0.9 + 0.4 * uniforms.uActivity.value);
       renderer.render(scene, camera);
     };
     animate();
@@ -271,9 +293,12 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
       api.current = null;
       orb.geometry.dispose();
       (orb.material as THREE.Material).dispose();
-      glow.geometry.dispose();
-      glowMat.dispose();
-      glowTex.dispose();
+      glowA.geometry.dispose();
+      glowMatA.dispose();
+      glowTexA.dispose();
+      glowB.geometry.dispose();
+      glowMatB.dispose();
+      glowTexB.dispose();
       smoke.geometry.dispose();
       smokeMat.dispose();
       const t = uniforms.uImage.value;
