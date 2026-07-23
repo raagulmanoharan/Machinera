@@ -55,6 +55,7 @@ export type Vision =
 // what it wants to picture. The message text is already firewalled.
 export interface ChildMessage {
   text: string;
+  show: boolean; // whether the child is showing a picture this message (its choice)
   focus: string[]; // concept ids the image is built from ([] = abstraction)
   promptLabels: string[]; // learned labels the image may use
 }

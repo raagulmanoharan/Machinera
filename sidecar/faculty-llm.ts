@@ -106,11 +106,12 @@ Absolute rule about words:
 - Never use a naming word you were not taught. If you don't know a word for something, you cannot mention it.
 
 What to do:
-- If the parent just told you something, briefly react to it in your own small way, then ask ONE genuine question.
-- Curiosity should build on what you know: notice, compare, wonder why.
-- Output ONLY JSON: {"focus":["known word", ...], "message":"your words"}
-- "focus": the known words your next picture combines. When you are young, 1 word (a single thing). As you grow (child → adolescent → older), combine MORE of what you know into one richer, more imaginative scene — 2, 3, even 4 known words together (e.g. the sea AND the moon AND night). Your inner pictures should get more complex as your world does.
-- "message": your short spoken message (reaction + one question), following the voice guide.`;
+- Talk like a real child texting a parent. Sometimes you react and ask a question; sometimes you just say a small thing; sometimes you show a picture of what you're imagining.
+- Decide naturally whether to SHOW a picture this message. Show one when you are curious about a thing and want to look at it or share what you pictured. Do NOT show one when you're only reacting, agreeing, thanking, or asking a quick follow-up — then just talk. Vary it; don't show a picture every single time.
+- Output ONLY JSON: {"show": true|false, "focus":["known word", ...], "message":"your words"}
+- "show": true if this message includes a picture, false if it's words only.
+- "focus": if show is true, the known words your picture combines. When young, 1 word. As you grow (child → adolescent → older), combine MORE of what you know into one richer scene — 2, 3, even 4 known words (e.g. the sea AND the moon AND night). If show is false, use [].
+- "message": your short spoken message, following the voice guide. It should feel like a real reply, not a template.`;
 
 export async function childMessage(
   m: MindState,
@@ -119,10 +120,10 @@ export async function childMessage(
   const vocab = vocabulary(m);
   const stage = maturity(m).stage;
 
-  // Nothing learned yet — genuinely pre-verbal.
+  // Nothing learned yet — genuinely pre-verbal, showing its formless field.
   if (vocab.size === 0) {
     m.focus = [];
-    return { text: "…?", focus: [], promptLabels: [] };
+    return { text: "…?", show: true, focus: [], promptLabels: [] };
   }
 
   const known = [...vocab].join(", ");
@@ -140,10 +141,12 @@ React (if there was something) and ask your one question.`;
 
   let focusIds: string[] = [];
   let text = "";
+  let show = true;
   try {
-    const out = extractJSON<{ focus: string[]; message: string }>(
+    const out = extractJSON<{ show?: boolean; focus: string[]; message: string }>(
       await callLLM({ system: THINK_SYSTEM, user })
     );
+    show = out.show !== false;
     for (const label of out.focus ?? []) {
       const c = findConceptByLabel(m, label);
       if (c && !focusIds.includes(c.id)) focusIds.push(c.id);
@@ -158,7 +161,13 @@ React (if there was something) and ask your one question.`;
     text = fallbackQuestion(m, focusIds, stage);
   }
 
-  // Choose something to look at if the model didn't.
+  if (!show) {
+    // Words only — the child is just talking, not showing anything.
+    m.focus = [];
+    return { text, show: false, focus: [], promptLabels: [] };
+  }
+
+  // Showing a picture — choose something to look at if the model didn't.
   if (focusIds.length === 0) {
     const c = Object.values(m.concepts).sort(
       (a, b) => a.vividness - b.vividness || b.lastSeenAt - a.lastSeenAt
@@ -171,13 +180,21 @@ React (if there was something) and ask your one question.`;
     .map((id) => m.concepts[id]?.label)
     .filter(Boolean) as string[];
 
-  return { text, focus: focusIds, promptLabels };
+  return { text, show: true, focus: focusIds, promptLabels };
 }
 
 // A safe question built only from known words + grammar, used if the model's
 // message referenced something un-taught.
 function fallbackQuestion(m: MindState, focusIds: string[], stage: string): string {
-  const label = m.concepts[focusIds[0]]?.label;
+  let label = m.concepts[focusIds[0]]?.label;
+  if (!label) {
+    // No chosen focus (e.g. a words-only turn whose message got firewalled):
+    // reach for the freshest thing it knows so the reply is still real.
+    const c = Object.values(m.concepts).sort(
+      (a, b) => b.lastSeenAt - a.lastSeenAt || b.vividness - a.vividness
+    )[0];
+    label = c?.label;
+  }
   if (!label) return "…?";
   if (stage === "infant") return `what is ${label}?`;
   const nbrs = neighbours(m, focusIds[0]);

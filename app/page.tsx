@@ -100,23 +100,23 @@ export default function Page() {
     <div className="app">
       <nav className="nav">
         <div className="nav-back">
-          <svg width="12" height="20" viewBox="0 0 12 20" fill="none">
-            <path d="M10 2L2 10l8 8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          <svg width="12" height="21" viewBox="0 0 12 21" fill="none">
+            <path d="M10 2L2 10.5l8 8.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
         <div className="nav-center">
           <div className="nav-avatar" />
           <div className="nav-name">
             machinera
-            <svg className="chev" width="7" height="11" viewBox="0 0 7 11" fill="none">
-              <path d="M1 1l4.5 4.5L1 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <svg className="chev" width="7" height="12" viewBox="0 0 7 12" fill="none">
+              <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
         </div>
         <div className="nav-video">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <rect x="2.5" y="6.5" width="12.5" height="11" rx="3" stroke="currentColor" strokeWidth="1.8" />
-            <path d="M15 10.5l5-2.6v8.2l-5-2.6" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none">
+            <rect x="2.5" y="6.5" width="12.5" height="11" rx="3.2" stroke="currentColor" strokeWidth="1.9" />
+            <path d="M15 10.4l5.2-2.7v8.6L15 13.6" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
           </svg>
         </div>
       </nav>
@@ -172,11 +172,20 @@ export default function Page() {
             placeholder="iMessage"
             rows={1}
           />
-          <button className="send" onClick={send} disabled={thinking || !draft.trim()} aria-label="send">
-            <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-              <path d="M8.5 14V4M4 8l4.5-4.5L13 8" stroke="#fff" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
+          {draft.trim() && !thinking ? (
+            <button className="send" onClick={send} aria-label="send">
+              <svg width="16" height="16" viewBox="0 0 17 17" fill="none">
+                <path d="M8.5 13.5V4M4.2 8.3L8.5 4l4.3 4.3" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          ) : (
+            <span className="mic" aria-hidden>
+              <svg width="15" height="22" viewBox="0 0 15 22" fill="none">
+                <rect x="4.5" y="1.5" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.7" />
+                <path d="M2 9.5a5.5 5.5 0 0 0 11 0M7.5 15v4.5M4.5 20h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+            </span>
+          )}
         </div>
       </div>
     </div>

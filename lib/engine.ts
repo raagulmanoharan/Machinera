@@ -27,7 +27,7 @@ export function reset(): MindState {
 
 export interface Spoken {
   text: string;
-  vision: Vision;
+  vision?: Vision; // absent when the child is only talking
 }
 
 function adopt(m: MindState, incoming: MindState): void {
@@ -44,10 +44,13 @@ async function post(path: string, body: unknown): Promise<any> {
   return res.json();
 }
 
-// Build the image the child is showing, then persist.
+// Build the image the child is showing (only if it chose to show one), persist.
 async function render(m: MindState, msg: ChildMessage): Promise<Spoken> {
-  const safe = vetPrompt(msg.promptLabels, vocabulary(m));
-  const vision = await imagine(m, msg.focus, safe);
+  let vision: Vision | undefined;
+  if (msg.show) {
+    const safe = vetPrompt(msg.promptLabels, vocabulary(m));
+    vision = await imagine(m, msg.focus, safe);
+  }
   saveMind(m);
   void conceptsOf; // (kept for parity with earlier API)
   return { text: msg.text, vision };

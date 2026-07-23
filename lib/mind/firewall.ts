@@ -10,19 +10,12 @@ import { normalise } from "./graph";
 // cry, sigh, or gesture without having been taught anything. This is the only
 // vocabulary allowed that does not come from the graph.
 export const PREVERBAL = new Set([
-  "…",
-  "?",
-  "—",
-  "oh",
-  "ah",
-  "mm",
-  "mmm",
-  "uh",
-  "hm",
-  "ha",
-  "eh",
-  "aa",
-  "ooh",
+  "…", "?", "—", "!",
+  // pre-verbal sounds
+  "oh", "ah", "mm", "mmm", "uh", "hm", "hmm", "ha", "eh", "aa", "ooh", "oooh",
+  // social / interjection words — grammar of talking, not names of things
+  "hi", "hey", "hello", "yes", "no", "yeah", "okay", "ok", "wow", "yay",
+  "please", "thanks", "thank", "sorry", "wait", "again", "more",
 ]);
 
 // Function words are the LANGUAGE FACULTY, not world-knowledge. A child acquires

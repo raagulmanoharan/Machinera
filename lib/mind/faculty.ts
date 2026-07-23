@@ -40,7 +40,8 @@ export function integrate(m: MindState, text: string): MindState {
 // A simple, firewalled question. Real depth comes from the LLM faculty.
 export function localMessage(m: MindState, _lastParentText: string | null): ChildMessage {
   const concepts = Object.values(m.concepts);
-  if (concepts.length === 0) return { text: "…?", focus: [], promptLabels: [] };
+  if (concepts.length === 0)
+    return { text: "…?", show: true, focus: [], promptLabels: [] };
 
   const focus = [...concepts].sort(
     (a, b) => a.vividness - b.vividness || b.lastSeenAt - a.lastSeenAt
@@ -57,5 +58,5 @@ export function localMessage(m: MindState, _lastParentText: string | null): Chil
   else text = `what is ${focus.label}?`;
 
   m.focus = [focus.id];
-  return { text, focus: [focus.id], promptLabels: [focus.label] };
+  return { text, show: true, focus: [focus.id], promptLabels: [focus.label] };
 }
