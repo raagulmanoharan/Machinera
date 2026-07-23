@@ -99,161 +99,42 @@ body::after {
   gap: clamp(18px, 3.2vh, 28px);
 }
 
-/* ---------- the presence: the mind as living light ---------- */
-.presence {
+/* ---------- the presence: the mind as a living glass orb (WebGL) ----------
+   The orb is a real 3D sphere. At rest it is warm plasma; when the mind imagines
+   something the generated image blooms inside it, refracted like a dream held in
+   glass. The canvas is transparent, so the warm dusk shows through around it. */
+.orb {
   position: relative;
   flex: 0 0 auto;
-  width: min(66vw, 280px);
+  width: min(96vw, 420px);
   aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: scale(calc(0.74 + var(--grow) * 0.5));
-  transition: transform 0.7s ease, opacity 0.5s ease;
+  transition: width 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation: orbrise 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.orb canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+@keyframes orbrise {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: none; }
 }
 
-/* while you compose, the mind and its question move up and shrink — still there
+/* while you compose, the orb and its question move up and shrink — still present
    as context — leaving a calm space below to answer */
 .field.composing .center {
   justify-content: flex-start;
-  padding-top: clamp(18px, 5vh, 46px);
-  gap: 18px;
+  padding-top: clamp(16px, 4vh, 40px);
+  gap: 16px;
 }
-.field.composing .presence {
-  transform: scale(calc((0.74 + var(--grow) * 0.5) * 0.56));
-  opacity: 0.9;
+.field.composing .orb {
+  width: min(50vw, 220px);
 }
 .field.composing .utter {
   font-size: clamp(16px, 4.2vw, 20px);
   max-width: 28ch;
   opacity: 0.82;
-}
-
-/* the outer glow — a soft warm atmosphere the light sits inside */
-.halo {
-  position: absolute;
-  inset: -22%;
-  border-radius: 50%;
-  filter: blur(50px);
-  mix-blend-mode: screen;
-  will-change: transform, opacity;
-}
-.halo.a {
-  background: radial-gradient(circle at 46% 42%, rgba(var(--amber), 0.85), rgba(var(--coral), 0.4) 52%, transparent 76%);
-  animation: floatA 9s ease-in-out infinite, hue 44s ease-in-out infinite;
-}
-.halo.b {
-  background: radial-gradient(circle at 58% 60%, rgba(var(--rose), 0.6), rgba(var(--amber), 0.28) 56%, transparent 78%);
-  animation: floatB 12s ease-in-out infinite;
-  opacity: 0.8;
-}
-/* the mind itself — a body of warm living light. Filled bright at the centre so
-   it reads as a glowing presence, not a dark disc ringed by fire. */
-.core {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 82%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 42% 36%, #fff6ec 0%, #ffdcae 24%, rgba(var(--amber), 0.92) 46%, rgba(var(--coral), 0.62) 66%, rgba(var(--coral), 0) 82%);
-  filter: blur(2px);
-  box-shadow: 0 0 80px rgba(var(--amber), 0.5), 0 0 150px rgba(var(--coral), 0.3);
-  animation: breathe 6.5s ease-in-out infinite;
-}
-
-@keyframes breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.09); }
-}
-@keyframes floatA {
-  0%, 100% { transform: translate(-3%, -2%) scale(1); }
-  50% { transform: translate(3%, 3%) scale(1.06); }
-}
-@keyframes floatB {
-  0%, 100% { transform: translate(3%, 2%) scale(1.04); }
-  50% { transform: translate(-3%, -3%) scale(0.98); }
-}
-@keyframes hue {
-  0%, 100% { filter: blur(46px) hue-rotate(0deg); }
-  50% { filter: blur(46px) hue-rotate(-14deg); }
-}
-
-.is-thinking .core { animation-duration: 2.6s; }
-.is-thinking .halo.a { animation-duration: 4.5s, 44s; }
-/* when the mind is showing you something, its light steps back to a small warm
-   companion above the image — the image itself becomes the focus */
-.field.has-vision .presence {
-  width: min(20vw, 84px);
-  transform: none;
-  opacity: 0.95;
-}
-.field.has-vision.composing .presence {
-  width: min(14vw, 60px);
-}
-
-/* while it speaks aloud, the light quickens gently in time with the voice */
-.is-speaking .core { animation-duration: 1.9s; }
-.is-speaking .halo.a { animation-duration: 3.4s, 44s; }
-.is-speaking .halo.b { animation-duration: 4.2s; }
-
-/* a ripple while it listens to you */
-.is-listening .presence::before {
-  content: "";
-  position: absolute;
-  inset: 8%;
-  border-radius: 50%;
-  border: 1px solid rgba(var(--amber), 0.5);
-  animation: ripple 1.8s ease-out infinite;
-}
-@keyframes ripple {
-  0% { transform: scale(0.7); opacity: 0.8; }
-  100% { transform: scale(1.7); opacity: 0; }
-}
-
-/* the mind's vision — what it is looking at, shown to you full and large. Soft
-   rounded frame with a warm glow so it sits inside the dusk rather than cutting a
-   hard rectangle out of it, but unmistakably an image, not an orb. */
-.canvas {
-  position: relative;
-  flex: 0 0 auto;
-  margin: 0;
-  width: min(80vw, 380px);
-  aspect-ratio: 1;
-  border-radius: 30px;
-  overflow: hidden;
-  box-shadow:
-    0 0 0 1px rgba(var(--amber), 0.14),
-    0 26px 70px rgba(0, 0, 0, 0.55),
-    0 0 90px rgba(var(--amber), 0.28);
-  animation: bloom 1.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-.canvas .art {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-  filter: saturate(1.05) contrast(1.02);
-}
-/* a whisper of warmth over the image + a soft inner edge, so it melts into the
-   ambient dusk at its border instead of ending abruptly */
-.canvas-glow {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(120% 120% at 50% 40%, transparent 60%, rgba(12, 7, 8, 0.5) 100%),
-    radial-gradient(circle at 50% 36%, rgba(var(--amber), 0.16), transparent 60%);
-  mix-blend-mode: soft-light;
-}
-/* while composing, the image gives a little room but stays visible */
-.field.composing .canvas {
-  width: min(56vw, 260px);
-}
-@keyframes bloom {
-  from { opacity: 0; transform: scale(0.92) translateY(8px); filter: blur(12px); }
-  to { opacity: 1; transform: none; filter: blur(0); }
 }
 
 /* the mind's voice — plain-spoken, warm, unfussy */

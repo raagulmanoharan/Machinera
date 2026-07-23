@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { boot, openChild, reply as replyToChild } from "@/lib/engine";
 import { primeVoice, speak, startListening, stopSpeaking, type Recording } from "@/lib/voice";
+import DreamOrb from "@/components/DreamOrb";
 import type { MindState, Vision } from "@/lib/mind/types";
 
 export default function Page() {
@@ -39,11 +40,16 @@ export default function Page() {
     }
   };
 
+  // standard auto-growing input: reset to content height, cap it, and only then
+  // let it scroll — so short text sits on one line and long text grows cleanly.
   const grow = () => {
     const el = ta.current;
     if (!el) return;
-    el.style.height = "0px";
-    el.style.height = Math.min(el.scrollHeight, 132) + "px";
+    const max = 140;
+    el.style.height = "auto";
+    const h = Math.min(el.scrollHeight, max);
+    el.style.height = h + "px";
+    el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden";
   };
 
   const teachText = useCallback(
@@ -119,31 +125,25 @@ export default function Page() {
     return Math.min(1, Math.sqrt(n / 80));
   }, [version]);
 
+  // the vision the orb should hold: a real image directly, or a procedural SVG
+  // turned into a data URL so it can be a texture too
+  const texture = useMemo(() => {
+    void displayKey;
+    if (!vision) return undefined;
+    if (vision.kind === "image") return vision.dataUrl;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(vision.markup)}`;
+  }, [vision, displayKey]);
+
+  const activity = thinking ? 0.85 : speaking ? 0.7 : listening ? 0.6 : 0.18;
+
   return (
     <main
       className={`field${thinking ? " is-thinking" : ""}${listening ? " is-listening" : ""}${speaking ? " is-speaking" : ""}${draft.trim() ? " composing" : ""}${vision ? " has-vision" : ""}`}
-      style={{ ["--grow" as any]: growFactor.toFixed(3) }}
     >
       <div className="grain" aria-hidden />
 
       <div className="center">
-        <div className="presence">
-          <span className="halo a" />
-          <span className="halo b" />
-          <span className="core" />
-        </div>
-
-        {vision && (
-          <figure className="canvas" key={displayKey}>
-            {vision.kind === "svg" ? (
-              <div className="art" dangerouslySetInnerHTML={{ __html: vision.markup }} />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className="art" src={vision.dataUrl} alt="" />
-            )}
-            <span className="canvas-glow" />
-          </figure>
-        )}
+        <DreamOrb className="orb" texture={texture} activity={activity} grow={growFactor} />
 
         <p className="utter" key={`u${displayKey}`}>
           {thinking ? "" : text}
