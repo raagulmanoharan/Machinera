@@ -181,10 +181,10 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
 
     // soft warm glow, far behind — a broad wash…
     const glowTex = makeGlowTexture([
-      [0.0, "rgba(255,204,150,0.55)"],
-      [0.32, "rgba(255,178,120,0.42)"],
-      [0.6, "rgba(255,166,116,0.2)"],
-      [0.85, "rgba(255,160,115,0.05)"],
+      [0.0, "rgba(255,220,180,0.4)"],
+      [0.34, "rgba(255,198,150,0.28)"],
+      [0.62, "rgba(255,188,145,0.12)"],
+      [0.85, "rgba(255,185,150,0.03)"],
       [1.0, "rgba(0,0,0,0)"],
     ]);
     const glowMat = new THREE.MeshBasicMaterial({
@@ -197,15 +197,15 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
 
     // …plus a soft warm ring hugging the bubble, so it sits in a glow
     const glowTex2 = makeGlowTexture([
-      [0.0, "rgba(255,214,165,0)"],
-      [0.5, "rgba(255,206,158,0)"],
-      [0.66, "rgba(255,200,150,0.5)"],
-      [0.82, "rgba(255,185,135,0.16)"],
+      [0.0, "rgba(255,222,185,0)"],
+      [0.52, "rgba(255,216,178,0)"],
+      [0.68, "rgba(255,214,172,0.32)"],
+      [0.84, "rgba(255,200,160,0.1)"],
       [1.0, "rgba(0,0,0,0)"],
     ]);
     const glowMat2 = new THREE.MeshBasicMaterial({
       map: glowTex2, transparent: true, blending: THREE.AdditiveBlending,
-      depthWrite: false, depthTest: false, opacity: 0.95,
+      depthWrite: false, depthTest: false, opacity: 0.8,
     });
     const glow2 = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2), glowMat2);
     glow2.position.z = -0.4; glow2.renderOrder = -2;

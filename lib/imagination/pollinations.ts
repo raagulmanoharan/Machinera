@@ -16,9 +16,9 @@ export function pollinationsEnabled(): boolean {
 // the concepts depicted still come only from what was taught.
 function styleFor(score: number): string {
   if (score < 0.15)
-    return "abstract, formless, blurred, hazy, dreamlike, soft, minimal, out of focus";
+    return "soft, dreamy, impressionistic, hazy atmosphere, gentle, muted, painterly";
   if (score < 0.35)
-    return "soft abstract, dreamy, impressionistic, gentle emerging forms, muted";
+    return "dreamy, impressionistic, soft focus, atmospheric, gentle, muted, painterly";
   if (score < 0.6)
     return "impressionistic, painterly, atmospheric, luminous, soft light";
   return "richly detailed, vivid, luminous, intricate, painterly, ethereal, dreamlike";
