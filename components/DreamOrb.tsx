@@ -63,9 +63,9 @@ const ORB_FRAG = /* glsl */ `
     // soft bright fresnel rim — the glass edge catching light
     float fres = pow(1.0 - facing, 2.6);
     col = mix(col, vec3(0.96, 0.98, 1.0), fres * 0.7);
-    // crisp specular glints
-    col += vec3(1.0) * smoothstep(0.16, 0.0, length(base - vec2(-0.34, 0.42))) * 0.7;
-    col += vec3(1.0) * smoothstep(0.09, 0.0, length(base - vec2(0.28, -0.24))) * 0.4;
+    // soft specular glints — a hint of light on the glass, not hard dots
+    col += vec3(1.0) * smoothstep(0.2, 0.0, length(base - vec2(-0.34, 0.42))) * 0.4;
+    col += vec3(1.0) * smoothstep(0.12, 0.0, length(base - vec2(0.28, -0.24))) * 0.2;
 
     // the very edge fades so the bubble melts into the mist
     float a = mix(smoothstep(1.0, 0.90, radius), 1.0, 0.4);
