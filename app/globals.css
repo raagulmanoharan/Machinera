@@ -1,46 +1,38 @@
-/* iMessage recreation with iOS 26 "Liquid Glass" chrome.
-   Glass = heavy backdrop blur + saturation, a bright specular top edge, a soft
-   sheen, a 1px light-catching rim, and float depth. Messages scroll BEHIND the
-   glass nav + composer so the material refracts real content. */
+/* iMessage recreation matched to the reference: clean black chrome with dark
+   "Liquid Glass" chip buttons, large avatar + name + subtitle, and a bordered
+   iMessage field. Messages scroll behind the near-opaque bars. */
 
 :root {
   --blue: #0a84ff;
-  --blue-top: #3aa0ff;
-  --recv-top: #303034;
-  --recv: #262629;
+  --blue-top: #34a0ff;
+  --recv: #e9e9eb;
+  --recv-top: #f2f2f4;
   --recv-text: #000;
   --bg: #ffffff;
   --meta: #8d8d92;
   --icon: #8d8d92;
 
-  /* light-mode glass */
-  --glass-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.55));
-  --glass-rim: rgba(255, 255, 255, 0.9);
-  --glass-hi: rgba(255, 255, 255, 0.85);
-  --glass-lo: rgba(0, 0, 0, 0.06);
-  --glass-shadow: 0 10px 34px rgba(0, 0, 0, 0.16);
-  --chip-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(240, 240, 245, 0.5));
-  --field-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.6));
-  --recv-text-light: #000;
-  --recv: #e9e9eb;
-  --recv-top: #f2f2f4;
+  --bar: rgba(255, 255, 255, 0.82);
+  --sep: rgba(0, 0, 0, 0.1);
+  --chip: rgba(120, 120, 128, 0.14);
+  --chip-hi: rgba(255, 255, 255, 0.7);
+  --field-bg: rgba(255, 255, 255, 0.5);
+  --field-border: rgba(0, 0, 0, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --recv-top: #303034;
     --recv: #262629;
+    --recv-top: #2e2e31;
     --recv-text: #fff;
     --bg: #000000;
-    --meta: #8d8d92;
 
-    --glass-bg: linear-gradient(180deg, rgba(58, 58, 62, 0.55), rgba(28, 28, 32, 0.5));
-    --glass-rim: rgba(255, 255, 255, 0.22);
-    --glass-hi: rgba(255, 255, 255, 0.5);
-    --glass-lo: rgba(255, 255, 255, 0.05);
-    --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
-    --chip-bg: linear-gradient(180deg, rgba(120, 120, 130, 0.32), rgba(90, 90, 100, 0.22));
-    --field-bg: linear-gradient(180deg, rgba(70, 70, 78, 0.42), rgba(40, 40, 46, 0.35));
+    --bar: rgba(0, 0, 0, 0.8);
+    --sep: rgba(255, 255, 255, 0.08);
+    --chip: rgba(120, 120, 128, 0.26);
+    --chip-hi: rgba(255, 255, 255, 0.12);
+    --field-bg: rgba(255, 255, 255, 0.05);
+    --field-border: rgba(255, 255, 255, 0.22);
   }
 }
 
@@ -77,13 +69,13 @@ body {
   }
 }
 
-/* the thread fills the app and scrolls behind the glass chrome */
+/* thread fills the app and scrolls behind the bars */
 .thread {
   position: absolute;
   inset: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 104px 14px 78px;
+  padding: 128px 14px 80px;
   display: flex;
   flex-direction: column;
   font-size: 17px;
@@ -100,99 +92,99 @@ body {
   font-weight: 600;
 }
 
-/* ---------- glass nav ---------- */
+/* ---------- header ---------- */
 .nav {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   z-index: 10;
-  padding: 9px 12px 11px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border-bottom: 0.5px solid var(--glass-lo);
-  box-shadow: inset 0 1px 0 var(--glass-hi), var(--glass-shadow);
+  padding: 10px 14px 12px;
+  background: var(--bar);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border-bottom: 0.5px solid var(--sep);
 }
 
 .nav-center {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .nav-avatar {
-  width: 50px;
-  height: 50px;
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
   background: radial-gradient(circle at 34% 28%, #dbe6ff, #7d92ff 52%, #3a3f86);
   position: relative;
   overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.55), 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 .nav-avatar::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 68% 74%, rgba(255, 255, 255, 0.6), transparent 46%);
+  background: radial-gradient(circle at 68% 74%, rgba(255, 255, 255, 0.55), transparent 46%);
   filter: blur(2px);
 }
 
 .nav-name {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 15px;
+  gap: 5px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--recv-text);
-  letter-spacing: -0.2px;
+  letter-spacing: -0.35px;
 }
 .nav-name .chev {
   color: var(--meta);
 }
 
+.nav-sub {
+  font-size: 12.5px;
+  color: var(--meta);
+  letter-spacing: -0.1px;
+  margin-top: -1px;
+}
+
 .nav-back,
 .nav-video {
   position: absolute;
-  top: 13px;
+  top: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--blue);
-  background: var(--chip-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: inset 0 1px 0 var(--glass-hi), 0 2px 6px rgba(0, 0, 0, 0.18);
+  background: var(--chip);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: inset 0 0.5px 0 var(--chip-hi);
 }
 .nav-back {
-  left: 12px;
-  height: 36px;
-  padding: 0 11px 0 8px;
-  border-radius: 18px;
+  left: 14px;
+  height: 37px;
+  padding: 0 15px;
+  border-radius: 19px;
 }
 .nav-video {
-  right: 12px;
-  width: 36px;
-  height: 36px;
+  right: 14px;
+  width: 37px;
+  height: 37px;
   border-radius: 50%;
 }
 
-/* ---------- rows ---------- */
+/* ---------- rows / bubbles ---------- */
 .row {
   display: flex;
   flex-direction: column;
   margin-top: 1px;
 }
-.row.them {
-  align-items: flex-start;
-}
-.row.me {
-  align-items: flex-end;
-}
-.row.gap {
-  margin-top: 8px;
-}
+.row.them { align-items: flex-start; }
+.row.me { align-items: flex-end; }
+.row.gap { margin-top: 8px; }
 
 .photo {
   max-width: 66%;
@@ -204,15 +196,10 @@ body {
   display: block;
   background: var(--recv);
   margin-bottom: 3px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25), inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 }
-.photo svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
+.photo svg { width: 100%; height: 100%; display: block; }
 
-/* ---------- glossy bubbles + tails ---------- */
 .bubble {
   position: relative;
   max-width: 73%;
@@ -222,16 +209,14 @@ body {
   word-wrap: break-word;
   white-space: pre-wrap;
 }
-
 .bubble.them {
   background: linear-gradient(180deg, var(--recv-top), var(--recv));
   color: var(--recv-text);
-  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.14);
 }
 .bubble.me {
   background: linear-gradient(180deg, var(--blue-top), var(--blue));
   color: #fff;
-  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.3), 0 1px 6px rgba(10, 132, 255, 0.28);
+  box-shadow: 0 1px 6px rgba(10, 132, 255, 0.24);
 }
 
 .bubble.tail::before,
@@ -242,39 +227,33 @@ body {
   height: 20px;
 }
 .bubble.them.tail::before {
-  left: -8px;
-  width: 20px;
+  left: -8px; width: 20px;
   background: var(--recv);
   border-bottom-right-radius: 16px 14px;
 }
 .bubble.them.tail::after {
-  left: -13px;
-  width: 13px;
+  left: -13px; width: 13px;
   background: var(--bg);
   border-bottom-right-radius: 11px;
 }
 .bubble.me.tail::before {
-  right: -8px;
-  width: 20px;
+  right: -8px; width: 20px;
   background: var(--blue);
   border-bottom-left-radius: 16px 14px;
 }
 .bubble.me.tail::after {
-  right: -13px;
-  width: 13px;
+  right: -13px; width: 13px;
   background: var(--bg);
   border-bottom-left-radius: 11px;
 }
 
-/* typing */
 .bubble.typing {
   display: inline-flex;
   gap: 5px;
   padding: 14px 15px;
 }
 .bubble.typing i {
-  width: 8px;
-  height: 8px;
+  width: 8px; height: 8px;
   border-radius: 50%;
   background: #86868b;
   animation: pulse 1.35s infinite ease-in-out;
@@ -292,13 +271,9 @@ body {
   font-size: 11px;
   margin: 4px 3px 3px 0;
 }
-.delivered b {
-  font-weight: 600;
-  color: var(--recv-text);
-  opacity: 0.7;
-}
+.delivered b { font-weight: 600; color: var(--recv-text); opacity: 0.7; }
 
-/* ---------- glass composer ---------- */
+/* ---------- footer ---------- */
 .composer {
   position: absolute;
   bottom: 0;
@@ -307,29 +282,29 @@ body {
   z-index: 10;
   display: flex;
   align-items: flex-end;
-  gap: 9px;
-  padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
-  background: var(--glass-bg);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border-top: 0.5px solid var(--glass-lo);
-  box-shadow: inset 0 1px 0 var(--glass-hi);
+  gap: 10px;
+  padding: 8px 14px calc(10px + env(safe-area-inset-bottom));
+  background: var(--bar);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border-top: 0.5px solid var(--sep);
 }
 
 .plus {
   flex: 0 0 auto;
-  width: 35px;
-  height: 35px;
+  width: 39px;
+  height: 39px;
   border-radius: 50%;
   border: none;
-  background: var(--chip-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: var(--icon);
+  background: var(--chip);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--recv-text);
+  opacity: 0.92;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 1px 0 var(--glass-hi), 0 2px 6px rgba(0, 0, 0, 0.16);
+  box-shadow: inset 0 0.5px 0 var(--chip-hi);
 }
 
 .field-wrap {
@@ -338,13 +313,10 @@ body {
   align-items: center;
   gap: 6px;
   background: var(--field-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 0.5px solid var(--glass-rim);
-  border-radius: 19px;
-  padding: 3px 5px 3px 15px;
-  min-height: 36px;
-  box-shadow: inset 0 1px 0 var(--glass-hi), 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--field-border);
+  border-radius: 20px;
+  padding: 3px 6px 3px 15px;
+  min-height: 39px;
 }
 
 .field-wrap textarea {
@@ -359,24 +331,22 @@ body {
   letter-spacing: -0.24px;
   line-height: 1.3;
   max-height: 120px;
-  padding: 4px 0;
+  padding: 5px 0;
 }
-.field-wrap textarea::placeholder {
-  color: var(--meta);
-}
+.field-wrap textarea::placeholder { color: var(--meta); }
 
 .mic {
   flex: 0 0 auto;
   color: var(--icon);
   display: flex;
   align-items: center;
-  padding-right: 5px;
+  padding: 0 6px 0 2px;
 }
 
 .send {
   flex: 0 0 auto;
-  width: 29px;
-  height: 29px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: none;
   background: linear-gradient(180deg, var(--blue-top), var(--blue));
@@ -385,5 +355,5 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 8px rgba(10, 132, 255, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }

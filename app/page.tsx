@@ -112,6 +112,7 @@ export default function Page() {
               <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
+          <div className="nav-sub">a new mind</div>
         </div>
         <div className="nav-video">
           <svg width="23" height="23" viewBox="0 0 24 24" fill="none">
@@ -180,9 +181,14 @@ export default function Page() {
             </button>
           ) : (
             <span className="mic" aria-hidden>
-              <svg width="15" height="22" viewBox="0 0 15 22" fill="none">
-                <rect x="4.5" y="1.5" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.7" />
-                <path d="M2 9.5a5.5 5.5 0 0 0 11 0M7.5 15v4.5M4.5 20h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                <g stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <path d="M3 9.5v3" />
+                  <path d="M7 6v10" />
+                  <path d="M11 3.5v15" />
+                  <path d="M15 6v10" />
+                  <path d="M19 9.5v3" />
+                </g>
               </svg>
             </span>
           )}
