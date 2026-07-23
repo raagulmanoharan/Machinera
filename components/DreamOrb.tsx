@@ -62,10 +62,10 @@ const ORB_FRAG = /* glsl */ `
 
     // only the faintest rim light — no hard bright ring to outline the circle
     float fres = pow(1.0 - facing, 3.2);
-    col = mix(col, vec3(0.92, 0.95, 1.0), fres * 0.18);
-    // the dissolving rim glows warm, so the edge melts into light and mist rather
-    // than dimming to a dark ring as it fades
-    col += vec3(1.0, 0.82, 0.55) * smoothstep(0.55, 0.98, radius) * 0.28;
+    col = mix(col, vec3(0.92, 0.95, 1.0), fres * 0.15);
+    // the dissolving rim glows warm over a wide band, so the edge melts into light
+    // and mist rather than dimming to a dark ring
+    col += vec3(1.0, 0.85, 0.6) * smoothstep(0.35, 0.98, radius) * 0.5;
 
     // the edge dissolves to nothing over a wide band, so the bubble melts into
     // the mist with no hard circular silhouette — the glass has no visible edge
@@ -110,10 +110,10 @@ const SMOKE_FRAG = /* glsl */ `
     vec2 w = vec2(fbm(p*1.1 + q*1.8 + vec2(1.7,9.2) + t), fbm(p*1.1 + q*1.8 + vec2(8.3,2.8) - t));
     float f = fbm(p*1.6 + w*2.0);
     // carve delicate wisps: keep the bright filaments, let the gaps go clear
-    float wisp = smoothstep(0.46, 0.72, f);
-    float inner = smoothstep(0.5, 0.9, r);          // veils the dissolving rim
-    float outer = 1.0 - smoothstep(1.05, 1.95, r);  // thins softly into the dark
-    float a = clamp(wisp * inner * outer * 0.6, 0.0, 1.0);
+    float wisp = smoothstep(0.30, 0.86, f);         // soft, feathery, translucent
+    float inner = smoothstep(0.40, 0.86, r);        // overlaps the bubble's edge
+    float outer = 1.0 - smoothstep(0.98, 1.85, r);  // thins softly into the dark
+    float a = clamp(wisp * inner * outer * 0.4, 0.0, 1.0);
     // pale mist, glowing warm where it hugs the bubble (backlit), cooling outward
     vec3 warm = vec3(1.0, 0.86, 0.62);
     vec3 pale = vec3(0.84, 0.86, 0.90);
@@ -177,9 +177,9 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
 
     // broad soft warm wash, far behind
     const glowTexA = makeGlowTexture([
-      [0.0, "rgba(255,214,158,0.5)"],
-      [0.45, "rgba(255,182,120,0.3)"],
-      [0.8, "rgba(255,165,115,0.08)"],
+      [0.0, "rgba(255,206,150,0.62)"],
+      [0.35, "rgba(255,180,120,0.4)"],
+      [0.7, "rgba(255,165,115,0.12)"],
       [1.0, "rgba(0,0,0,0)"],
     ]);
     const glowMatA = new THREE.MeshBasicMaterial({
@@ -193,10 +193,9 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
 
     // a brighter gold ring hugging the bubble's rim — the backlight
     const glowTexB = makeGlowTexture([
-      [0.0, "rgba(0,0,0,0)"],
-      [0.55, "rgba(255,216,170,0)"],
-      [0.74, "rgba(255,218,175,0.4)"],
-      [0.9, "rgba(255,200,150,0.09)"],
+      [0.0, "rgba(255,222,180,0.35)"],
+      [0.5, "rgba(255,214,170,0.3)"],
+      [0.8, "rgba(255,196,150,0.06)"],
       [1.0, "rgba(0,0,0,0)"],
     ]);
     const glowMatB = new THREE.MeshBasicMaterial({
