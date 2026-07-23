@@ -47,12 +47,20 @@ const INNER_FRAG = /* glsl */ `
     vec2 ca = base * 0.005;                 // subtle chromatic aberration
     vec3 img = vec3(texture2D(uImage, iuv+ca).r, texture2D(uImage, iuv).g, texture2D(uImage, iuv-ca).b);
     img = img / (1.0 + 0.35 * max(max(img.r, img.g), img.b));  // tame highlights
-    img = pow(img, vec3(0.95)) * 1.25;
+    img = pow(img, vec3(0.98));
     // dissolve into drifting mist where the thought hasn't formed, and near the rim
     float d = fbm(base*3.0 + t*0.6)*0.6 + fbm(base*6.0 - t)*0.4;
     float form = smoothstep(0.32, 0.72, d) * smoothstep(1.02, 0.35, length(base));
     vec3 mist = vec3(0.62, 0.66, 0.72) * 0.55;
-    gl_FragColor = vec4(mix(mist, img, clamp(form + 0.22, 0.0, 1.0)), 1.0);
+    vec3 col = mix(mist, img, clamp(form + 0.22, 0.0, 1.0));
+    // spherical shading so it reads as a lit ball, not a flat disc: a soft diffuse
+    // gradient + a broad (not dotty) highlight
+    vec3 N = normalize(vNV);
+    vec3 L = normalize(vec3(-0.45, 0.55, 0.75));
+    col *= 0.74 + 0.26 * clamp(dot(N, L), 0.0, 1.0);
+    float spec = pow(clamp(dot(reflect(-L, N), vec3(0.0, 0.0, 1.0)), 0.0, 1.0), 6.0);
+    col += vec3(1.0) * spec * 0.28;
+    gl_FragColor = vec4(col, 1.0);
   }
 `;
 
@@ -161,7 +169,7 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
     const equirect = makeEnvEquirect();
     const envMap = pmrem.fromEquirectangular(equirect).texture;
     scene.environment = envMap;
-    scene.add(new THREE.AmbientLight(0xffffff, 0.12));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.28));
     const key = new THREE.DirectionalLight(0xffe6c0, 0.45);
     key.position.set(-2, 2, 3);
     scene.add(key);
@@ -171,20 +179,37 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
     const group = new THREE.Group();
     scene.add(group);
 
-    // soft warm glow, far behind
+    // soft warm glow, far behind — a broad wash…
     const glowTex = makeGlowTexture([
-      [0.0, "rgba(255,208,152,0.72)"],
-      [0.38, "rgba(255,182,122,0.4)"],
-      [0.72, "rgba(255,168,118,0.12)"],
+      [0.0, "rgba(255,204,150,0.55)"],
+      [0.32, "rgba(255,178,120,0.42)"],
+      [0.6, "rgba(255,166,116,0.2)"],
+      [0.85, "rgba(255,160,115,0.05)"],
       [1.0, "rgba(0,0,0,0)"],
     ]);
     const glowMat = new THREE.MeshBasicMaterial({
       map: glowTex, transparent: true, blending: THREE.AdditiveBlending,
       depthWrite: false, depthTest: false, opacity: 0.9,
     });
-    const glow = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 5.2), glowMat);
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 6.4), glowMat);
     glow.position.z = -1.0; glow.renderOrder = -3;
     group.add(glow);
+
+    // …plus a soft warm ring hugging the bubble, so it sits in a glow
+    const glowTex2 = makeGlowTexture([
+      [0.0, "rgba(255,214,165,0)"],
+      [0.5, "rgba(255,206,158,0)"],
+      [0.66, "rgba(255,200,150,0.5)"],
+      [0.82, "rgba(255,185,135,0.16)"],
+      [1.0, "rgba(0,0,0,0)"],
+    ]);
+    const glowMat2 = new THREE.MeshBasicMaterial({
+      map: glowTex2, transparent: true, blending: THREE.AdditiveBlending,
+      depthWrite: false, depthTest: false, opacity: 0.95,
+    });
+    const glow2 = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2), glowMat2);
+    glow2.position.z = -0.4; glow2.renderOrder = -2;
+    group.add(glow2);
 
     // the inner projection — the half-formed memory (opaque, refracted by the glass)
     const blank = new THREE.DataTexture(new Uint8Array([120, 120, 120, 255]), 1, 1, THREE.RGBAFormat);
@@ -202,7 +227,7 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
       new THREE.SphereGeometry(1.0, 96, 96),
       new THREE.MeshPhysicalMaterial({
         roughness: 0.12, metalness: 0.0, transmission: 1.0, thickness: 0.12, ior: 1.33,
-        transparent: true, envMapIntensity: 0.55, clearcoat: 0.35, clearcoatRoughness: 0.18,
+        transparent: true, envMapIntensity: 0.8, clearcoat: 0.35, clearcoatRoughness: 0.18,
         attenuationColor: new THREE.Color(0xcfe6ff), attenuationDistance: 6.0,
       })
     );
@@ -265,7 +290,9 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
       act += (live.current.activity - act) * 0.05;
       const s = (0.6 + live.current.grow * 0.12) * (1 + 0.02 * Math.sin(uTime.value * 0.9));
       group.scale.setScalar(s);
-      glowMat.opacity = (0.82 + 0.1 * Math.sin(uTime.value * 1.1)) * (0.85 + 0.5 * act);
+      const pulse = (0.82 + 0.1 * Math.sin(uTime.value * 1.1)) * (0.85 + 0.5 * act);
+      glowMat.opacity = pulse;
+      glowMat2.opacity = pulse * 1.05;
       renderer.render(scene, camera);
     };
     animate();
@@ -279,6 +306,7 @@ export default function DreamOrb({ texture, activity = 0, grow = 0.4, className 
       halo.geometry.dispose(); (halo.material as THREE.Material).dispose();
       mist.geometry.dispose(); mistMat.dispose();
       glow.geometry.dispose(); glowMat.dispose(); glowTex.dispose();
+      glow2.geometry.dispose(); glowMat2.dispose(); glowTex2.dispose();
       const t = uImage.value; if (t && t !== blank) t.dispose();
       blank.dispose();
       envMap.dispose(); equirect.dispose(); pmrem.dispose();
