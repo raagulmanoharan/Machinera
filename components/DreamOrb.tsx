@@ -69,29 +69,34 @@ const ORB_FRAG = /* glsl */ `
     float r = texture2D(uImage, clamp(uvc + par + ca, 0.0, 1.0)).r;
     float g = texture2D(uImage, clamp(uvc + par,      0.0, 1.0)).g;
     float b = texture2D(uImage, clamp(uvc + par - ca, 0.0, 1.0)).b;
-    vec3 img = vec3(r, g, b) * 1.22;
+    vec3 img = vec3(r, g, b);
+    // compress blown highlights so a bright sky doesn't burn to a white hole,
+    // then lift — the memory stays legible, not washed out
+    img = img / (1.0 + 0.4 * max(max(img.r, img.g), img.b));
+    img = min(img * 1.4, vec3(1.0));
 
     // half-formed: drifting noise decides where the memory has resolved and where
-    // it is still dissolving back into haze — a thought only partly conjured
-    float form = sm(base*3.0 + uTime*0.15)*0.6 + sm(base*6.5 - uTime*0.11)*0.4;
-    form = smoothstep(0.22, 0.85, form + 0.34);
+    // it dissolves back into haze — but the centre stays mostly conjured so the
+    // memory is always recognisable
+    float form = sm(base*3.0 + uTime*0.15)*0.55 + sm(base*6.5 - uTime*0.11)*0.45;
+    form = smoothstep(0.1, 0.75, form + 0.5);
     // it lives in the inner volume and melts to glass/haze before the rim
-    float volume = smoothstep(0.98, 0.18, radius);
-    float memory = form * volume;
+    float volume = smoothstep(1.02, 0.12, radius);
+    float memory = clamp(form * volume + volume * 0.3, 0.0, 1.0);
 
     vec3 dream = mix(haze, img, memory);
-    // sit the memory in the warm amber of the mind
-    dream = mix(dream, dream * mix(vec3(1.0), AMBER, 0.6), 0.22);
+    // a whisper of the mind's amber, not a wash
+    dream = mix(dream, dream * mix(vec3(1.0), AMBER, 0.5), 0.12);
 
     vec3 col = mix(haze, dream, uHasImage);
 
     // --- the glass bowl it is held in ---
-    col += AMBER * 0.12;                                            // warm floor
-    col += CREAM * pow(facing, 3.0) * 0.16 * (1.0 - 0.3*uHasImage); // inner light
+    col += AMBER * 0.08 * (1.0 - 0.4*uHasImage);                    // warm floor
+    col += CREAM * pow(facing, 3.0) * 0.14 * (1.0 - 0.7*uHasImage); // inner light
     col += mix(AMBER, CREAM, 0.4) * rim * (0.5 + 0.5*uActivity);    // fresnel rim
     // a soft specular glint, like light catching the curve of the glass
-    float spec = smoothstep(0.30, 0.0, length(base - vec2(-0.34, 0.40)));
-    col += CREAM * spec * facing * 0.5;
+    float spec = smoothstep(0.26, 0.0, length(base - vec2(-0.34, 0.40)));
+    col += CREAM * spec * facing * 0.32;
 
     col *= 0.9 + 0.1*facing;
     gl_FragColor = vec4(col, 1.0);
