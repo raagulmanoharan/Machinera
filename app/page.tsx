@@ -194,13 +194,13 @@ export default function Page() {
               grow();
             }}
             onKeyDown={onKey}
-            placeholder="iMessage"
+            placeholder="message"
             rows={1}
           />
           {draft.trim() && !thinking ? (
             <button className="send" onClick={send} aria-label="send">
-              <svg width="16" height="16" viewBox="0 0 17 17" fill="none">
-                <path d="M8.5 13.5V4M4.2 8.3L8.5 4l4.3 4.3" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+                <path d="M8.5 13.5V4M4.2 8.3L8.5 4l4.3 4.3" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           ) : (
