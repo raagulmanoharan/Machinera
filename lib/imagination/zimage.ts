@@ -5,12 +5,13 @@ import type { Maturity, Vision } from "../mind/types";
 // threshold the Imagination stays procedural. Configured entirely via env, so
 // self-hosting vs. a hosted endpoint is a deployment detail, not a code change.
 
+// NEXT_PUBLIC_ so the config is readable in the static/browser build too.
 export function zimageConfigured(): boolean {
-  return Boolean(process.env.ZIMAGE_ENDPOINT);
+  return Boolean(process.env.NEXT_PUBLIC_ZIMAGE_ENDPOINT);
 }
 
 export function handoffThreshold(): number {
-  const v = Number(process.env.IMAGINATION_HANDOFF);
+  const v = Number(process.env.NEXT_PUBLIC_IMAGINATION_HANDOFF);
   return Number.isFinite(v) ? v : 0.35;
 }
 
@@ -26,15 +27,15 @@ export async function renderZImage(
   promptLabels: string[],
   mat: Maturity
 ): Promise<Vision> {
-  const endpoint = process.env.ZIMAGE_ENDPOINT!;
+  const endpoint = process.env.NEXT_PUBLIC_ZIMAGE_ENDPOINT!;
   const { steps, guidance } = paramsFor(mat);
 
   // The prompt is composed ONLY of learned labels (already firewalled upstream).
   const prompt = promptLabels.join(", ");
 
   const headers: Record<string, string> = { "content-type": "application/json" };
-  if (process.env.ZIMAGE_API_KEY) {
-    headers.authorization = `Bearer ${process.env.ZIMAGE_API_KEY}`;
+  if (process.env.NEXT_PUBLIC_ZIMAGE_API_KEY) {
+    headers.authorization = `Bearer ${process.env.NEXT_PUBLIC_ZIMAGE_API_KEY}`;
   }
 
   const res = await fetch(endpoint, {

@@ -1,63 +1,63 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import VisionView from "@/components/Vision";
 import MindPanel from "@/components/MindPanel";
-import type { Concept, Maturity, TurnView } from "@/lib/mind/types";
+import { boot, teach as teachMind, think as thinkMind } from "@/lib/engine";
+import { maturity as computeMaturity } from "@/lib/mind/maturity";
+import type { MindState, TurnView } from "@/lib/mind/types";
 
 export default function Page() {
+  const mind = useRef<MindState | null>(null);
   const [turn, setTurn] = useState<TurnView | null>(null);
-  const [concepts, setConcepts] = useState<Concept[]>([]);
-  const [maturity, setMaturity] = useState<Maturity | null>(null);
-  const [totalTurns, setTotalTurns] = useState(0);
+  const [version, setVersion] = useState(0); // bump to re-read the mind for the panel
   const [thinking, setThinking] = useState(true);
   const [literal, setLiteral] = useState("");
   const [emotional, setEmotional] = useState("");
   const started = useRef(false);
 
-  const refreshMind = useCallback(async () => {
-    const res = await fetch("/api/mind/state", { cache: "no-store" });
-    const data = await res.json();
-    setConcepts(data.concepts ?? []);
-    setMaturity(data.maturity ?? null);
-    setTotalTurns(data.turns ?? 0);
-  }, []);
-
-  // The mind forms its first thought the moment the page opens.
+  // The mind wakes and forms its first thought the moment the page opens.
   useEffect(() => {
     if (started.current) return;
     started.current = true;
     (async () => {
-      const res = await fetch("/api/mind/next", { method: "POST" });
-      setTurn(await res.json());
-      await refreshMind();
+      mind.current = boot();
+      const view = await thinkMind(mind.current);
+      setTurn(view);
+      setVersion((v) => v + 1);
       setThinking(false);
     })();
-  }, [refreshMind]);
+  }, []);
 
   const offer = useCallback(async () => {
-    if (thinking) return;
+    if (thinking || !mind.current) return;
     if (!literal.trim() && !emotional.trim()) return;
     setThinking(true);
-    const res = await fetch("/api/mind/teach", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ literal, emotional }),
-    });
-    const view = (await res.json()) as TurnView;
+    const view = await teachMind(mind.current, { literal, emotional });
     setLiteral("");
     setEmotional("");
+    setVersion((v) => v + 1);
     // Let the previous image fade before the new thought appears.
     setTimeout(() => {
       setTurn(view);
       setThinking(false);
     }, 500);
-    await refreshMind();
-  }, [literal, emotional, thinking, refreshMind]);
+  }, [literal, emotional, thinking]);
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) offer();
   };
+
+  const panel = useMemo(() => {
+    const m = mind.current;
+    void version; // recompute when the mind changes
+    if (!m) return { concepts: [], maturity: null, turns: 0 };
+    return {
+      concepts: Object.values(m.concepts),
+      maturity: computeMaturity(m),
+      turns: m.turns,
+    };
+  }, [version]);
 
   return (
     <main className="stage">
@@ -102,7 +102,11 @@ export default function Page() {
         </div>
       </section>
 
-      <MindPanel concepts={concepts} maturity={maturity} turns={totalTurns} />
+      <MindPanel
+        concepts={panel.concepts}
+        maturity={panel.maturity}
+        turns={panel.turns}
+      />
     </main>
   );
 }
