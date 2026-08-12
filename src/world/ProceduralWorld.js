@@ -6,6 +6,7 @@ import { assets, MODELS, TEXTURES, loadTexture, deTile } from '../render/AssetLi
 import { makeStreetlamp, makeStylizedTree, stylizedTreeMaterial } from './props.js';
 import { applyWind } from '../render/wind.js';
 import { Colliders } from './Colliders.js';
+import { GrassField } from './GrassField.js';
 
 // ---------- deterministic noise ----------
 function hash2(x, y) {
@@ -81,6 +82,13 @@ export class ProceduralWorld {
     this._terrain();
     this._roadMesh();
     this._guardrails();
+    // real 3D grass that follows the car (skips the road + dirt verge)
+    const edge = ROAD.halfWidth + ROAD.shoulder + 0.4;
+    this.grass = new GrassField(this.group, {
+      heightAt,
+      skip: (x, z) => distToRoad(x, z) < edge,
+      count: 108, spacing: 0.42,
+    });
   }
 
   // async: pull real CC0 models (trees, boulders, lamps) with procedural fallback

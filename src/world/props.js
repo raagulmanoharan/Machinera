@@ -78,13 +78,22 @@ export function makeStylizedTree(kind = 'round', seed = 1) {
   }
   const trunk = toFlat(new THREE.CylinderGeometry(0.15, 0.26, 2.6, 6).translate(0, 1.3, 0));
   setVColor(trunk, 0x5a3f28); parts.push(trunk);
-  const layers = [[0, 3.0, 1.85], [0.35, 4.0, 1.5], [-0.25, 4.9, 1.05], [0.15, 5.4, 0.7]];
+  // a clustered, organic crown: a few big lobes plus smaller clumps around them
+  let rs = (seed * 2654435761) >>> 0;
+  const rr = () => { rs = (rs * 1103515245 + 12345) & 0x7fffffff; return rs / 0x7fffffff; };
+  const lobes = [[0, 3.1, 1.7], [0.5, 3.8, 1.35], [-0.45, 4.0, 1.25], [0.1, 4.7, 1.05], [-0.1, 5.3, 0.72]];
+  const blobs = [];
+  for (const [dx, y, r] of lobes) blobs.push([dx, y, 0, r]);
+  for (let k = 0; k < 7; k++) {           // small clumps for a fuller silhouette
+    const a = rr() * Math.PI * 2, rad = 0.9 + rr() * 0.9;
+    blobs.push([Math.cos(a) * rad, 3.2 + rr() * 2.0, Math.sin(a) * rad, 0.5 + rr() * 0.45]);
+  }
   let i = 0;
-  for (const [dx, y, r] of layers) {
+  for (const [dx, y, dz, r] of blobs) {
     const b = new THREE.IcosahedronGeometry(r, 1);
-    b.scale(1.05, 0.92, 1.05).translate(dx, y, 0); // gentle squash for an organic crown
+    b.scale(1.05, 0.92, 1.05).translate(dx, y, dz);
     const flat = toFlat(b);
-    gradientFoliage(flat, { base: 0x357a34, lit: 0x8fca57, shade: 0x1c3f22, cyMin: 2.6, cyMax: 6.0, seed: seed + i });
+    gradientFoliage(flat, { base: 0x357a34, lit: 0x8fca57, shade: 0x1c3f22, cyMin: 2.6, cyMax: 6.2, seed: seed + i });
     parts.push(flat); i++;
   }
   return normalizeUnit(mergeGeometries(parts));
