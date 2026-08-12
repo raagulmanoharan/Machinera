@@ -1,16 +1,13 @@
 # Machinera Drive
 
-**Open a link and drive.** A no-install, browser-based 3D driving game that builds
-real-world cities from live [OpenStreetMap](https://www.openstreetmap.org) data — real
-streets, buildings, water and parks — and lets you cruise them. No account, no API key,
-no downloads.
-
-Inspired by open-data 3D map projects like [hop.earth](https://hop.earth).
+**Open a link and drive.** A no-install, browser-based 3D driving game built for a
+soothing cruise through picturesque scenery — with real free-library assets, real-world
+terrain, and a warm, nostalgic film look. No account, no API key, no downloads.
 
 ## Play
 
-Once GitHub Pages is enabled for this repo (Settings → Pages → **Source: GitHub Actions**),
-the game deploys automatically on every push to the default branch and is playable at:
+Once GitHub Pages is enabled (Settings → Pages → **Source: GitHub Actions**), the game
+deploys on every push to the default branch and is playable at:
 
 > **https://raagulmanoharan.github.io/Machinera/**
 
@@ -24,40 +21,51 @@ the game deploys automatically on every push to the default branch and is playab
 | `Space` | Handbrake (slide) |
 | `C` | Change camera (chase / close / hood) |
 | `R` | Reset to start |
-| `Esc` | Settings — pick a new location |
+| `Esc` | Settings — pick a route or a real place |
 
-Touch controls work too: left half of the screen steers, right half is throttle (top) /
-brake (bottom).
+Touch also works: left half of the screen steers, right half is throttle (top) / brake (bottom).
 
-## How it works
+## Two ways to drive
 
-- **Real-world mode (default).** On load, the game queries the free
-  [Overpass API](https://overpass-api.de) for a patch of OpenStreetMap around a chosen
-  location, projects the geometry to local metres, and builds the scene on the fly:
-  road network → drivable ribbons, building footprints → extruded 3D volumes, water and
-  parkland → filled areas. You start on the nearest street, aligned to it. Pick any of the
-  preset cities or enter your own `lat, lng` in the settings panel.
-- **Procedural mode (offline fallback).** A self-contained, endless-feeling highway
-  winding through hills, forest and snow-capped mountains — no network needed. The game
-  automatically drops you here if OpenStreetMap can't be reached.
-- **Driving model.** An arcade + bicycle-model vehicle: speed-sensitive steering,
-  lateral grip with a handbrake slide, engine/brake/drag forces, and wheels that spin and
-  turn. In procedural mode the car also conforms to the terrain slope.
+- **Scenic route (default).** A smooth, always-drivable winding road through rolling
+  hills, forest and dramatic snow-capped mountains — tuned to be relaxing to cruise, not
+  to fight. This is the star of the experience.
+- **Real place (OpenStreetMap).** Build any location live from free OpenStreetMap data +
+  open elevation tiles: real streets, buildings, water and parks, draped over real
+  terrain elevation. Great for picturesque spots. No account or API key.
 
-Everything renders with [three.js](https://threejs.org). No assets are shipped — the car,
-world and sky are all generated in code.
+## What makes it feel good
+
+- **Real free-library assets.** Trees, street lamps and boulders stream in as CC0 models
+  from [Poly Haven](https://polyhaven.com) (public domain), instanced for performance,
+  with procedural fallbacks so the game always runs offline.
+- **Driving that isn't a block.** The body squats under acceleration, dives under braking,
+  rolls into corners and bobs over road humps, on top of an arcade + bicycle-model
+  handling model with speed-sensitive steering and a handbrake slide.
+- **Atmosphere.** Physically-based sky with image-based lighting, sun glare, soft drifting
+  clouds, wind that sways the trees, ground-truth ambient occlusion, and a nostalgic film
+  grade (warm tint, lifted blacks, vignette, grain).
+- **Real materials.** PBR asphalt with painted lane markings and grime, windowed building
+  facades (concrete/brick and reflective glass towers), reflective water, and clearcoat
+  car paint — all generated in code or streamed as CC0 assets; nothing heavy is bundled.
 
 ## Develop
 
 ```bash
 npm install
-npm run dev      # local dev server (http://localhost:5173)
+npm run dev      # local dev server
 npm run build    # production build to dist/
 npm run preview  # preview the production build
 ```
 
-## Data & licensing
+## Assets & data
 
-Map data © OpenStreetMap contributors, available under the
-[Open Database License](https://www.openstreetmap.org/copyright). This project fetches it
-live at runtime via public Overpass API endpoints.
+- 3D models © [Poly Haven](https://polyhaven.com) — CC0 (public domain), loaded at runtime.
+- Map data © OpenStreetMap contributors ([ODbL](https://www.openstreetmap.org/copyright)),
+  via the public Overpass API.
+- Elevation from the [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) open
+  dataset.
+- Rendering by [three.js](https://threejs.org).
+
+Want a specific CC0 model pack (Kenney, Quaternius, …) wired in? Drop it in `public/models/`
+and register it in `src/render/AssetLibrary.js` — the instancing pipeline is ready for it.
