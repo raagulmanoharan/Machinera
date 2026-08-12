@@ -78,38 +78,6 @@ html, body {
 .hint { color: var(--muted); font-size: 13px; margin-top: 14px; }
 
 /* HUD */
-#hud {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-}
-.gauge {
-  position: absolute;
-  right: 26px;
-  bottom: 22px;
-  display: flex;
-  align-items: flex-end;
-  gap: 14px;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
-}
-.speed { font-variant-numeric: tabular-nums; line-height: 0.9; }
-.speed span { font-size: 64px; font-weight: 800; }
-.speed em {
-  font-style: normal;
-  font-size: 15px;
-  color: var(--muted);
-  margin-left: 8px;
-}
-.gear {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--accent);
-  border: 2px solid var(--accent);
-  border-radius: 10px;
-  padding: 2px 12px;
-  margin-bottom: 8px;
-}
 .help {
   position: absolute;
   left: 20px;
@@ -189,6 +157,141 @@ button.primary {
   border-color: transparent;
 }
 button.primary:hover { filter: brightness(1.06); }
+
+/* Radio — a slim vintage FM tuner, warm amber dial on the dark panel */
+#radio {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 15;
+  width: 150px;
+  max-width: 52vw;
+  padding: 6px 7px 7px;
+  background: linear-gradient(180deg, rgba(20, 17, 14, 0.9), rgba(11, 10, 9, 0.94));
+  border: 1px solid rgba(255, 209, 102, 0.14);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  user-select: none;
+  --amber: #ffcf7a;
+}
+/* the backlit dial face */
+.vr-face {
+  position: relative;
+  height: 22px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #0b0c0e, #131417);
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+/* tick marks along the tuning scale */
+.vr-scale {
+  position: absolute;
+  left: 6%; right: 6%; top: 3px;
+  height: 5px;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(255, 209, 102, 0.3) 0 1px,
+      transparent 1px 8px),
+    repeating-linear-gradient(90deg,
+      rgba(255, 209, 102, 0.15) 0 1px,
+      transparent 1px 4px);
+  opacity: 0.4;
+  transition: opacity 0.5s ease;
+}
+.vr-needle {
+  position: absolute;
+  top: 2px; bottom: 2px;
+  width: 1.5px;
+  margin-left: -0.75px;
+  background: #6a5a3a;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+  transition: left 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.5s, box-shadow 0.5s;
+}
+.vr-read {
+  position: absolute;
+  left: 6px; right: 14px; bottom: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.vr-freq {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #5f5540;
+  flex: 0 0 auto;
+  transition: color 0.5s, text-shadow 0.5s;
+}
+.vr-name {
+  font-size: 8px;
+  letter-spacing: 0.03em;
+  color: #4e4a3f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.5s;
+}
+.vr-on {
+  position: absolute;
+  top: 4px; right: 5px;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: #3a2f1c;
+  transition: background 0.5s, box-shadow 0.5s;
+}
+/* powered-on: the dial glows warm */
+#radio.is-on .vr-scale { opacity: 0.85; }
+#radio.is-on .vr-needle { background: var(--amber); box-shadow: 0 0 5px rgba(255, 207, 122, 0.8); }
+#radio.is-on .vr-freq { color: var(--amber); text-shadow: 0 0 7px rgba(255, 207, 122, 0.45); }
+#radio.is-on .vr-name { color: #caa96f; }
+#radio.is-on .vr-on {
+  background: var(--amber);
+  box-shadow: 0 0 6px rgba(255, 207, 122, 0.9);
+  animation: onair 2.4s ease-in-out infinite;
+}
+@keyframes onair { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+.vr-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.vr-tune {
+  cursor: pointer;
+  width: 20px; height: 18px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid rgba(255, 209, 102, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+  color: #b89a63;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.vr-tune:hover { background: rgba(255, 209, 102, 0.1); color: var(--amber); }
+.vr-tune:active { transform: translateY(1px); }
+.vr-vol {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 2px;
+  accent-color: var(--amber);
+  cursor: pointer;
+}
+/* the audio-only player: rendered but effectively invisible */
+#yt-audio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  left: 0;
+  bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+}
 
 .toast {
   position: absolute;

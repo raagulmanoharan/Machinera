@@ -10,6 +10,8 @@ import { Dust } from './render/Dust.js';
 import { MoodDirector } from './world/MoodDirector.js';
 import { advanceWind } from './render/wind.js';
 import { MODELS } from './render/AssetLibrary.js';
+import { Radio } from './Radio.js';
+import { EngineSound } from './EngineSound.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('scene');
@@ -61,6 +63,14 @@ window.__env = env; // debug handle
 window.__mood = mood; // debug handle
 window.__cam = camera; // debug handle
 
+// on-screen radio — streams audio from YouTube (curated stations + custom links)
+const radio = new Radio(document.getElementById('app'), (msg, err) => toast(msg, err));
+window.__radio = radio; // debug handle
+// procedural engine sound — pitch tracks speed/throttle
+const engine = new EngineSound();
+window.__engine = engine; // debug handle
+window.__input = input; // debug handle
+
 let world = null;
 let loading = false;
 
@@ -78,7 +88,6 @@ async function loadWorld() {
   if (loading) return;
   loading = true;
   showLoader(true, 'Preparing…');
-  $('hud').classList.add('hidden');
 
   if (world) { world.dispose(); world = null; }
 
@@ -108,9 +117,15 @@ async function loadWorld() {
   chase.snap();
 
   showLoader(false);
-  $('hud').classList.remove('hidden');
   loading = false;
+
+  // one-time mobile controls hint
+  if (!hintShown && (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) {
+    hintShown = true;
+    toast('Hold to accelerate · tilt to steer · two fingers to brake');
+  }
 }
+let hintShown = false;
 
 function parseLatLng(s) {
   if (!s) return null;
@@ -155,15 +170,9 @@ function frame() {
     });
     dust.update(camera.position, dt);
     chase.update(dt, car);
-    updateHud();
+    engine.update(dt, { speed: car.speed, throttle: input.throttle });
   }
   pipeline.render(dt);
-}
-
-function updateHud() {
-  const kmh = Math.round(Math.abs(car.speed) * 3.6);
-  $('speed').textContent = kmh;
-  $('gear').textContent = car.speed < -0.5 ? 'R' : 'D';
 }
 
 // ---------- UI ----------

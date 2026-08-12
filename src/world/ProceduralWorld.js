@@ -265,9 +265,8 @@ export class ProceduralWorld {
     const headLocal = new THREE.Vector3(0.30, 0.93, 0);  // head in unit-lamp space
     // deterministic jitter so lamps repeat but each is a little different
     let seed = 9871; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-    let side = 1;
-    for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += 95 + rnd() * 55) {  // sparse
-      side *= -1;
+    // place one lamp at longitudinal position z on the given side of the road
+    const place = (z, side) => {
       const zj = z + (rnd() - 0.5) * 8;
       const cx = roadX(zj), dx = roadSlope(zj);
       const len = Math.hypot(1, dx);
@@ -285,6 +284,14 @@ export class ProceduralWorld {
       this.colliders.add(px, pz, 0.4);
       heads.push(headLocal.clone().applyMatrix4(M));
       road.push({ x: roadX(zj), z: zj, slope: dx });
+    };
+    let side = 1;
+    for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += 95 + rnd() * 55) {  // sparse
+      side *= -1;
+      place(z, side);
+      // sprinkle a few extra random lamps between the regular posts — usually on
+      // the opposite side and offset, so the run stays irregular, not a grid
+      if (rnd() < 0.4) place(z + 28 + rnd() * 46, rnd() < 0.75 ? -side : side);
     }
     // lamp posts — weathered metal with a warm sodium lens that lights at night
     const lamp = makeStreetlamp();
