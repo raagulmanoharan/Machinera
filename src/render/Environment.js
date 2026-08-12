@@ -34,6 +34,15 @@ export class Environment {
     this.hemi = new THREE.HemisphereLight(0x9fb0c4, 0x3a3630, 0.5);
     scene.add(this.hemi);
 
+    // a soft, cool moonlight — a low fill from a fixed high angle that shapes
+    // and rim-lights the terrain/road without brightening the sky dome (kept
+    // separate from the below-horizon sun). Driven per mood.
+    this.moonDir = new THREE.Vector3().setFromSphericalCoords(
+      1, THREE.MathUtils.degToRad(90 - 34), THREE.MathUtils.degToRad(-48),
+    ).normalize();
+    this.moon = new THREE.DirectionalLight(0x9fb4d8, 0.0);
+    scene.add(this.moon, this.moon.target);
+
     scene.fog = new THREE.FogExp2(0x9aa7b4, 0.012);
     renderer.toneMappingExposure = 0.9;
 
@@ -85,10 +94,13 @@ export class Environment {
     this.hemi.intensity = hemiI;
   }
   setEnvIntensity(v) { this.scene.environmentIntensity = v; }
+  setMoon(color, intensity) { this.moon.color.set(color); this.moon.intensity = intensity; }
 
   update(target) {
     this.sun.position.copy(target).addScaledVector(this.sunDir, 200);
     this.sun.target.position.copy(target);
+    this.moon.position.copy(target).addScaledVector(this.moonDir, 300);
+    this.moon.target.position.copy(target);
     this.sky.position.copy(target);
   }
 
@@ -96,7 +108,7 @@ export class Environment {
     this.scene.environment = null;
     if (this._envRT) this._envRT.dispose();
     this.pmrem.dispose();
-    this.scene.remove(this.sun, this.sun.target, this.hemi, this.sky);
+    this.scene.remove(this.sun, this.sun.target, this.moon, this.moon.target, this.hemi, this.sky);
     this.scene.fog = null;
   }
 }

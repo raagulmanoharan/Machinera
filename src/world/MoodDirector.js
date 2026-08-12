@@ -16,7 +16,7 @@ export class MoodDirector {
     this.from = MOODS[0]; this.to = MOODS[0];
     this.t = 1;         // transition progress (1 = settled)
     this.timer = 0;
-    this._fog = new THREE.Color(); this._sun = new THREE.Color();
+    this._fog = new THREE.Color(); this._sun = new THREE.Color(); this._moon = new THREE.Color();
     this._hemi = new THREE.Color(); this._sky = new THREE.Color(); this._tmp = new THREE.Color();
     this._apply(MOODS[0], MOODS[0], 1);
     this._applyDiscrete(MOODS[0]);
@@ -67,6 +67,9 @@ export class MoodDirector {
       this._mix(this._sun, a.sun[0], b.sun[0], k), this._l(a.sun[1], b.sun[1], k),
       this._mix(this._hemi, a.hemi[0], b.hemi[0], k), this._l(a.hemi[1], b.hemi[1], k),
     );
+    if (e.setMoon && a.moon && b.moon) {
+      e.setMoon(this._mix(this._moon, a.moon[0], b.moon[0], k), this._l(a.moon[1], b.moon[1], k));
+    }
     pl.setTint(this._l(a.grade[0], b.grade[0], k), this._l(a.grade[1], b.grade[1], k), this._l(a.grade[2], b.grade[2], k));
     pl.setNight(this._l(a.night, b.night, k));
     if (this.car) this.car.setHeadlights(this._l(a.headlights, b.headlights, k));
