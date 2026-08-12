@@ -33,10 +33,15 @@ const dust = new Dust(scene);
 
 const input = new Input(canvas);
 const car = new Car(scene);
-// ?nocar skips the heavy car load while iterating on the atmosphere/scenes
-const NOCAR = new URLSearchParams(location.search).has('nocar');
+// ?nocar skips the heavy car load while iterating on the atmosphere/scenes;
+// ?simplecar keeps the built-in procedural car (skips the DRACO Ferrari load)
+const _params = new URLSearchParams(location.search);
+const NOCAR = _params.has('nocar');
+const SIMPLECAR = _params.has('simplecar');
 if (NOCAR) {
   car.group.visible = false;
+} else if (SIMPLECAR) {
+  // keep the procedural car built in the constructor — no model load
 } else {
   // prefer the detailed showroom car; fall back to the CC0 low-poly, then procedural
   car.loadFerrari(MODELS.ferrari).then((ok) => { if (!ok) car.loadModel(MODELS.car); });

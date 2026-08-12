@@ -144,6 +144,9 @@ export class Car {
       g.add(hl); g.add(hl.target);
       this.headlights.push(hl);
     }
+    // diffused volumetric beam cones — additive glowing shafts that read as the
+    // headlights scattering through the smog. Driven by the same night level.
+    this._addBeams(g);
 
     // soft contact shadow that grounds the car (independent of the sun)
     const cs = new THREE.Mesh(
@@ -152,6 +155,51 @@ export class Car {
     );
     cs.rotation.x = -Math.PI / 2; cs.position.y = 0.03; cs.renderOrder = 2;
     g.add(cs); this._contact = cs;
+  }
+
+  // Two additive cone meshes that fake volumetric light: a soft glow that is
+  // brightest near the lamp and fades forward, with softened silhouette edges so
+  // it reads as headlight scatter in the fog rather than a hard cone. Bloom then
+  // makes it glow. Shared material so both beams fade together with the night.
+  _addBeams(g) {
+    const L = 26, R = 4.2;
+    const geo = new THREE.ConeGeometry(R, L, 30, 1, true);
+    geo.translate(0, -L / 2, 0);        // tip at origin
+    geo.rotateX(-Math.PI / 2);          // widen forward: base -> +z, tip at lamp
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uColor: { value: new THREE.Color(0xfff0c8) }, uIntensity: { value: 0 } },
+      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+      vertexShader: `
+        varying float vT; varying vec3 vN; varying vec3 vV;
+        void main(){
+          vT = position.z / ${L.toFixed(1)};
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vN = normalize(mat3(modelMatrix) * normal);
+          vV = normalize(cameraPosition - wp.xyz);
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`,
+      fragmentShader: `
+        uniform vec3 uColor; uniform float uIntensity;
+        varying float vT; varying vec3 vN; varying vec3 vV;
+        void main(){
+          float t = clamp(vT, 0.0, 1.0);
+          float lenFade = smoothstep(0.0, 0.10, t) * (1.0 - t) * (1.0 - t);
+          float facing = 1.0 - abs(dot(normalize(vN), normalize(vV)));
+          float shape = 0.35 + 0.65 * pow(facing, 1.6);   // filled body + soft edges
+          float a = uIntensity * lenFade * shape;
+          gl_FragColor = vec4(uColor * a, a);
+        }`,
+    });
+    this._beamMat = mat;
+    for (const sx of [-0.6, 0.6]) {
+      const beam = new THREE.Mesh(geo, mat);
+      beam.position.set(sx, 0.6, 1.9);
+      beam.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 0, 1), new THREE.Vector3(sx * 0.4, -0.24, 24).normalize());
+      beam.renderOrder = 3;
+      beam.frustumCulled = false;
+      g.add(beam);
+    }
   }
 
   _contactTex() {
@@ -196,6 +244,7 @@ export class Car {
   setHeadlights(n) {
     const on = THREE.MathUtils.clamp(n, 0, 1);
     for (const hl of this.headlights) hl.intensity = 220 * on;
+    if (this._beamMat) this._beamMat.uniforms.uIntensity.value = 0.55 * on;
     if (this._headMats) {
       this._headMats[0].emissiveIntensity = 0.55 + 1.7 * on;
       this._headMats[1].emissiveIntensity = 0.7 + 1.3 * on;

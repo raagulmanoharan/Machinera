@@ -83,9 +83,10 @@ export class Pipeline {
     } catch (e) { /* keep defaults across minor version diffs */ }
     this.composer.addPass(this.gtao);
 
-    // bloom on the brightest highlights (sun glints, headlights, street lamps)
-    // subtle bloom only on the brightest points (headlights); keep it restrained
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.18, 0.6, 0.88);
+    // bloom — glows the headlight beams and their scatter through the smog, and
+    // the dusk horizon. Lower threshold + more strength so the diffused beams
+    // read as light blooming in the fog.
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.55, 0.75, 0.55);
     this.composer.addPass(this.bloom);
 
     this.composer.addPass(new SMAAPass(size.x, size.y));
