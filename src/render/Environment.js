@@ -32,12 +32,20 @@ export class Environment {
     // sky, so their silhouettes dissolve softly instead of cutting a hard edge.
     sm.uniforms.uFogBandLo = { value: -0.05 };
     sm.uniforms.uFogBandHi = { value: 0.62 };
+    // A faint warm sunset ember low on the horizon — late-dusk light behind the
+    // terrain. It lives only at the very bottom of the sky, fading out before it
+    // reaches mountain-ridge height, so the ridges still meet cool haze and stay
+    // soft. Baked into the environment (below), it also lifts the ambient light.
+    sm.uniforms.uSunset = { value: new THREE.Color(0xff9a52) };
+    sm.uniforms.uSunsetAmt = { value: 0.0 };
     sm.fragmentShader = sm.fragmentShader
-      .replace('uniform float mieDirectionalG;', 'uniform float mieDirectionalG;\nuniform vec3 uHorizonFog;\nuniform float uFogBandLo;\nuniform float uFogBandHi;')
+      .replace('uniform float mieDirectionalG;', 'uniform float mieDirectionalG;\nuniform vec3 uHorizonFog;\nuniform float uFogBandLo;\nuniform float uFogBandHi;\nuniform vec3 uSunset;\nuniform float uSunsetAmt;')
       .replace(
         'gl_FragColor = vec4( retColor, 1.0 );',
-        `float _hz = smoothstep(uFogBandLo, uFogBandHi, direction.y);
-         retColor = mix( uHorizonFog, retColor, _hz );
+        `float _ember = smoothstep(0.17, -0.06, direction.y) * uSunsetAmt;
+         vec3 _hzCol = mix( uHorizonFog, uSunset, _ember );
+         float _hz = smoothstep(uFogBandLo, uFogBandHi, direction.y);
+         retColor = mix( _hzCol, retColor, _hz );
          gl_FragColor = vec4( retColor, 1.0 );`);
     sm.needsUpdate = true;
 
@@ -93,6 +101,14 @@ export class Environment {
     this._skyScene.remove(this.sky);
     this.scene.add(this.sky);
     this.scene.environment = this._envRT.texture;
+  }
+
+  // warm sunset ember behind the terrain. Only sets the uniforms; the caller
+  // should follow with setSky() so it's baked into the environment IBL too.
+  setSunset(color, amount = 0) {
+    const u = this.sky.material.uniforms;
+    if (u.uSunset) u.uSunset.value.set(color);
+    if (u.uSunsetAmt) u.uSunsetAmt.value = amount;
   }
 
   // kept for API compatibility

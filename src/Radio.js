@@ -16,8 +16,9 @@ const STATIONS = [
   { freq: '89.3', name: 'liminal · synthwave drift', ids: ['4xDzrJKXOOY'] },
   { freq: '92.7', name: 'liminal · lo-fi corridors', ids: ['jfKfPfyJRdk'] },
   { freq: '98.1', name: 'liminal · chillhop haze',   ids: ['DWcJFNfaw9c'] },
-  // Vintage Ilaiyaraaja — add the source video/playlist id here.
-  // { freq: '104.5', name: 'ilaiyaraaja · tamil melodies', ids: ['<youtube id>'] },
+  // Vintage Ilaiyaraaja melodies (jukeboxes; falls through to the next if one
+  // is unavailable in a region).
+  { freq: '104.5', name: 'ilaiyaraaja · melodies', ids: ['GVmSrnEEWCU', 'SpjCrTHkzCA', 'UThJRnZvuHM'] },
 ];
 
 // ---- YouTube IFrame API (loaded once) ----

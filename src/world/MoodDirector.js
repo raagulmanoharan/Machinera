@@ -44,6 +44,8 @@ export class MoodDirector {
 
   // sky changes are baked to a PMREM env, so do them once per mood change
   _applyDiscrete(m) {
+    const s = m.sunset || [0x000000, 0];
+    if (this.env.setSunset) this.env.setSunset(s[0], s[1]);   // set before the bake
     this.env.setSky(m.skyElev ?? 4, m.skyAzi ?? 165, m.skyTurb ?? 8, m.skyRayl ?? 2);
   }
 
