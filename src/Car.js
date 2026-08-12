@@ -169,9 +169,9 @@ export class Car {
     vLong = Math.max(-CFG.maxReverse, Math.min(CFG.maxSpeed, vLong));
     if (input.throttle < 0.02 && input.brake < 0.02 && Math.abs(vLong) < 0.4) vLong *= 0.9;
 
-    // steering (less at speed)
+    // steering (less at speed). Negated so left/right match the chase view.
     const steerAuth = 1 / (1 + Math.abs(vLong) / CFG.steerSpeedFalloff);
-    const steerAngle = input.steer * CFG.maxSteer * steerAuth;
+    const steerAngle = -input.steer * CFG.maxSteer * steerAuth;
     this._steerVis += (steerAngle - this._steerVis) * Math.min(1, dt * 10);
 
     // yaw via bicycle model, damped at crawl speed
@@ -189,6 +189,18 @@ export class Car {
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.y * dt;
     this.speed = vLong;
+
+    // collision with world obstacles (buildings, trees, rocks, lamps, traffic)
+    if (world && world.resolveCollision) {
+      const res = world.resolveCollision(this.pos.x, this.pos.z, 1.5);
+      if (res && res.hit) {
+        this.pos.x = res.x;
+        this.pos.z = res.z;
+        const vN = this.vel.x * res.nx + this.vel.y * res.nz;
+        if (vN < 0) { this.vel.x -= res.nx * vN; this.vel.y -= res.nz * vN; } // slide along
+        this.vel.multiplyScalar(0.86); // scrub speed on impact
+      }
+    }
 
     // ground follow (height + normal) if the world supplies terrain
     let groundY = 0, nx = 0, nz = 0;

@@ -36,9 +36,11 @@ Touch also works: left half of the screen steers, right half is throttle (top) /
 
 ## What makes it feel good
 
-- **Real free-library assets.** Trees, street lamps and boulders stream in as CC0 models
-  from [Poly Haven](https://polyhaven.com) (public domain), instanced for performance,
-  with procedural fallbacks so the game always runs offline.
+- **Real free-library assets.** Trees are bundled CC0 low-poly models from
+  [Kenney](https://kenney.nl) (public domain), instanced in the thousands for
+  performance, mixed with procedural conifers, lamps and rocks.
+- **Solid collisions.** Buildings, trees, rocks, lamps, parked cars and guardrails are
+  all solid — you bump and slide off them instead of driving through.
 - **Driving that isn't a block.** The body squats under acceleration, dives under braking,
   rolls into corners and bobs over road humps, on top of an arcade + bicycle-model
   handling model with speed-sensitive steering and a handbrake slide.
@@ -60,7 +62,7 @@ npm run preview  # preview the production build
 
 ## Assets & data
 
-- 3D models © [Poly Haven](https://polyhaven.com) — CC0 (public domain), loaded at runtime.
+- 3D models © [Kenney](https://kenney.nl) — CC0 (public domain), bundled under `public/models/`.
 - Map data © OpenStreetMap contributors ([ODbL](https://www.openstreetmap.org/copyright)),
   via the public Overpass API.
 - Elevation from the [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) open

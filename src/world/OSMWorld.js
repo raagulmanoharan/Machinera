@@ -3,9 +3,10 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { loadElevation } from './Elevation.js';
-import { assets, PH_MODELS } from '../render/AssetLibrary.js';
+import { assets, MODELS } from '../render/AssetLibrary.js';
 import { makeStreetlamp, makeTree, makePine, makeCarProp, CAR_COLORS } from './props.js';
 import { applyWind } from '../render/wind.js';
+import { Colliders } from './Colliders.js';
 
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
@@ -32,7 +33,10 @@ export class OSMWorld {
     this._extras = [];
     this.waters = [];
     this.sunDir = new THREE.Vector3(0.6, 0.5, 0.3).normalize();
+    this.colliders = new Colliders(6);
   }
+
+  resolveCollision(x, z, r) { return this.colliders.resolve(x, z, r); }
 
   // real-world terrain height at local (x, z); 0 when elevation is unavailable
   heightAt(x, z) {
@@ -247,9 +251,11 @@ export class OSMWorld {
       const nx = -tz, nz = tx;
       if (i > 0) dist += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
       vcoord.push(dist / 3); // one texture tile per ~3 m
-      const y = this.heightAt(p.x, p.y) + raise; // one height per cross-section keeps the road level
-      left.push(new THREE.Vector3(p.x + nx * hw, y, p.y + nz * hw));
-      right.push(new THREE.Vector3(p.x - nx * hw, y, p.y - nz * hw));
+      // sample elevation at each edge so the road conforms to the ground (no clipping on slopes)
+      const lx = p.x + nx * hw, lz = p.y + nz * hw;
+      const rx = p.x - nx * hw, rz = p.y - nz * hw;
+      left.push(new THREE.Vector3(lx, this.heightAt(lx, lz) + raise, lz));
+      right.push(new THREE.Vector3(rx, this.heightAt(rx, rz) + raise, rz));
     }
     const verts = [], idx = [], uvs = [];
     for (let i = 0; i < pts.length; i++) {
@@ -381,6 +387,9 @@ export class OSMWorld {
       cx /= w.geometry.length; cz /= w.geometry.length;
       geo.translate(0, this.heightAt(cx, cz) - 0.3, 0);
       (tall ? tallG : lowG).push(geo);
+      // solid walls: sample each footprint edge into colliders
+      const fp = w.geometry.map((g) => this.project(g.lat, g.lon));
+      for (let i = 0; i < fp.length - 1; i++) this.colliders.addSegment(fp[i].x, fp[i].y, fp[i + 1].x, fp[i + 1].y, 1.1);
     }
     if (!lowG.length && !tallG.length) return;
 
@@ -496,6 +505,7 @@ export class OSMWorld {
           q.setFromAxisAngle(up, Math.atan2(-dToRoad.z, dToRoad.x));
           s.set(5.6, 5.6, 5.6);
           lampMats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, this.heightAt(px, pz), pz), q, s));
+          this.colliders.add(px, pz, 0.4);
           // occasional parked car on the opposite side
           if (carMats.length < 260 && Math.abs(px) > 8) {
             const cpx = b.x - lampSide * nx * (width / 2 - 0.6);
@@ -503,12 +513,19 @@ export class OSMWorld {
             q.setFromAxisAngle(up, Math.atan2(tx, tz));
             carMats.push(new THREE.Matrix4().compose(new THREE.Vector3(cpx, this.heightAt(cpx, cpz), cpz), q, new THREE.Vector3(1, 1, 1)));
             carColors.push(CAR_COLORS[(carPick++) % CAR_COLORS.length]);
+            this.colliders.add(cpx, cpz, 1.4);
           }
         }
       }
     }
-    const lamp = makeStreetlamp();
-    await this._instanceOrFallback(PH_MODELS.lamp, lampMats, this._unit(lamp.geo), lamp.materials);
+    if (lampMats.length) {
+      const lamp = makeStreetlamp();
+      const inst = new THREE.InstancedMesh(this._unit(lamp.geo), lamp.materials, lampMats.length);
+      inst.castShadow = true;
+      lampMats.forEach((m, i) => inst.setMatrixAt(i, m));
+      inst.instanceMatrix.needsUpdate = true;
+      this.group.add(inst);
+    }
 
     if (carMats.length) {
       const carGeo = makeCarProp();
@@ -547,13 +564,19 @@ export class OSMWorld {
         q.setFromAxisAngle(up, rand() * Math.PI * 2);
         s.set(height, height, height);
         (rand() < 0.5 ? pine : leafy).push(new THREE.Matrix4().compose(new THREE.Vector3(px, this.heightAt(px, pz), pz), q, s));
+        this.colliders.add(px, pz, 0.9);
       }
     }
     const leafMat = () => applyWind(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4 }));
-    await Promise.all([
-      this._instanceOrFallback(PH_MODELS.pine, pine, this._unit(makePine()), leafMat()),
-      this._instanceOrFallback(PH_MODELS.tree, leafy, this._unit(makeTree()), leafMat()),
-    ]);
+    // real CC0 Kenney tree (bundled) for the leafy trees; procedural pines
+    await this._instanceOrFallback(MODELS.tree, leafy, this._unit(makeTree()), leafMat());
+    if (pine.length) {
+      const inst = new THREE.InstancedMesh(this._unit(makePine()), leafMat(), pine.length);
+      inst.castShadow = true; inst.receiveShadow = true;
+      pine.forEach((m, i) => inst.setMatrixAt(i, m));
+      inst.instanceMatrix.needsUpdate = true;
+      this.group.add(inst);
+    }
   }
 
   _unit(geo) {
