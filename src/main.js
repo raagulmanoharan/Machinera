@@ -69,6 +69,7 @@ window.__radio = radio; // debug handle
 // procedural engine sound — pitch tracks speed/throttle
 const engine = new EngineSound();
 window.__engine = engine; // debug handle
+window.__input = input; // debug handle
 
 let world = null;
 let loading = false;
@@ -117,7 +118,14 @@ async function loadWorld() {
 
   showLoader(false);
   loading = false;
+
+  // one-time mobile controls hint
+  if (!hintShown && (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) {
+    hintShown = true;
+    toast('Hold to accelerate · tilt to steer · two fingers to brake');
+  }
 }
+let hintShown = false;
 
 function parseLatLng(s) {
   if (!s) return null;
