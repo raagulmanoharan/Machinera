@@ -429,28 +429,40 @@ export class ProceduralWorld {
   }
 
   _markingTex() {
-    const c = document.createElement('canvas'); c.width = 64; c.height = 256;
+    const W = 64, H = 512;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
     const g = c.getContext('2d');
-    g.clearRect(0, 0, 64, 256);
-    let s = 771; const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
-    // worn, uneven paint — varying alpha, ragged edges, patchy wear
-    const line = (x, w, col, base) => {
-      for (let y = 0; y < 256; y++) {
-        const wear = base * (0.7 + 0.3 * rnd());             // fades a little along its length
-        if (rnd() < 0.025) continue;                         // occasional scuffed row
-        g.fillStyle = `rgba(${col},${wear.toFixed(2)})`;
-        const jx = x + (rnd() - 0.5) * 0.7;                  // slightly ragged edge
-        g.fillRect(jx, y, w + (rnd() - 0.5) * 0.6, 1);
+    g.clearRect(0, 0, W, H);
+    // smooth 1-D value noise — patchy wear ALONG the length (straight edges)
+    const hash = (n) => { const s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); };
+    const noise = (y, seed) => {
+      const yy = y + seed, i = Math.floor(yy), f = yy - i, t = f * f * (3 - 2 * f);
+      return hash(i * 1.7 + seed) * (1 - t) + hash((i + 1) * 1.7 + seed) * t;
+    };
+    const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    // straight-edged line whose paint fades in smooth patches (some worn to
+    // nothing, some intact) — never a wavy/squiggly edge
+    const line = (x, w, rgb, seed) => {
+      for (let y = 0; y < H; y++) {
+        const wear = 0.58 * noise(y * 0.02, seed) + 0.42 * noise(y * 0.07, seed + 40);
+        const a = ss(0.28, 0.62, wear) * 0.82;
+        if (a <= 0.02) continue;
+        g.fillStyle = `rgba(${rgb},${a.toFixed(3)})`;
+        g.fillRect(x, y, w, 1);                              // straight edge
       }
     };
-    line(4, 4, '228,226,214', 0.78); line(56, 4, '228,226,214', 0.78);  // edge lines
-    // dashed yellow centre — each dash a slightly different length/wear
-    for (let d = 20; d < 256; d += 96) {
-      const len = 120 + (rnd() - 0.5) * 40;
-      for (let y = d; y < d + len && y < 256; y++) {
-        if (rnd() < 0.035) continue;
-        g.fillStyle = `rgba(224,192,70,${(0.62 + 0.3 * rnd()).toFixed(2)})`;
-        g.fillRect(29 + (rnd() - 0.5) * 0.7, y, 6 + (rnd() - 0.5) * 0.6, 1);
+    line(4, 4, '226,224,212', 3.1); line(56, 4, '226,224,212', 9.7);
+    // dashed yellow centre — proper dashes, each with its own overall condition
+    // plus smooth internal wear
+    const dash = 96, gap = 150;
+    for (let d = -30; d < H; d += dash + gap) {
+      const cond = 0.55 + 0.45 * hash(d * 0.31 + 5.0);       // this dash: faded..fresh
+      for (let y = Math.max(0, d); y < d + dash && y < H; y++) {
+        const wear = cond * (0.6 + 0.4 * noise(y * 0.05, 20 + d * 0.01));
+        const a = ss(0.24, 0.6, wear) * 0.82;
+        if (a <= 0.02) continue;
+        g.fillStyle = `rgba(222,190,68,${a.toFixed(3)})`;
+        g.fillRect(29, y, 6, 1);                             // straight edge
       }
     }
     const t = new THREE.CanvasTexture(c);
@@ -483,7 +495,7 @@ export class ProceduralWorld {
     road.position.y = 0.0; road.receiveShadow = true; this.group.add(road);
 
     // painted markings overlay — faded and worn
-    const mTex = this._markingTex(); mTex.repeat.set(1, 1 / 12);
+    const mTex = this._markingTex(); mTex.repeat.set(1, 1 / 28);  // ~28 m per tile — wear pattern rarely repeats
     const marks = new THREE.Mesh(this._ribbonGeo(W), new THREE.MeshStandardMaterial({
       map: mTex, color: 0x8c877a, alphaTest: 0.45, roughness: 0.85, envMapIntensity: 0.2,
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
