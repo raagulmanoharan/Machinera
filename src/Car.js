@@ -134,21 +134,28 @@ export class Car {
       if (front) this.frontWheels.push(pivot);
     }
 
-    // headlight beams — real spotlights, off by day, lighting the road at night
+    // headlight beams — real spotlights lighting the road ahead at night; the
+    // in-air glow through the fog is done volumetrically in the post pipeline
     this.headlights = [];
     this._headMats = [lightF, lightR]; // front/rear emissive, boosted at night
     for (const sx of [-0.6, 0.6]) {
-      // wide, high-penumbra spotlight: a soft pool of light on the road, not a
-      // hard narrow cone
-      const hl = new THREE.SpotLight(0xffeecb, 0, 120, 0.95, 1.0, 1.1);
+      const hl = new THREE.SpotLight(0xffeecb, 0, 120, 0.9, 1.0, 1.1);
       hl.position.set(sx, 0.62, 2.0);
       hl.target.position.set(sx * 2.0, -0.4, 30);
       g.add(hl); g.add(hl.target);
       this.headlights.push(hl);
     }
-    // diffused volumetric beam cones — additive glowing shafts that read as the
-    // headlights scattering through the smog. Driven by the same night level.
-    this._addBeams(g);
+    // a real red spotlight so the tail-lights spill red onto the road behind
+    this._tailLight = new THREE.SpotLight(0xff1a10, 0, 22, 1.0, 1.0, 1.4);
+    this._tailLight.position.set(0, 0.7, -1.9);
+    this._tailLight.target.position.set(0, 0, -8);
+    g.add(this._tailLight); g.add(this._tailLight.target);
+
+    // local emitter positions for the volumetric pass (transformed to world
+    // each frame in getVolumetricEmitters)
+    this._headEmit = [new THREE.Vector3(-0.6, 0.62, 2.0), new THREE.Vector3(0.6, 0.62, 2.0)];
+    this._tailEmit = [new THREE.Vector3(-0.6, 0.6, -2.0), new THREE.Vector3(0.6, 0.6, -2.0)];
+    this._fwd = new THREE.Vector3(); this._back = new THREE.Vector3();
 
     // soft contact shadow that grounds the car (independent of the sun)
     const cs = new THREE.Mesh(
@@ -159,80 +166,22 @@ export class Car {
     g.add(cs); this._contact = cs;
   }
 
-  // Two additive cone meshes that fake volumetric light: a soft glow that is
-  // brightest near the lamp and fades forward, with softened silhouette edges so
-  // it reads as headlight scatter in the fog rather than a hard cone. Bloom then
-  // makes it glow. Shared material so both beams fade together with the night.
-  _addBeams(g) {
-    const L = 34, R = 7.5;             // long + wide so it's a soft diffuse haze
-    const geo = new THREE.ConeGeometry(R, L, 32, 1, true);
-    geo.translate(0, -L / 2, 0);        // tip at origin
-    geo.rotateX(-Math.PI / 2);          // widen forward: base -> +z, tip at lamp
-    const mat = new THREE.ShaderMaterial({
-      uniforms: { uColor: { value: new THREE.Color(0xffeac2) }, uIntensity: { value: 0 } },
-      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
-      vertexShader: `
-        varying float vT; varying vec3 vN; varying vec3 vV;
-        void main(){
-          vT = position.z / ${L.toFixed(1)};
-          vec4 wp = modelMatrix * vec4(position, 1.0);
-          vN = normalize(mat3(modelMatrix) * normal);
-          vV = normalize(cameraPosition - wp.xyz);
-          gl_Position = projectionMatrix * viewMatrix * wp;
-        }`,
-      fragmentShader: `
-        uniform vec3 uColor; uniform float uIntensity;
-        varying float vT; varying vec3 vN; varying vec3 vV;
-        void main(){
-          float t = clamp(vT, 0.0, 1.0);
-          // soft start at the lamp, long gentle reach that carries through the fog
-          float lenFade = smoothstep(0.0, 0.30, t) * pow(1.0 - t, 1.1);
-          // very soft, low-contrast silhouette — no hard cone edge
-          float facing = 1.0 - abs(dot(normalize(vN), normalize(vV)));
-          float shape = 0.25 + 0.75 * pow(facing, 0.7);
-          float a = uIntensity * lenFade * shape;
-          gl_FragColor = vec4(uColor * a, a);
-        }`,
-    });
-    this._beamMat = mat;
-    for (const sx of [-0.6, 0.6]) {
-      const beam = new THREE.Mesh(geo, mat);
-      beam.position.set(sx, 0.62, 1.9);
-      beam.quaternion.setFromUnitVectors(
-        new THREE.Vector3(0, 0, 1), new THREE.Vector3(sx * 0.5, -0.22, 24).normalize());
-      beam.renderOrder = 3;
-      beam.frustumCulled = false;
-      g.add(beam);
-    }
-    this._addTailGlow(g);
-  }
-
-  // A soft radial gradient sprite (white; tinted by the material colour).
-  _softGlowTex() {
-    const c = document.createElement('canvas'); c.width = c.height = 128;
-    const x = c.getContext('2d');
-    const grd = x.createRadialGradient(64, 64, 2, 64, 64, 64);
-    grd.addColorStop(0, 'rgba(255,255,255,0.95)');
-    grd.addColorStop(0.5, 'rgba(255,255,255,0.35)');
-    grd.addColorStop(1, 'rgba(255,255,255,0)');
-    x.fillStyle = grd; x.fillRect(0, 0, 128, 128);
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-  }
-
-  // A red glow spilled on the road behind the car — the tail-lights reflecting
-  // on the tarmac. Additive so it blooms; fades up with the night level.
-  _addTailGlow(g) {
-    const tex = this._softGlowTex();
-    const mat = new THREE.MeshBasicMaterial({
-      map: tex, color: 0xff1810, transparent: true, opacity: 0, depthWrite: false,
-      blending: THREE.AdditiveBlending, toneMapped: false,
-    });
-    const pool = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 8), mat);
-    pool.rotation.x = -Math.PI / 2;
-    pool.position.set(0, 0.05, -4.0);   // flat on the road, just behind the car
-    pool.renderOrder = 2; pool.frustumCulled = false;
-    g.add(pool);
-    this._tailGlowMat = mat;
+  // World-space emitters for the volumetric fog pass: two forward-beaming
+  // headlights and two red tail-lights, plus the current night level. Returns
+  // null when the lights are off.
+  getVolumetricEmitters() {
+    const lvl = this._headLevel || 0;
+    if (lvl <= 0) return null;
+    this.group.updateMatrixWorld();
+    const m = this.group.matrixWorld;
+    this._fwd.set(0, 0, 1).transformDirection(m).normalize();
+    this._back.copy(this._fwd).multiplyScalar(-1);
+    return {
+      level: lvl,
+      fwd: this._fwd, back: this._back,
+      head: this._headEmit.map((p) => p.clone().applyMatrix4(m)),
+      tail: this._tailEmit.map((p) => p.clone().applyMatrix4(m)),
+    };
   }
 
   _contactTex() {
@@ -276,9 +225,9 @@ export class Car {
   // emissive glow on the head/tail-light lenses so the car reads as "lit".
   setHeadlights(n) {
     const on = THREE.MathUtils.clamp(n, 0, 1);
+    this._headLevel = on;                        // read by getVolumetricEmitters()
     for (const hl of this.headlights) hl.intensity = 140 * on;
-    if (this._beamMat) this._beamMat.uniforms.uIntensity.value = 0.42 * on;
-    if (this._tailGlowMat) this._tailGlowMat.opacity = 0.6 * on;
+    if (this._tailLight) this._tailLight.intensity = 30 * on;
     if (this._headMats) {
       this._headMats[0].emissiveIntensity = 0.55 + 1.7 * on;
       this._headMats[1].emissiveIntensity = 0.9 + 2.6 * on;   // brighter -> blooms

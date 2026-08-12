@@ -30,8 +30,13 @@ const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.5, 12
 const env = new Environment(scene, renderer);
 const pipeline = new Pipeline(renderer, scene, camera);
 const dust = new Dust(scene);
-const VOLUMETRIC_WARM = new THREE.Color(0xffb060);   // sodium-lamp scatter tint
 pipeline.depthExcludes = [env.sky, dust.points];     // don't let these write depth
+// volumetric light scatter colours (as RGB vectors) + shared emission dirs
+const VCOL_LAMP = new THREE.Vector3(1.0, 0.66, 0.34);   // warm sodium
+const VCOL_HEAD = new THREE.Vector3(1.0, 0.95, 0.82);   // headlight white
+const VCOL_TAIL = new THREE.Vector3(1.0, 0.06, 0.03);   // tail-light red
+const VDIR_DOWN = new THREE.Vector3(0, -1, 0);
+const _volLights = [];
 
 const input = new Input(canvas);
 const car = new Car(scene);
@@ -126,16 +131,28 @@ function frame() {
     if (world.update) world.update(dt, car.pos, camera);
     env.update(car.pos, dt);
     mood.update(dt);
-    // drive the volumetric lamp light (real 3D fog scattering) from the world
-    if (world.lampHeads) {
-      pipeline.updateVolumetric(camera, world.lampHeads, {
-        strength: (world.lampLevel || 0) * 0.11,
-        fog: (scene.fog && scene.fog.density) || 0.02,
-        color: VOLUMETRIC_WARM,
-      });
-    } else {
-      pipeline.updateVolumetric(camera, null, { strength: 0 });
+    // collect the volumetric lights: nearest street lamps (warm, pooling down),
+    // plus the car's headlights (white, forward) and tail-lights (red, behind)
+    _volLights.length = 0;
+    const lampLvl = (world.lampLevel || 0);
+    if (world.lampHeads && lampLvl > 0) {
+      const cp = car.pos;
+      const near = world.lampHeads
+        .map((h) => [h, h.distanceToSquared(cp)])
+        .sort((a, b) => a[1] - b[1]).slice(0, 4);
+      for (const [h] of near) _volLights.push({ pos: h, color: VCOL_LAMP.clone().multiplyScalar(1.1 * lampLvl), dir: VDIR_DOWN, cone: -0.35, att: 0.16 });
     }
+    const ce = car.getVolumetricEmitters();
+    if (ce) {
+      // headlights: a soft forward glow, not a blinding wall — low intensity +
+      // short reach so it fades within a few metres of fog ahead
+      for (const p of ce.head) _volLights.push({ pos: p, color: VCOL_HEAD.clone().multiplyScalar(0.5 * ce.level), dir: ce.fwd, cone: 0.82, att: 0.09 });
+      for (const p of ce.tail) _volLights.push({ pos: p, color: VCOL_TAIL.clone().multiplyScalar(0.45 * ce.level), dir: ce.back, cone: 0.2, att: 0.3 });
+    }
+    pipeline.updateVolumetric(camera, _volLights, {
+      strength: _volLights.length ? 0.11 : 0,
+      fog: (scene.fog && scene.fog.density) || 0.02,
+    });
     dust.update(camera.position, dt);
     chase.update(dt, car);
     updateHud();

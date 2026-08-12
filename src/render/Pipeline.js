@@ -64,62 +64,62 @@ const CinematicShader = {
 };
 
 // Volumetric light: march the view ray (from the camera to the scene depth)
-// through the fog and accumulate in-scattering from the street lamps. This is a
-// true 3D effect — the glow is a volume of lit fog around each bulb, occluded by
-// geometry (via the depth buffer), with a downward bias so light pools under the
-// lamp. Added on top of the scene (the existing fog handles extinction).
-const MAX_LAMPS = 8;
+// through the fog and accumulate in-scattering from a set of coloured, directional
+// lights — street lamps (warm, pooling down), headlights (white, beaming forward)
+// and tail-lights (red, behind the car). A true 3D effect, occluded by geometry
+// (via the depth buffer) and added on top of the scene (fog handles extinction).
+const MAX_LIGHTS = 8;
+const vecArr = () => Array.from({ length: MAX_LIGHTS }, () => new THREE.Vector3());
 const VolumetricLightShader = {
   uniforms: {
     tDiffuse: { value: null }, tDepth: { value: null },
     uProjInv: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() },
-    uCamPos: { value: new THREE.Vector3() }, uNear: { value: 0.1 }, uFar: { value: 2000 },
-    uLamps: { value: Array.from({ length: MAX_LAMPS }, () => new THREE.Vector3()) },
-    uCount: { value: 0 }, uFog: { value: 0.02 }, uStrength: { value: 0 },
-    uColor: { value: new THREE.Color(0xffb060) }, uTime: { value: 0 },
+    uCamPos: { value: new THREE.Vector3() }, uFog: { value: 0.02 }, uStrength: { value: 0 }, uTime: { value: 0 },
+    uPos: { value: vecArr() }, uCol: { value: vecArr() }, uDir: { value: vecArr() },
+    uCone: { value: new Array(MAX_LIGHTS).fill(0) }, uAtt: { value: new Array(MAX_LIGHTS).fill(0.1) },
+    uCount: { value: 0 },
   },
   vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
   fragmentShader: /* glsl */`
     #include <packing>
     uniform sampler2D tDiffuse, tDepth;
-    uniform mat4 uProjInv, uCamWorld; uniform vec3 uCamPos, uColor;
-    uniform float uNear, uFar, uFog, uStrength, uTime;
-    uniform vec3 uLamps[${MAX_LAMPS}]; uniform int uCount;
+    uniform mat4 uProjInv, uCamWorld; uniform vec3 uCamPos;
+    uniform float uFog, uStrength, uTime;
+    uniform vec3 uPos[${MAX_LIGHTS}]; uniform vec3 uCol[${MAX_LIGHTS}]; uniform vec3 uDir[${MAX_LIGHTS}];
+    uniform float uCone[${MAX_LIGHTS}]; uniform float uAtt[${MAX_LIGHTS}]; uniform int uCount;
     varying vec2 vUv;
     float rnd(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233)))*43758.5453); }
     void main(){
       vec3 scene = texture2D(tDiffuse, vUv).rgb;
-      // reconstruct the world position of the scene point under this pixel
       float d = unpackRGBAToDepth(texture2D(tDepth, vUv));   // [0,1] non-linear
       vec4 clip = vec4(vUv*2.0-1.0, d*2.0-1.0, 1.0);
       vec4 vp = uProjInv * clip; vp /= vp.w;
       vec3 P = (uCamWorld * vp).xyz;
       if (uStrength <= 0.0 || uCount == 0) { gl_FragColor = vec4(scene, 1.0); return; }
-      // view-ray direction from a far reconstruction (robust for sky pixels too)
       vec4 clipF = vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
       vec4 vpF = uProjInv * clipF; vpF /= vpF.w;
       vec3 dir = normalize((uCamWorld * vpF).xyz - uCamPos);
-      // march to the geometry; open-air (sky) pixels march a bounded fog depth
       float tMax = (d <= 0.0011) ? 78.0 : min(distance(uCamPos, P), 130.0);
-      const int STEPS = 20;
+      const int STEPS = 14;
       float stepLen = tMax / float(STEPS);
       float jit = rnd(vUv + fract(uTime)) * stepLen;
-      float acc = 0.0;
+      vec3 acc = vec3(0.0);
       for (int i = 0; i < STEPS; i++){
         float t = jit + float(i) * stepLen;
         vec3 p = uCamPos + dir * t;
-        float s = 0.0;
-        for (int l = 0; l < ${MAX_LAMPS}; l++){
+        vec3 s = vec3(0.0);
+        for (int l = 0; l < ${MAX_LIGHTS}; l++){
           if (l >= uCount) break;
-          vec3 to = uLamps[l] - p; float dl = length(to);
-          float att = 1.0 / (1.0 + 0.16 * dl * dl);      // tighter, more physical falloff
-          float down = clamp((uLamps[l].y - p.y) / (dl + 0.2), 0.0, 1.0); // below the lamp
-          s += att * (0.15 + 0.85 * down * down);        // glow spills downward, minimal on top
+          vec3 fromL = p - uPos[l]; float dl = length(fromL); fromL /= max(dl, 0.001);
+          float att = 1.0 / (1.0 + uAtt[l] * dl * dl);
+          float align = dot(fromL, uDir[l]);                 // p relative to the light's emission dir
+          float cone = smoothstep(uCone[l], mix(uCone[l], 1.0, 0.55), align);
+          s += uCol[l] * (att * cone);
         }
-        acc += s * exp(-uFog * t * 2.6) * stepLen;   // fog extinction toward the camera
+        acc += s * exp(-uFog * t * 2.6) * stepLen;
       }
-      acc = clamp(acc, 0.0, 40.0);
-      gl_FragColor = vec4(scene + uColor * acc * uStrength, 1.0);
+      acc = min(acc, vec3(60.0));
+      gl_FragColor = vec4(scene + acc * uStrength, 1.0);
     }`,
 };
 
@@ -179,28 +179,29 @@ export class Pipeline {
     }
   }
 
-  // feed the volumetric pass the camera, the nearest lamp heads, and the mood
-  // parameters. `lampHeads` is an array of world-space Vector3 (lamp bulbs).
-  updateVolumetric(camera, lampHeads, { strength = 0, fog = 0.02, color } = {}) {
+  // feed the volumetric pass the camera + a list of coloured directional lights.
+  // Each light: { pos:Vector3, color:Vector3 (already ×intensity), dir:Vector3
+  // (unit emission dir), cone:number (cos outer half-angle), att:number (falloff k) }.
+  updateVolumetric(camera, lights, { strength = 0, fog = 0.02 } = {}) {
     const u = this.volumetric.uniforms;
+    const n = Math.min(lights ? lights.length : 0, MAX_LIGHTS);
     u.uStrength.value = strength;
-    if (strength <= 0 || !lampHeads || !lampHeads.length) { u.uCount.value = 0; return; }
+    if (strength <= 0 || n === 0) { u.uCount.value = 0; return; }
     camera.updateMatrixWorld();
     u.uProjInv.value.copy(camera.projectionMatrixInverse);
     u.uCamWorld.value.copy(camera.matrixWorld);
     camera.getWorldPosition(u.uCamPos.value);
-    u.uNear.value = camera.near; u.uFar.value = camera.far;
     u.uFog.value = fog;
-    if (color) u.uColor.value.copy(color);
     u.uTime.value = this._t;
-    // pick the nearest lamps to the camera
-    const cp = u.uCamPos.value;
-    const near = lampHeads
-      .map((h) => [h, h.distanceToSquared(cp)])
-      .sort((a, b) => a[1] - b[1])
-      .slice(0, MAX_LAMPS);
-    for (let i = 0; i < near.length; i++) u.uLamps.value[i].copy(near[i][0]);
-    u.uCount.value = near.length;
+    for (let i = 0; i < n; i++) {
+      const L = lights[i];
+      u.uPos.value[i].copy(L.pos);
+      u.uCol.value[i].copy(L.color);
+      u.uDir.value[i].copy(L.dir);
+      u.uCone.value[i] = L.cone;
+      u.uAtt.value[i] = L.att;
+    }
+    u.uCount.value = n;
   }
 
   setSize(w, h) {
