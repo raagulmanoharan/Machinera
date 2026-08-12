@@ -202,15 +202,25 @@ export class ProceduralWorld {
     this._addInstanced(rockGeo, rockMat, mats);
   }
 
-  // soft radial glow sprite; `core` sets how tight the bright centre is
-  _glowTex(core = 0.4) {
-    const c = document.createElement('canvas'); c.width = c.height = 128;
+  // Smooth glow sprite with a gaussian falloff — a bright core plus a wide,
+  // gradual halo that fades to nothing with no hard edge, so it diffuses into
+  // the fog instead of reading as a flat disc.
+  _glowTex() {
+    const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
     const g = c.getContext('2d');
-    const grd = g.createRadialGradient(64, 64, 1, 64, 64, 64);
-    grd.addColorStop(0, 'rgba(255,255,255,0.98)');
-    grd.addColorStop(core, 'rgba(255,255,255,0.4)');
-    grd.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+    const img = g.createImageData(S, S), R = S / 2;
+    const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const dx = (x - R) / R, dy = (y - R) / R, d2 = dx * dx + dy * dy, d = Math.sqrt(d2);
+        // wide soft scatter + tighter inner glow, both gaussian (edge-free)
+        let a = 0.55 * Math.exp(-d2 * 2.3) + 0.6 * Math.exp(-d2 * 9.0);
+        a = Math.min(1, a) * (1 - ss(0.5, 1.0, d));   // window to 0 at the quad edge
+        const i = (y * S + x) * 4;
+        img.data[i] = 255; img.data[i + 1] = 255; img.data[i + 2] = 255; img.data[i + 3] = (a * 255) | 0;
+      }
+    }
+    g.putImageData(img, 0, 0);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   }
 
@@ -268,23 +278,23 @@ export class ProceduralWorld {
     this._lensMat = lensM;
     this._addInstanced(this._fallbackGeo(lamp.geo), lamp.materials, mats);
 
-    // warm halo orbs at each head — additive billboards that bloom into the fog
-    this._haloMat = new THREE.SpriteMaterial({
-      map: this._glowTex(0.32), color: 0xffb054, transparent: true, opacity: 0,
-      depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
-    });
+    // warm glow at each head — layered additive billboards: a tight warm-white
+    // core plus a large, faint orange halo. The gaussian falloff means the glow
+    // diffuses smoothly into the fog rather than reading as a hard disc.
+    const gtex = this._glowTex();
+    this._haloCore = new THREE.SpriteMaterial({ map: gtex, color: 0xffdca6, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+    this._haloWide = new THREE.SpriteMaterial({ map: gtex, color: 0xff8f34, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
     const halos = new THREE.Group();
     for (const h of heads) {
-      const sp = new THREE.Sprite(this._haloMat);
-      sp.position.copy(h); sp.scale.setScalar(7.0);
-      halos.add(sp);
+      const core = new THREE.Sprite(this._haloCore); core.position.copy(h); core.scale.setScalar(4.0); halos.add(core);
+      const wide = new THREE.Sprite(this._haloWide); wide.position.copy(h); wide.scale.setScalar(22); halos.add(wide);
     }
     halos.frustumCulled = false; this.group.add(halos);
 
     // warm reflection on the wet road: a soft pool under the lamp plus a long
     // vertical smear down the tarmac toward the viewer
     this._poolMat = new THREE.MeshBasicMaterial({
-      map: this._glowTex(0.5), color: 0xffa63c, transparent: true, opacity: 0,
+      map: gtex, color: 0xffa63c, transparent: true, opacity: 0,
       depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
     });
     this._streakMat = new THREE.MeshBasicMaterial({
@@ -310,10 +320,11 @@ export class ProceduralWorld {
   // street-lamp glow level (0 off → 1 full), driven by the mood director
   setLamps(level) {
     const n = THREE.MathUtils.clamp(level, 0, 1);
-    if (this._lensMat) this._lensMat.emissiveIntensity = 6.0 * n;
-    if (this._haloMat) this._haloMat.opacity = 0.95 * n;
-    if (this._poolMat) this._poolMat.opacity = 0.8 * n;
-    if (this._streakMat) this._streakMat.opacity = 0.6 * n;
+    if (this._lensMat) this._lensMat.emissiveIntensity = 7.0 * n;
+    if (this._haloCore) this._haloCore.opacity = 0.85 * n;
+    if (this._haloWide) this._haloWide.opacity = 0.5 * n;
+    if (this._poolMat) this._poolMat.opacity = 0.7 * n;
+    if (this._streakMat) this._streakMat.opacity = 0.55 * n;
   }
 
   update() { /* static world; nothing per-frame */ }
