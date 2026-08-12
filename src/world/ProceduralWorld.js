@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
+import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 
 // ---------- deterministic noise ----------
 function hash2(x, y) {
@@ -22,12 +23,8 @@ function vnoise(x, y) {
 }
 function fbm(x, y) {
   let sum = 0, amp = 0.5, freq = 1;
-  for (let i = 0; i < 5; i++) {
-    sum += amp * vnoise(x * freq, y * freq);
-    freq *= 2;
-    amp *= 0.5;
-  }
-  return sum; // ~0..~0.97
+  for (let i = 0; i < 5; i++) { sum += amp * vnoise(x * freq, y * freq); freq *= 2; amp *= 0.5; }
+  return sum;
 }
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -39,10 +36,9 @@ function mulberry32(seed) {
   };
 }
 
-const FLAT_TO = ROAD.halfWidth + ROAD.shoulder + 1.8; // grass shoulder stays flat
+const FLAT_TO = ROAD.halfWidth + ROAD.shoulder + 1.8;
 const CORRIDOR_Y = -0.15;
 
-// Terrain height at any world (x, z). Flat near the road, hilly away, mountains far.
 export function heightAt(x, z) {
   const c = distToRoad(x, z);
   if (c <= FLAT_TO) return CORRIDOR_Y;
@@ -57,7 +53,7 @@ export class ProceduralWorld {
     this.scene = scene;
     this.group = new THREE.Group();
     scene.add(this.group);
-    this.heightAt = heightAt; // expose terrain height on the instance
+    this.heightAt = heightAt;
     this.carStart = { pos: new THREE.Vector3(roadX(0), 0, 0), heading: 0 };
     this._build();
   }
@@ -67,87 +63,17 @@ export class ProceduralWorld {
       if (o.geometry) o.geometry.dispose();
       if (o.material) {
         const mats = Array.isArray(o.material) ? o.material : [o.material];
-        mats.forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); });
+        mats.forEach((m) => { if (m.map) m.map.dispose(); if (m.normalMap) m.normalMap.dispose(); m.dispose(); });
       }
     });
     this.scene.remove(this.group);
-    if (this._sky) this.scene.remove(this._sky);
-    if (this._sun) this.scene.remove(this._sun);
-    if (this._hemi) this.scene.remove(this._hemi);
-    this.scene.fog = null;
   }
 
   _build() {
-    this._lighting();
-    this._sky_();
     this._terrain();
     this._roadMesh();
     this._scatter();
     this._guardrails();
-  }
-
-  // ---------- lighting & atmosphere ----------
-  _lighting() {
-    const hemi = new THREE.HemisphereLight(0xbcd7ff, 0x4a5540, 0.85);
-    this.scene.add(hemi);
-    this._hemi = hemi;
-
-    const sun = new THREE.DirectionalLight(0xfff2d6, 2.4);
-    sun.position.set(120, 180, -60);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    const s = sun.shadow.camera;
-    s.near = 1; s.far = 260;
-    s.left = -60; s.right = 60; s.top = 60; s.bottom = -60;
-    sun.shadow.bias = -0.0004;
-    sun.shadow.normalBias = 0.02;
-    this.scene.add(sun);
-    this.scene.add(sun.target);
-    this._sun = sun;
-
-    this.scene.fog = new THREE.Fog(0xcfe0ee, 220, 1400);
-  }
-
-  // Follow the car so shadows stay sharp under it.
-  updateSun(target) {
-    if (!this._sun) return;
-    this._sun.position.set(target.x + 120, target.y + 180, target.z - 60);
-    this._sun.target.position.copy(target);
-  }
-
-  _sky_() {
-    const geo = new THREE.SphereGeometry(6000, 32, 16);
-    const mat = new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      depthWrite: false,
-      uniforms: {
-        top: { value: new THREE.Color(0x2a6fd6) },
-        mid: { value: new THREE.Color(0x9cc4ec) },
-        bot: { value: new THREE.Color(0xdfeaf3) },
-        sun: { value: new THREE.Vector3(120, 180, -60).normalize() },
-      },
-      vertexShader: /* glsl */ `
-        varying vec3 vDir;
-        void main() {
-          vDir = normalize(position);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }`,
-      fragmentShader: /* glsl */ `
-        varying vec3 vDir;
-        uniform vec3 top; uniform vec3 mid; uniform vec3 bot; uniform vec3 sun;
-        void main() {
-          float h = clamp(vDir.y, -1.0, 1.0);
-          vec3 col = h > 0.0 ? mix(mid, top, pow(h, 0.6)) : mix(mid, bot, pow(-h, 0.5));
-          float s = max(dot(normalize(vDir), normalize(sun)), 0.0);
-          col += vec3(1.0, 0.9, 0.7) * pow(s, 220.0) * 1.4;   // sun disc
-          col += vec3(1.0, 0.85, 0.6) * pow(s, 6.0) * 0.12;   // glow
-          gl_FragColor = vec4(col, 1.0);
-        }`,
-    });
-    const sky = new THREE.Mesh(geo, mat);
-    sky.frustumCulled = false;
-    this.scene.add(sky);
-    this._sky = sky;
   }
 
   // ---------- terrain ----------
@@ -160,9 +86,10 @@ export class ProceduralWorld {
     const nx = Math.ceil((halfX * 2) / stepX);
 
     const geo = new THREE.PlaneGeometry(halfX * 2, zEnd - zStart, nx, nz);
-    geo.rotateX(-Math.PI / 2); // lie flat, plane's local y-height -> world y
+    geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position;
     const colors = new Float32Array(pos.count * 3);
+    const uv = geo.attributes.uv;
 
     const cGrass = new THREE.Color(0x3f6b2e);
     const cGrass2 = new THREE.Color(0x2c5423);
@@ -173,59 +100,65 @@ export class ProceduralWorld {
 
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
-      const z = pos.getZ(i) + zMid; // PlaneGeometry centered at origin
+      const z = pos.getZ(i) + zMid;
       pos.setZ(i, z);
       const h = heightAt(x, z);
       pos.setY(i, h);
-
-      // colour by height with grassy variation
       const g = vnoise(x * 0.05, z * 0.05);
       tmp.copy(cGrass).lerp(cGrass2, g);
       if (h > 8) tmp.lerp(cRock, smoothstep(8, 40, h));
       if (h > 70) tmp.lerp(cSnow, smoothstep(70, 110, h));
       colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b;
+      // scale uv for tiled detail normal
+      uv.setXY(i, x * 0.02, z * 0.02);
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
 
+    const normalMap = makeNormalMap(512, { freq: 0.05, strength: 1.4, z: 1 });
+    normalMap.repeat.set(6, 6);
+    const roughMap = makeRoughnessMap(512, { base: 0.92, range: 0.08 });
+    roughMap.repeat.set(6, 6);
+
     const mat = new THREE.MeshStandardMaterial({
       vertexColors: true, roughness: 1.0, metalness: 0.0,
+      normalMap, roughnessMap: roughMap,
+      normalScale: new THREE.Vector2(0.6, 0.6),
+      envMapIntensity: 0.5,
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
+    mesh.castShadow = false;
     this.group.add(mesh);
   }
 
-  // ---------- road ribbon with painted lane markings ----------
+  // ---------- road ----------
   _roadTexture() {
     const c = document.createElement('canvas');
     c.width = 256; c.height = 256;
     const g = c.getContext('2d');
     g.fillStyle = '#33363b';
     g.fillRect(0, 0, 256, 256);
-    // asphalt speckle
     for (let i = 0; i < 2600; i++) {
       const v = 40 + Math.floor(Math.random() * 40);
       g.fillStyle = `rgb(${v},${v},${v + 2})`;
       g.fillRect(Math.random() * 256, Math.random() * 256, 1.4, 1.4);
     }
-    // solid edge lines
     g.fillStyle = '#e8e8e0';
     g.fillRect(16, 0, 5, 256);
     g.fillRect(235, 0, 5, 256);
-    // dashed centre line
     g.fillStyle = '#e9c94a';
     for (let y = 0; y < 256; y += 64) g.fillRect(125, y, 6, 34);
     const tex = new THREE.CanvasTexture(c);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.anisotropy = 8;
+    tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
   }
 
   _roadMesh() {
     const tex = this._roadTexture();
-    const tile = 22; // metres of road per texture repeat
+    const tile = 22;
     const W = ROAD.halfWidth;
     const y = 0.05;
     const verts = [], uvs = [], idx = [];
@@ -235,7 +168,7 @@ export class ProceduralWorld {
       const cx = roadX(z);
       const dx = roadSlope(z);
       const len = Math.hypot(1, dx);
-      const ox = 1 / len, oz = -dx / len; // perpendicular in XZ
+      const ox = 1 / len, oz = -dx / len;
       verts.push(cx - ox * W, y, z - oz * W);
       verts.push(cx + ox * W, y, z + oz * W);
       const v = (z - zStart) / tile;
@@ -251,8 +184,14 @@ export class ProceduralWorld {
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geo.setIndex(idx);
     geo.computeVertexNormals();
+
+    const asphaltNormal = makeNormalMap(512, { freq: 0.08, strength: 1.1, z: 5 });
+    asphaltNormal.repeat.set(3, 12);
+
     const mat = new THREE.MeshStandardMaterial({
-      map: tex, roughness: 0.85, metalness: 0.0,
+      map: tex, roughness: 0.72, metalness: 0.0,
+      normalMap: asphaltNormal, normalScale: new THREE.Vector2(0.5, 0.5),
+      envMapIntensity: 0.55,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
     });
     const mesh = new THREE.Mesh(geo, mat);
@@ -260,25 +199,23 @@ export class ProceduralWorld {
     this.group.add(mesh);
   }
 
-  // ---------- roadside scatter: trees & rocks ----------
+  // ---------- scatter ----------
   _treeGeo() {
     const trunk = new THREE.CylinderGeometry(0.22, 0.32, 2.2, 6);
     trunk.translate(0, 1.1, 0);
     const foliage = new THREE.ConeGeometry(1.7, 4.6, 8);
     foliage.translate(0, 4.3, 0);
-    const merged = mergeGeometries([trunk, foliage], true); // groups -> 2 materials
-    return merged;
+    return mergeGeometries([trunk, foliage], true);
   }
 
   _scatter() {
     const rng = mulberry32(1337);
     const treeGeo = this._treeGeo();
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3f28, roughness: 1 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f5d2a, roughness: 1 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f5d2a, roughness: 0.9, envMapIntensity: 0.4 });
     const N = 2200;
     const trees = new THREE.InstancedMesh(treeGeo, [trunkMat, leafMat], N);
-    trees.castShadow = true;
-    trees.receiveShadow = true;
+    trees.castShadow = true; trees.receiveShadow = true;
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const scaleV = new THREE.Vector3();
@@ -301,9 +238,8 @@ export class ProceduralWorld {
     trees.instanceMatrix.needsUpdate = true;
     this.group.add(trees);
 
-    // rocks
     const rockGeo = new THREE.IcosahedronGeometry(1, 0);
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a8378, roughness: 1, flatShading: true });
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a8378, roughness: 0.95, flatShading: true, envMapIntensity: 0.5 });
     const RN = 600;
     const rocks = new THREE.InstancedMesh(rockGeo, rockMat, RN);
     rocks.castShadow = true; rocks.receiveShadow = true;
@@ -327,14 +263,14 @@ export class ProceduralWorld {
     this.group.add(rocks);
   }
 
-  // ---------- guardrail posts along both edges ----------
+  // ---------- guardrails ----------
   _guardrails() {
     const postGeo = new THREE.BoxGeometry(0.12, 0.9, 0.12);
     postGeo.translate(0, 0.45, 0);
     const railGeo = new THREE.BoxGeometry(0.1, 0.16, 4.2);
     railGeo.translate(0, 0.7, 0);
     const merged = mergeGeometries([postGeo, railGeo]);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x9aa2ab, roughness: 0.5, metalness: 0.7 });
+    const mat = new THREE.MeshStandardMaterial({ color: 0xaab0b8, roughness: 0.35, metalness: 0.85, envMapIntensity: 1.0 });
     const spacing = 4.2;
     const count = Math.floor((ROAD.lengthEnd - ROAD.lengthStart) / spacing) * 2;
     const rail = new THREE.InstancedMesh(merged, mat, count);

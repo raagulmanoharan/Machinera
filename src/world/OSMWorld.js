@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { Water } from 'three/examples/jsm/objects/Water.js';
+import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
@@ -24,21 +26,23 @@ export class OSMWorld {
     scene.add(this.group);
     this.carStart = { pos: new THREE.Vector3(0, 0, 0), heading: 0 };
     this._extras = [];
+    this.waters = [];
+    this.sunDir = new THREE.Vector3(0.6, 0.5, 0.3).normalize();
   }
 
   // flat city — car stays at ground level
   heightAt() { return 0; }
 
-  async load({ lat, lng, radius = 700, onProgress = () => {} }) {
+  async load({ lat, lng, radius = 700, sunDir, onProgress = () => {} }) {
     this.lat0 = lat; this.lng0 = lng;
     this.mPerLat = 111320;
     this.mPerLng = 111320 * Math.cos((lat * Math.PI) / 180);
+    if (sunDir) this.sunDir.copy(sunDir);
 
     onProgress('Contacting OpenStreetMap…');
     const data = await this._fetch(lat, lng, radius);
 
     onProgress('Building the world…');
-    this._atmosphere();
     this._ground(radius);
     const ways = data.elements.filter((e) => e.type === 'way' && e.geometry && e.geometry.length > 1);
     this._buildRoads(ways);
@@ -47,6 +51,11 @@ export class OSMWorld {
     this._placeCarOnRoad(ways);
     onProgress('Ready');
     return this;
+  }
+
+  // animate water each frame
+  update(dt) {
+    for (const w of this.waters) w.material.uniforms.time.value += dt;
   }
 
   project(lat, lng) {
@@ -89,49 +98,21 @@ export class OSMWorld {
     throw new Error('OpenStreetMap fetch failed: ' + (lastErr ? lastErr.message : 'unknown'));
   }
 
-  // ---------- atmosphere ----------
-  _atmosphere() {
-    const hemi = new THREE.HemisphereLight(0xcfe2ff, 0x54504a, 0.9);
-    this.scene.add(hemi); this._extras.push(hemi);
-    const sun = new THREE.DirectionalLight(0xfff3dd, 2.2);
-    sun.position.set(140, 220, 120);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    const s = sun.shadow.camera;
-    s.near = 1; s.far = 500; s.left = -140; s.right = 140; s.top = 140; s.bottom = -140;
-    sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
-    this.scene.add(sun); this.scene.add(sun.target);
-    this._sun = sun; this._extras.push(sun, sun.target);
-    this.scene.fog = new THREE.Fog(0xd7e3ef, 400, 2200);
-
-    const sky = new THREE.Mesh(
-      new THREE.SphereGeometry(5000, 24, 12),
-      new THREE.ShaderMaterial({
-        side: THREE.BackSide, depthWrite: false,
-        uniforms: { top: { value: new THREE.Color(0x3f7fd8) }, bot: { value: new THREE.Color(0xdfeaf3) } },
-        vertexShader: `varying float h; void main(){ h=normalize(position).y; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
-        fragmentShader: `varying float h; uniform vec3 top; uniform vec3 bot; void main(){ gl_FragColor=vec4(mix(bot,top,clamp(h*0.5+0.5,0.0,1.0)),1.0);} `,
-      })
-    );
-    sky.frustumCulled = false;
-    this.scene.add(sky); this._extras.push(sky);
-  }
-
-  updateSun(target) {
-    if (!this._sun) return;
-    this._sun.position.set(target.x + 140, 220, target.z + 120);
-    this._sun.target.position.copy(target);
-  }
-
   _ground(radius) {
     const size = radius * 3;
     const geo = new THREE.PlaneGeometry(size, size);
     geo.rotateX(-Math.PI / 2);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x9aa08f, roughness: 1 });
+    const normalMap = makeNormalMap(512, { freq: 0.06, strength: 1.0, z: 7 });
+    normalMap.repeat.set(size / 12, size / 12);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x8f9683, roughness: 1, metalness: 0,
+      normalMap, normalScale: new THREE.Vector2(0.4, 0.4), envMapIntensity: 0.4,
+    });
     const m = new THREE.Mesh(geo, mat);
     m.position.y = -0.05;
     m.receiveShadow = true;
     this.group.add(m);
+    this._groundNormal = normalMap;
   }
 
   // ---------- roads ----------
@@ -150,18 +131,28 @@ export class OSMWorld {
         if (line) center.push(line);
       }
     }
-    const asphalt = new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.9 });
-    const asphalt2 = new THREE.MeshStandardMaterial({ color: 0x44474d, roughness: 0.9 });
+    const asphaltNormal = makeNormalMap(512, { freq: 0.09, strength: 1.0, z: 9 });
+    asphaltNormal.repeat.set(1, 1);
+    const roughMap = makeRoughnessMap(512, { base: 0.82, range: 0.14, z: 11 });
+    const asphalt = new THREE.MeshStandardMaterial({
+      color: 0x3a3d42, roughness: 0.85, metalness: 0.0,
+      normalMap: asphaltNormal, normalScale: new THREE.Vector2(0.35, 0.35),
+      roughnessMap: roughMap, envMapIntensity: 0.5,
+    });
+    const asphalt2 = asphalt.clone();
+    asphalt2.color.setHex(0x44474d);
+    this._roadNormal = asphaltNormal;
     if (minor.length) this._addMerged(minor, asphalt, true);
     if (major.length) this._addMerged(major, asphalt2, true);
-    if (center.length) this._addMerged(center, new THREE.MeshStandardMaterial({ color: 0xe9c94a, roughness: 0.7 }), false);
+    if (center.length) this._addMerged(center, new THREE.MeshStandardMaterial({ color: 0xe9c94a, roughness: 0.6, emissive: 0x2a2410, emissiveIntensity: 0.2 }), false);
   }
 
-  // build a flat ribbon geometry from a polyline, with mitred joins
+  // build a flat ribbon geometry from a polyline, with mitred joins + length UVs
   _ribbon(pts, width, y) {
     if (pts.length < 2) return null;
     const hw = width / 2;
-    const left = [], right = [];
+    const left = [], right = [], vcoord = [];
+    let dist = 0;
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
       const a = pts[Math.max(0, i - 1)];
@@ -169,14 +160,17 @@ export class OSMWorld {
       let tx = b.x - a.x, tz = b.y - a.y;
       const tl = Math.hypot(tx, tz) || 1;
       tx /= tl; tz /= tl;
-      const nx = -tz, nz = tx; // left normal
+      const nx = -tz, nz = tx;
+      if (i > 0) dist += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+      vcoord.push(dist / 3); // one texture tile per ~3 m
       left.push(new THREE.Vector3(p.x + nx * hw, y, p.y + nz * hw));
       right.push(new THREE.Vector3(p.x - nx * hw, y, p.y - nz * hw));
     }
-    const verts = [], idx = [];
+    const verts = [], idx = [], uvs = [];
     for (let i = 0; i < pts.length; i++) {
       verts.push(left[i].x, left[i].y, left[i].z);
       verts.push(right[i].x, right[i].y, right[i].z);
+      uvs.push(0, vcoord[i], 1, vcoord[i]);
       if (i > 0) {
         const a = (i - 1) * 2, b = a + 1, c = i * 2, d = c + 1;
         idx.push(a, c, b, b, c, d);
@@ -184,6 +178,7 @@ export class OSMWorld {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     g.setIndex(idx);
     g.computeVertexNormals();
     return g;
@@ -208,31 +203,60 @@ export class OSMWorld {
       const isGreen = /grass|forest|meadow|recreation_ground|village_green|cemetery/.test(t.landuse || '') ||
         /park|garden|pitch|golf_course/.test(t.leisure || '');
       if (!isWater && !isGreen) continue;
-      const shapeGeo = this._fillShape(w.geometry);
+      // water stays in the XY plane (Water mesh is rotated); green lies flat
+      const shapeGeo = this._fillShape(w.geometry, !isWater);
       if (!shapeGeo) continue;
       (isWater ? water : green).push(shapeGeo);
     }
     if (green.length) {
-      const g = this._addMerged(green, new THREE.MeshStandardMaterial({ color: 0x4f7d3a, roughness: 1 }), true);
+      const gNormal = makeNormalMap(256, { freq: 0.12, strength: 1.2, z: 13 });
+      this._addMerged(green, new THREE.MeshStandardMaterial({
+        color: 0x4f7d3a, roughness: 1,
+        normalMap: gNormal, normalScale: new THREE.Vector2(0.5, 0.5), envMapIntensity: 0.4,
+      }), true);
     }
-    if (water.length) {
-      this._addMerged(water, new THREE.MeshStandardMaterial({ color: 0x2f6f9e, roughness: 0.25, metalness: 0.2 }), false);
-    }
+    if (water.length) this._buildWater(water);
   }
 
-  _fillShape(geometry) {
+  // one realistic reflective Water surface covering all water polygons
+  _buildWater(geos) {
+    const merged = mergeGeometries(geos, false);
+    if (!merged) return;
+    geos.forEach((g) => g.dispose());
+    const waterNormals = makeNormalMap(512, { freq: 0.03, strength: 1.6, z: 21 });
+    waterNormals.repeat.set(1, 1);
+    const water = new Water(merged, {
+      textureWidth: 512,
+      textureHeight: 512,
+      waterNormals,
+      sunDirection: this.sunDir.clone(),
+      sunColor: 0xffffff,
+      waterColor: 0x224b6b,
+      distortionScale: 2.6,
+      fog: !!this.scene.fog,
+    });
+    water.position.y = 0.06;
+    water.rotation.x = -Math.PI / 2; // XY-plane geometry -> horizontal, normal +Y
+    this.group.add(water);
+    this.waters.push(water);
+  }
+
+  _fillShape(geometry, flat = true) {
     if (geometry.length < 3) return null;
     const shape = new THREE.Shape();
     geometry.forEach((g, i) => {
       const p = this.project(g.lat, g.lon);
-      // shape Y = -worldZ so rotateX(-90) lands it back at +worldZ
+      // shape Y = -worldZ so a -90° X rotation lands it back at +worldZ
       if (i === 0) shape.moveTo(p.x, -p.y);
       else shape.lineTo(p.x, -p.y);
     });
     let geo;
     try { geo = new THREE.ShapeGeometry(shape); } catch { return null; }
-    geo.rotateX(-Math.PI / 2);
-    geo.translate(0, 0.01, 0);
+    if (flat) {
+      geo.rotateX(-Math.PI / 2);
+      geo.translate(0, 0.01, 0);
+    }
+    // when not flat, geometry stays in XY plane for the Water mesh to rotate
     return geo;
   }
 
@@ -273,11 +297,18 @@ export class OSMWorld {
     if (!geos.length) return;
     const merged = mergeGeometries(geos, false);
     geos.forEach((g) => g.dispose());
-    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0.02 });
+    const facade = makeNormalMap(256, { freq: 0.2, strength: 0.9, z: 31 });
+    facade.repeat.set(0.4, 0.4); // ExtrudeGeometry UVs are in metres
+    const mat = new THREE.MeshStandardMaterial({
+      vertexColors: true, roughness: 0.82, metalness: 0.04,
+      normalMap: facade, normalScale: new THREE.Vector2(0.35, 0.35),
+      envMapIntensity: 0.7,
+    });
     const mesh = new THREE.Mesh(merged, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     this.group.add(mesh);
+    this._facadeNormal = facade;
   }
 
   _buildingHeight(tags, id) {

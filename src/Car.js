@@ -40,11 +40,17 @@ export class Car {
   _build() {
     const g = this.group;
 
-    const paint = new THREE.MeshStandardMaterial({ color: 0xd23b3b, roughness: 0.35, metalness: 0.6 });
-    const glass = new THREE.MeshStandardMaterial({ color: 0x0d1620, roughness: 0.1, metalness: 0.2 });
-    const trim = new THREE.MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.6, metalness: 0.3 });
-    const tire = new THREE.MeshStandardMaterial({ color: 0x111214, roughness: 0.9 });
-    const rim = new THREE.MeshStandardMaterial({ color: 0xc9ccd2, roughness: 0.3, metalness: 0.8 });
+    const paint = new THREE.MeshPhysicalMaterial({
+      color: 0xb01f2e, roughness: 0.3, metalness: 0.55,
+      clearcoat: 1.0, clearcoatRoughness: 0.08, envMapIntensity: 0.9,
+    });
+    const glass = new THREE.MeshPhysicalMaterial({
+      color: 0x0a1018, roughness: 0.06, metalness: 0.1,
+      clearcoat: 1.0, clearcoatRoughness: 0.05, envMapIntensity: 1.6,
+    });
+    const trim = new THREE.MeshStandardMaterial({ color: 0x15181d, roughness: 0.5, metalness: 0.4, envMapIntensity: 0.8 });
+    const tire = new THREE.MeshStandardMaterial({ color: 0x0e0f11, roughness: 0.85, metalness: 0.0 });
+    const rim = new THREE.MeshStandardMaterial({ color: 0xd2d6dc, roughness: 0.22, metalness: 0.95, envMapIntensity: 1.5 });
     const lightF = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff2c0, emissiveIntensity: 0.6 });
     const lightR = new THREE.MeshStandardMaterial({ color: 0x330000, emissive: 0xff2020, emissiveIntensity: 0.8 });
 

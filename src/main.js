@@ -4,6 +4,8 @@ import { Car } from './Car.js';
 import { ChaseCamera } from './ChaseCamera.js';
 import { OSMWorld } from './world/OSMWorld.js';
 import { ProceduralWorld } from './world/ProceduralWorld.js';
+import { Environment } from './render/Environment.js';
+import { Pipeline } from './render/Pipeline.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('scene');
@@ -15,11 +17,14 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 0.82;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.5, 8000);
+const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.5, 12000);
+
+const env = new Environment(scene, renderer, { elevation: 34, azimuth: 150 });
+const pipeline = new Pipeline(renderer, scene, camera);
 
 const input = new Input(canvas);
 const car = new Car(scene);
@@ -51,7 +56,7 @@ async function loadWorld() {
     if (source === 'osm') {
       const [lat, lng] = parseLatLng(prefs.location) || [40.758, -73.9855];
       const w = new OSMWorld(scene);
-      await w.load({ lat, lng, radius: prefs.radius || 750, onProgress: (m) => setLoader(m) });
+      await w.load({ lat, lng, radius: prefs.radius || 750, sunDir: env.sunDir, onProgress: (m) => setLoader(m) });
       world = w;
     } else {
       world = new ProceduralWorld(scene);
@@ -85,11 +90,12 @@ function frame() {
   if (world && !loading) {
     input.update(dt);
     car.update(dt, input, world);
-    if (world.updateSun) world.updateSun(car.pos);
+    if (world.update) world.update(dt);
+    env.update(car.pos);
     chase.update(dt, car);
     updateHud();
   }
-  renderer.render(scene, camera);
+  pipeline.render(dt);
 }
 
 function updateHud() {
@@ -165,6 +171,7 @@ window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  pipeline.setSize(innerWidth, innerHeight);
 });
 
 // ---------- boot ----------
