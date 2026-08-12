@@ -11,14 +11,16 @@
 // There's no play button: the set powers on with your first interaction (a
 // driving key or a touch of the dial), the way you'd switch on a real radio.
 
+// Each station is a large YouTube playlist that the player SHUFFLES and
+// auto-advances through — so it plays an endless, ever-changing random mix
+// rather than a single fixed link. `ids` are single-video fallbacks used only
+// if the playlist can't load (private / region-blocked). A station with no
+// `list` is a 24/7 live stream (already endless).
 const STATIONS = [
-  // Liminal-spaces style: ambient / synthwave / lo-fi drift.
-  { freq: '89.3', name: 'liminal · synthwave drift', ids: ['4xDzrJKXOOY'] },
-  { freq: '92.7', name: 'liminal · lo-fi corridors', ids: ['jfKfPfyJRdk'] },
-  { freq: '98.1', name: 'liminal · chillhop haze',   ids: ['DWcJFNfaw9c'] },
-  // Vintage Ilaiyaraaja melodies (jukeboxes; falls through to the next if one
-  // is unavailable in a region).
-  { freq: '104.5', name: 'ilaiyaraaja · melodies', ids: ['GVmSrnEEWCU', 'SpjCrTHkzCA', 'UThJRnZvuHM'] },
+  { freq: '89.3',  name: 'liminal · synthwave',    list: 'PLuz2XAd1YEc9ftt1OuwCYPWGc-khKdMPS', ids: ['4xDzrJKXOOY'] },
+  { freq: '93.1',  name: 'liminal · vapor / lofi', list: 'PLZNQVAwlJuFP9BpqHWHJr3ytty-KTkJ3B', ids: ['jfKfPfyJRdk'] },
+  { freq: '98.5',  name: 'lofi · live radio',      ids: ['jfKfPfyJRdk', 'DWcJFNfaw9c'] },
+  { freq: '104.5', name: 'ilaiyaraaja · melodies', list: 'PL0ZpYcTg19EELLEz_zgPshQgcqOLD5cGQ', ids: ['GVmSrnEEWCU', 'SpjCrTHkzCA'] },
 ];
 
 // ---- YouTube IFrame API (loaded once) ----
@@ -161,11 +163,16 @@ export class Radio {
     this.el.classList.add('is-on');
     this.static.resume();
     this.static.setBed(this._bedFor(this.volume));
-    // (re)attempt playback within this gesture; onStateChange detaches the
-    // gesture handlers once it's genuinely playing
-    if (this.player && this.ready && !this._playing) {
-      try { this.player.unMute(); this.player.setVolume(this.volume); this.player.playVideo(); } catch { /* not ready */ }
-    }
+    this._startOrResume();
+  }
+
+  // Load the current station once (inside the first gesture, as iOS requires),
+  // then just resume on later gestures.
+  _startOrResume() {
+    if (!this.player || !this.ready || this._playing) return;
+    try { this.player.unMute(); } catch { /* ignore */ }
+    if (!this._loaded) { this._loaded = true; this._loadStation(); }
+    else { try { this.player.playVideo(); } catch { /* ignore */ } }
   }
 
   _stopKick() {
@@ -185,38 +192,64 @@ export class Radio {
         onReady: () => {
           this.ready = true;
           this.player.setVolume(this.volume);
-          // if the user already interacted, this runs outside a gesture and may
-          // be blocked on iOS — the retry-on-gesture handlers cover that case
-          if (this.powered && !this._playing) { try { this.player.unMute(); this.player.playVideo(); } catch { /* ignore */ } }
+          if (this.powered) this._startOrResume();
         },
         onStateChange: (e) => {
-          if (e.data === YT.PlayerState.PLAYING) { this._playing = true; this._stopKick(); }
-          else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) { this._playing = false; }
+          if (e.data === YT.PlayerState.PLAYING) {
+            this._playing = true; this._stopKick();
+            if (this._pendingShuffle) {                 // shuffle once the playlist is live
+              this._pendingShuffle = false;
+              try { this.player.setShuffle(true); this.player.setLoop(true); } catch { /* ignore */ }
+            }
+          } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
+            this._playing = false;
+          }
         },
         onError: () => this._onError(),
       },
     });
   }
 
-  _onError() {
-    // try the next candidate id for this station; if none, sit on static
+  // Load whatever the current station is: a shuffled playlist (endless, random
+  // auto-play, scanning in at a random position) or a single video / live stream.
+  _loadStation() {
     const s = this.stations[this.index];
-    if (s && this.cand < s.ids.length - 1) {
+    this.cand = 0;
+    this._fellBack = false;
+    if (!this.player || !this.ready) return;
+    try {
+      this.player.setVolume(this.volume);
+      if (s.list) {
+        this._pendingShuffle = true;
+        this.player.loadPlaylist({ list: s.list, listType: 'playlist', index: Math.floor(Math.random() * 25) });
+      } else {
+        this._pendingShuffle = false;
+        this.player.loadVideoById(s.ids[0]);
+      }
+    } catch { /* ignore */ }
+  }
+
+  _onError() {
+    const s = this.stations[this.index];
+    // a dud playlist -> fall back to the station's single video
+    if (s.list && !this._fellBack) {
+      this._fellBack = true; this._pendingShuffle = false;
+      if (this.player && this.ready) this.player.loadVideoById(s.ids[0]);
+      return;
+    }
+    if (s.ids && this.cand < s.ids.length - 1) {
       this.cand++;
       if (this.player && this.ready) this.player.loadVideoById(s.ids[this.cand]);
-    } else {
-      this.onToast('No signal on that station', true);
+      return;
     }
+    this.onToast('No signal on that station', true);
   }
 
   _load() {
-    const s = this.stations[this.index];
-    this.cand = 0;
     this._render();
-    this.static.hit();                       // burst of static while we retune
-    if (!this.player || !this.ready) return;
-    this.player.loadVideoById(s.ids[0]);     // loadVideoById autoplays
-    this.player.setVolume(this.volume);
+    this.static.hit();          // burst of static while we retune
+    this._loaded = true;
+    this._loadStation();
   }
 
   next() { if (!this.stations.length) return; this.index = (this.index + 1) % this.stations.length; this._load(); }
