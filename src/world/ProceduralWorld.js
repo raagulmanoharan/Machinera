@@ -4,6 +4,7 @@ import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { assets, MODELS, TEXTURES, loadTexture, deTile } from '../render/AssetLibrary.js';
 import { makeStreetlamp, makeStylizedTree, stylizedTreeMaterial } from './props.js';
+import { makeEzTree } from './ezTrees.js';
 import { applyWind } from '../render/wind.js';
 import { Colliders } from './Colliders.js';
 import { GrassField } from './GrassField.js';
@@ -87,7 +88,8 @@ export class ProceduralWorld {
     this.grass = new GrassField(this.group, {
       heightAt,
       skip: (x, z) => distToRoad(x, z) < edge,
-      count: 108, spacing: 0.42,
+      count: 168, spacing: 0.26,   // dense overgrown meadow around the car
+      hMin: 0.6, hMax: 1.55, windAmp: 0.18,
     });
   }
 
@@ -122,7 +124,7 @@ export class ProceduralWorld {
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
     const round = [], pine = [];
     let placed = 0, guard = 0;
-    while (placed < 2400 && guard < 40000) {
+    while (placed < 260 && guard < 40000) {
       guard++;
       const z = ROAD.lengthStart + rng() * (ROAD.lengthEnd - ROAD.lengthStart);
       const side = rng() < 0.5 ? -1 : 1;
@@ -140,10 +142,23 @@ export class ProceduralWorld {
       this.colliders.add(x, z, 0.9);
       placed++;
     }
-    // stylized 3D trees (faceted foliage with a baked light/height gradient)
-    const m1 = this._addInstanced(makeStylizedTree('round', 3), applyWind(stylizedTreeMaterial(), 0.05), round);
-    const m2 = this._addInstanced(makeStylizedTree('pine', 7), applyWind(stylizedTreeMaterial(), 0.04), pine);
-    for (const m of [m1, m2]) if (m) { m.castShadow = true; m.receiveShadow = true; }
+    // realistic procedural trees (ez-tree): bark + leaf-card canopy, instanced.
+    // Falls back to the stylized geometry trees if generation fails.
+    try {
+      const oak = makeEzTree('Oak Medium', 3);
+      const pineT = makeEzTree('Pine Medium', 7);
+      const bark1 = this._addInstanced(oak.barkGeo, oak.barkMat, round);
+      const leaf1 = this._addInstanced(oak.leafGeo, oak.leafMat, round);
+      const bark2 = this._addInstanced(pineT.barkGeo, pineT.barkMat, pine);
+      const leaf2 = this._addInstanced(pineT.leafGeo, pineT.leafMat, pine);
+      for (const m of [bark1, bark2]) if (m) { m.castShadow = true; m.receiveShadow = true; }
+      for (const m of [leaf1, leaf2]) if (m) { m.castShadow = false; m.receiveShadow = false; }
+    } catch (e) {
+      console.warn('ez-tree unavailable, using stylized trees', e);
+      const m1 = this._addInstanced(makeStylizedTree('round', 3), applyWind(stylizedTreeMaterial(), 0.05), round);
+      const m2 = this._addInstanced(makeStylizedTree('pine', 7), applyWind(stylizedTreeMaterial(), 0.04), pine);
+      for (const m of [m1, m2]) if (m) { m.castShadow = true; m.receiveShadow = true; }
+    }
   }
 
   // procedural fallback trees are ~unit-height already-scaled meshes; normalize to 1 unit
