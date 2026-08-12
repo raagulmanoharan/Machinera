@@ -1,0 +1,173 @@
+import * as THREE from 'three';
+import { Input } from './Input.js';
+import { Car } from './Car.js';
+import { ChaseCamera } from './ChaseCamera.js';
+import { OSMWorld } from './world/OSMWorld.js';
+import { ProceduralWorld } from './world/ProceduralWorld.js';
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('scene');
+
+// ---------- renderer ----------
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.5, 8000);
+
+const input = new Input(canvas);
+const car = new Car(scene);
+const chase = new ChaseCamera(camera);
+
+let world = null;
+let loading = false;
+
+// ---------- prefs ----------
+const prefs = loadPrefs();
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem('machinera') || '{}'); } catch { return {}; }
+}
+function savePrefs() {
+  localStorage.setItem('machinera', JSON.stringify(prefs));
+}
+
+// ---------- world loading ----------
+async function loadWorld() {
+  if (loading) return;
+  loading = true;
+  showLoader(true, 'Preparing…');
+  $('hud').classList.add('hidden');
+
+  if (world) { world.dispose(); world = null; }
+
+  const source = prefs.source || 'osm';
+  try {
+    if (source === 'osm') {
+      const [lat, lng] = parseLatLng(prefs.location) || [40.758, -73.9855];
+      const w = new OSMWorld(scene);
+      await w.load({ lat, lng, radius: prefs.radius || 750, onProgress: (m) => setLoader(m) });
+      world = w;
+    } else {
+      world = new ProceduralWorld(scene);
+    }
+  } catch (err) {
+    console.warn(err);
+    toast('Could not load real-world map (' + err.message + '). Dropping you on the procedural highway instead.', true);
+    if (world) { world.dispose(); world = null; }
+    world = new ProceduralWorld(scene);
+  }
+
+  car.reset(world.carStart.pos, world.carStart.heading);
+  chase.snap();
+  showLoader(false);
+  $('hud').classList.remove('hidden');
+  loading = false;
+}
+
+function parseLatLng(s) {
+  if (!s) return null;
+  const m = String(s).split(',').map((v) => parseFloat(v.trim()));
+  if (m.length === 2 && m.every((n) => !isNaN(n))) return m;
+  return null;
+}
+
+// ---------- loop ----------
+const clock = new THREE.Clock();
+function frame() {
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (world && !loading) {
+    input.update(dt);
+    car.update(dt, input, world);
+    if (world.updateSun) world.updateSun(car.pos);
+    chase.update(dt, car);
+    updateHud();
+  }
+  renderer.render(scene, camera);
+}
+
+function updateHud() {
+  const kmh = Math.round(Math.abs(car.speed) * 3.6);
+  $('speed').textContent = kmh;
+  $('gear').textContent = car.speed < -0.5 ? 'R' : 'D';
+}
+
+// ---------- UI ----------
+function showLoader(on, msg) {
+  $('loader').classList.toggle('hidden', !on);
+  if (msg) setLoader(msg);
+}
+function setLoader(msg) {
+  const h = document.querySelector('#loader .hint');
+  if (h) h.textContent = msg;
+}
+
+let toastEl = null;
+function toast(msg, err = false) {
+  if (toastEl) toastEl.remove();
+  toastEl = document.createElement('div');
+  toastEl.className = 'toast' + (err ? ' err' : '');
+  toastEl.textContent = msg;
+  $('app').appendChild(toastEl);
+  setTimeout(() => { if (toastEl) { toastEl.remove(); toastEl = null; } }, 6000);
+}
+
+function openSettings(open) {
+  $('settings').classList.toggle('hidden', !open);
+}
+
+// settings wiring
+function initSettings() {
+  const source = $('source'), preset = $('preset'), custom = $('customRow'),
+    latlng = $('latlng'), radius = $('radius'), osmSection = $('osm-section');
+
+  source.value = prefs.source || 'osm';
+  if (prefs.location) {
+    const match = [...preset.options].find((o) => o.value === prefs.location);
+    preset.value = match ? prefs.location : 'custom';
+    if (!match) { custom.style.display = ''; latlng.value = prefs.location; }
+  }
+  if (prefs.radius) radius.value = String(prefs.radius);
+
+  const syncSource = () => osmSection.style.display = source.value === 'osm' ? '' : 'none';
+  syncSource();
+  source.addEventListener('change', syncSource);
+  preset.addEventListener('change', () => {
+    custom.style.display = preset.value === 'custom' ? '' : 'none';
+  });
+
+  $('apply').addEventListener('click', () => {
+    prefs.source = source.value;
+    prefs.location = preset.value === 'custom' ? latlng.value.trim() : preset.value;
+    prefs.radius = parseInt(radius.value, 10);
+    savePrefs();
+    openSettings(false);
+    loadWorld();
+  });
+  $('close').addEventListener('click', () => openSettings(false));
+}
+
+// keys
+window.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'escape') openSettings($('settings').classList.contains('hidden'));
+  if (k === 'c') chase.cycle();
+  if (k === 'r' && world) { car.reset(world.carStart.pos, world.carStart.heading); chase.snap(); }
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ---------- boot ----------
+initSettings();
+frame();
+loadWorld();

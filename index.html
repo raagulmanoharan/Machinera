@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Machinera Drive</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+
+      <!-- Loading overlay -->
+      <div id="loader" class="overlay">
+        <div class="loader-inner">
+          <div class="mark">MACHINERA<span>DRIVE</span></div>
+          <div class="bar"><i></i></div>
+          <div class="hint">Preparing the road…</div>
+        </div>
+      </div>
+
+      <!-- HUD -->
+      <div id="hud" class="hidden">
+        <div class="gauge">
+          <div class="speed"><span id="speed">0</span><em>km/h</em></div>
+          <div class="gear" id="gear">D</div>
+        </div>
+        <div class="help">
+          <b>W / ↑</b> accelerate&nbsp;&nbsp;<b>S / ↓</b> brake / reverse&nbsp;&nbsp;<b>A D / ← →</b> steer<br />
+          <b>Space</b> handbrake&nbsp;&nbsp;<b>C</b> camera&nbsp;&nbsp;<b>R</b> reset&nbsp;&nbsp;<b>Esc</b> settings
+        </div>
+      </div>
+
+      <!-- Settings panel -->
+      <div id="settings" class="overlay hidden">
+        <div class="panel">
+          <h1>Where do you want to drive?</h1>
+
+          <section>
+            <h2>World</h2>
+            <label class="row">
+              <span>Scenery source</span>
+              <select id="source">
+                <option value="osm">Real world — OpenStreetMap</option>
+                <option value="procedural">Procedural highway (offline)</option>
+              </select>
+            </label>
+          </section>
+
+          <section id="osm-section">
+            <p class="muted">
+              Real streets, buildings, water and parks are streamed live from
+              <b>OpenStreetMap</b> — no account or API key needed. Pick a spot and drive
+              the actual road network of that place.
+            </p>
+            <label class="row">
+              <span>Location</span>
+              <select id="preset">
+                <option value="40.7580,-73.9855">New York — Times Square</option>
+                <option value="48.8584,2.2945">Paris — Eiffel Tower</option>
+                <option value="37.7946,-122.3999">San Francisco — downtown</option>
+                <option value="51.5074,-0.1278">London — Westminster</option>
+                <option value="35.6595,139.7005">Tokyo — Shibuya</option>
+                <option value="41.9028,12.4964">Rome — centro storico</option>
+                <option value="25.1972,55.2744">Dubai — Burj Khalifa</option>
+                <option value="custom">Custom lat, lng…</option>
+              </select>
+            </label>
+            <label class="row" id="customRow" style="display:none">
+              <span>Lat, Lng</span>
+              <input id="latlng" type="text" placeholder="34.0100, -118.4960" autocomplete="off" />
+            </label>
+            <label class="row">
+              <span>Area size</span>
+              <select id="radius">
+                <option value="500">Small — loads fast</option>
+                <option value="750" selected>Medium</option>
+                <option value="1100">Large — more to explore</option>
+              </select>
+            </label>
+          </section>
+
+          <div class="actions">
+            <button id="apply" class="primary">Drive</button>
+            <button id="close">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

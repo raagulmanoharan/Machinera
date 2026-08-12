@@ -1,0 +1,205 @@
+import * as THREE from 'three';
+
+// Signed arcade + bicycle-model vehicle. Units are metres / seconds.
+const CFG = {
+  maxSpeed: 68,        // ~245 km/h forward
+  maxReverse: 12,
+  enginePower: 14,     // m/s^2 at full throttle from standstill
+  brakePower: 26,
+  drag: 0.0016,        // quadratic air drag
+  rollResist: 3.2,     // linear rolling resistance
+  wheelbase: 2.6,
+  maxSteer: 0.55,      // rad at low speed
+  steerSpeedFalloff: 42, // higher speed -> less steering angle
+  gripBase: 9.0,       // lateral grip (1/s), higher = less slide
+  gripHandbrake: 1.6,
+};
+
+export class Car {
+  constructor(scene) {
+    this.group = new THREE.Group();
+    scene.add(this.group);
+
+    this.pos = new THREE.Vector3(0, 0, 0);
+    this.heading = 0;                 // yaw, 0 faces +Z
+    this.vel = new THREE.Vector2(0, 0); // world planar velocity (x, z)
+    this.speed = 0;                   // signed forward speed, for HUD
+    this._wheelSpin = 0;
+    this._steerVis = 0;
+
+    this._build();
+  }
+
+  get forward() {
+    return new THREE.Vector2(Math.sin(this.heading), Math.cos(this.heading));
+  }
+  get right() {
+    return new THREE.Vector2(Math.cos(this.heading), -Math.sin(this.heading));
+  }
+
+  _build() {
+    const g = this.group;
+
+    const paint = new THREE.MeshStandardMaterial({ color: 0xd23b3b, roughness: 0.35, metalness: 0.6 });
+    const glass = new THREE.MeshStandardMaterial({ color: 0x0d1620, roughness: 0.1, metalness: 0.2 });
+    const trim = new THREE.MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.6, metalness: 0.3 });
+    const tire = new THREE.MeshStandardMaterial({ color: 0x111214, roughness: 0.9 });
+    const rim = new THREE.MeshStandardMaterial({ color: 0xc9ccd2, roughness: 0.3, metalness: 0.8 });
+    const lightF = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff2c0, emissiveIntensity: 0.6 });
+    const lightR = new THREE.MeshStandardMaterial({ color: 0x330000, emissive: 0xff2020, emissiveIntensity: 0.8 });
+
+    // lower body
+    const body = new THREE.Mesh(this._rounded(1.9, 0.55, 4.3, 0.18), paint);
+    body.position.y = 0.55;
+    body.castShadow = true; body.receiveShadow = true;
+    g.add(body);
+
+    // cabin
+    const cabin = new THREE.Mesh(this._rounded(1.66, 0.6, 2.2, 0.2), paint);
+    cabin.position.set(0, 1.05, -0.1);
+    cabin.scale.z = 1;
+    cabin.castShadow = true;
+    g.add(cabin);
+
+    // greenhouse / windows
+    const winMat = glass;
+    const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 0.08), winMat);
+    windshield.position.set(0, 1.08, 0.98);
+    windshield.rotation.x = -0.5;
+    g.add(windshield);
+    const rearWin = windshield.clone();
+    rearWin.position.set(0, 1.08, -1.18);
+    rearWin.rotation.x = 0.6;
+    g.add(rearWin);
+    const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 1.9), winMat);
+    sideL.position.set(0.82, 1.08, -0.1);
+    g.add(sideL);
+    const sideR = sideL.clone(); sideR.position.x = -0.82; g.add(sideR);
+
+    // bumpers / trim
+    const skirt = new THREE.Mesh(new THREE.BoxGeometry(1.94, 0.18, 4.32), trim);
+    skirt.position.y = 0.28; g.add(skirt);
+
+    // lights
+    const hlGeo = new THREE.BoxGeometry(0.34, 0.16, 0.06);
+    for (const sx of [-0.62, 0.62]) {
+      const hl = new THREE.Mesh(hlGeo, lightF); hl.position.set(sx, 0.62, 2.14); g.add(hl);
+      const tl = new THREE.Mesh(hlGeo, lightR); tl.position.set(sx, 0.66, -2.14); g.add(tl);
+    }
+
+    // wheels
+    this.wheels = [];
+    this.frontWheels = [];
+    const wheelGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.26, 18);
+    wheelGeo.rotateZ(Math.PI / 2);
+    const rimGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.28, 8);
+    rimGeo.rotateZ(Math.PI / 2);
+    const positions = [
+      [0.82, 0.36, 1.35, true],
+      [-0.82, 0.36, 1.35, true],
+      [0.82, 0.36, -1.35, false],
+      [-0.82, 0.36, -1.35, false],
+    ];
+    for (const [x, y, z, front] of positions) {
+      const pivot = new THREE.Group();     // steer pivot
+      pivot.position.set(x, y, z);
+      const spin = new THREE.Group();      // roll pivot
+      const w = new THREE.Mesh(wheelGeo, tire); w.castShadow = true;
+      const r = new THREE.Mesh(rimGeo, rim);
+      spin.add(w); spin.add(r);
+      pivot.add(spin);
+      g.add(pivot);
+      this.wheels.push(spin);
+      if (front) this.frontWheels.push(pivot);
+    }
+
+    // headlight beams (real lights, subtle)
+    const hlA = new THREE.SpotLight(0xfff0d0, 0.0, 60, 0.5, 0.4, 1.2);
+    hlA.position.set(0, 0.7, 2.0);
+    hlA.target.position.set(0, 0, 20);
+    g.add(hlA); g.add(hlA.target);
+    this.headlight = hlA;
+  }
+
+  _rounded(w, h, d, r) {
+    // cheap rounded box via BoxGeometry (kept simple for perf/portability)
+    return new THREE.BoxGeometry(w, h, d, 1, 1, 1);
+  }
+
+  reset(pos, heading = 0) {
+    this.pos.copy(pos);
+    this.heading = heading;
+    this.vel.set(0, 0);
+    this.speed = 0;
+  }
+
+  update(dt, input, world) {
+    dt = Math.min(dt, 1 / 30); // clamp big frame gaps for stability
+
+    const fwd = this.forward;
+    const rgt = this.right;
+    let vLong = this.vel.x * fwd.x + this.vel.y * fwd.y;
+    let vLat = this.vel.x * rgt.x + this.vel.y * rgt.y;
+
+    // longitudinal forces
+    let a = 0;
+    const speedFrac = Math.max(0, vLong) / CFG.maxSpeed;
+    a += input.throttle * CFG.enginePower * (1 - 0.85 * speedFrac);
+    if (input.brake > 0) {
+      if (vLong > 0.5) a -= input.brake * CFG.brakePower;
+      else a -= input.brake * CFG.enginePower * 0.6; // reverse
+    }
+    a -= CFG.rollResist * vLong * (1 / CFG.maxSpeed) * 8; // rolling
+    a -= CFG.drag * vLong * Math.abs(vLong) * 60;
+    vLong += a * dt;
+    vLong = Math.max(-CFG.maxReverse, Math.min(CFG.maxSpeed, vLong));
+    if (input.throttle < 0.02 && input.brake < 0.02 && Math.abs(vLong) < 0.4) vLong *= 0.9;
+
+    // steering (less at speed)
+    const steerAuth = 1 / (1 + Math.abs(vLong) / CFG.steerSpeedFalloff);
+    const steerAngle = input.steer * CFG.maxSteer * steerAuth;
+    this._steerVis += (steerAngle - this._steerVis) * Math.min(1, dt * 10);
+
+    // yaw via bicycle model, damped at crawl speed
+    const speedSign = Math.tanh(vLong * 0.5);
+    const yawRate = (vLong / CFG.wheelbase) * Math.tan(steerAngle) * (0.6 + 0.4 * Math.abs(speedSign));
+    this.heading += yawRate * dt;
+
+    // lateral grip -> kill sideways velocity (less when handbraking = drift)
+    const grip = input.handbrake ? CFG.gripHandbrake : CFG.gripBase;
+    vLat -= vLat * Math.min(1, grip * dt);
+
+    // reassemble world velocity
+    const nf = this.forward, nr = this.right;
+    this.vel.set(nf.x * vLong + nr.x * vLat, nf.y * vLong + nr.y * vLat);
+    this.pos.x += this.vel.x * dt;
+    this.pos.z += this.vel.y * dt;
+    this.speed = vLong;
+
+    // ground follow (height + normal) if the world supplies terrain
+    let groundY = 0, nx = 0, nz = 0;
+    if (world && world.heightAt) {
+      const h = world.heightAt(this.pos.x, this.pos.z);
+      const e = 1.2;
+      const hx = world.heightAt(this.pos.x + e, this.pos.z) - world.heightAt(this.pos.x - e, this.pos.z);
+      const hz = world.heightAt(this.pos.x, this.pos.z + e) - world.heightAt(this.pos.x, this.pos.z - e);
+      groundY = h; nx = -hx / (2 * e); nz = -hz / (2 * e);
+    }
+    this.pos.y += (groundY - this.pos.y) * Math.min(1, dt * 8);
+
+    // apply transform
+    this.group.position.copy(this.pos);
+    // base yaw
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.heading);
+    // pitch/roll to match ground normal (subtle)
+    const pitch = Math.atan(nz) * 0.6;
+    const roll = Math.atan(nx) * 0.6;
+    const qp = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, 0, roll, 'ZXY'));
+    this.group.quaternion.copy(q).multiply(qp);
+
+    // wheel visuals
+    this._wheelSpin += (vLong / 0.36) * dt;
+    for (const w of this.wheels) w.rotation.x = this._wheelSpin;
+    for (const p of this.frontWheels) p.rotation.y = this._steerVis;
+  }
+}
