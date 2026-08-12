@@ -89,7 +89,6 @@ export class ProceduralWorld {
     const rng = mulberry32(1337);
     await Promise.all([
       this._boulders(rng),
-      this._lamps(),
     ]);
   }
 

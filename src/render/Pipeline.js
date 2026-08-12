@@ -84,8 +84,8 @@ export class Pipeline {
     this.composer.addPass(this.gtao);
 
     // bloom on the brightest highlights (sun glints, headlights, street lamps)
-    // bloom carries the street-lamp / headlight glow through the fog
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.5, 0.7, 0.7);
+    // subtle bloom only on the brightest points (headlights); keep it restrained
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.18, 0.6, 0.88);
     this.composer.addPass(this.bloom);
 
     this.composer.addPass(new SMAAPass(size.x, size.y));
