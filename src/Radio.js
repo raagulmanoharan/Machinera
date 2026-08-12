@@ -1,21 +1,26 @@
-// A minimal on-screen radio that streams AUDIO from YouTube.
+// A vintage-style radio that streams AUDIO from YouTube.
 //
-// The video plays inside a hidden 1×1 iframe (rendered, not display:none — some
-// browsers pause audio for fully hidden players), so only the sound reaches the
-// drive. Ships with a few curated 24/7 streams that suit the foggy, liminal
-// mood, plus a "paste a YouTube link" field so any video can be the source.
+// The video runs in a hidden 1×1 iframe (rendered, not display:none, so the
+// browser keeps its audio alive) — only the sound reaches the drive. The UI is
+// stripped to what an old set really has: a station switcher and a volume dial,
+// dressed as a warm backlit FM tuner to match the foggy, liminal mood.
 //
-// Autoplay-with-sound is only allowed after a user gesture, so nothing plays
-// until you press the radio's play button — that click is the gesture.
+// A procedural Web-Audio static "bed" hisses quietly under the music, and every
+// station change blasts a burst of radio static — like tuning between frequencies.
+//
+// There's no play button: the set powers on with your first interaction (a
+// driving key or a touch of the dial), the way you'd switch on a real radio.
 
 const STATIONS = [
-  { name: 'Lofi — beats to drive to',      id: 'jfKfPfyJRdk' },
-  { name: 'Synthwave — midnight cruise',   id: '4xDzrJKXOOY' },
-  { name: 'Chillhop — jazzy night roads',  id: 'DWcJFNfaw9c' },
-  { name: 'Lofi — 3am sleepless drive',    id: 'rUxyKA_-grg' },
+  // Liminal-spaces style: ambient / synthwave / lo-fi drift.
+  { freq: '89.3', name: 'liminal · synthwave drift', ids: ['4xDzrJKXOOY'] },
+  { freq: '92.7', name: 'liminal · lo-fi corridors', ids: ['jfKfPfyJRdk'] },
+  { freq: '98.1', name: 'liminal · chillhop haze',   ids: ['DWcJFNfaw9c'] },
+  // Vintage Ilaiyaraaja — add the source video/playlist id here.
+  // { freq: '104.5', name: 'ilaiyaraaja · tamil melodies', ids: ['<youtube id>'] },
 ];
 
-// Load the YouTube IFrame API once; resolve when window.YT is usable.
+// ---- YouTube IFrame API (loaded once) ----
 let apiPromise = null;
 function loadAPI() {
   if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
@@ -34,24 +39,48 @@ function loadAPI() {
   return apiPromise;
 }
 
-// Pull an 11-char video id out of a raw id or any YouTube URL shape.
-function parseId(input) {
-  if (!input) return null;
-  const s = String(input).trim();
-  if (/^[\w-]{11}$/.test(s)) return s;
-  try {
-    const u = new URL(s);
-    if (u.hostname.includes('youtu.be')) {
-      const id = u.pathname.slice(1, 12);
-      if (/^[\w-]{11}$/.test(id)) return id;
+// ---- procedural radio static (Web Audio) ----
+// A looping bed of filtered (pink-ish, band-limited) noise = radio hiss. A quiet
+// continuous level sits under the music; a burst covers each station change.
+class Static {
+  constructor() { this.ctx = null; }
+  _ensure() {
+    if (this.ctx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const len = Math.floor(ctx.sampleRate * 2);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0;                       // pink-noise shaping for warmth
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99765 * b0 + w * 0.0990460;
+      b1 = 0.96300 * b1 + w * 0.2965164;
+      b2 = 0.57000 * b2 + w * 1.0526913;
+      d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.05;
     }
-    const v = u.searchParams.get('v');
-    if (v && /^[\w-]{11}$/.test(v)) return v;
-    const m = u.pathname.match(/\/(embed|shorts|live|v)\/([\w-]{11})/);
-    if (m) return m[2];
-  } catch { /* not a URL */ }
-  const m = s.match(/[\w-]{11}/);
-  return m ? m[0] : null;
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 550;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1650; bp.Q.value = 0.6;
+    const bed = ctx.createGain(); bed.gain.value = 0;      // continuous hiss
+    const burst = ctx.createGain(); burst.gain.value = 0;  // per-switch blast
+    src.connect(hp); hp.connect(bp);
+    bp.connect(bed); bp.connect(burst);
+    bed.connect(ctx.destination); burst.connect(ctx.destination);
+    src.start();
+    this.ctx = ctx; this.bed = bed; this.burst = burst;
+  }
+  resume() { this._ensure(); if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
+  setBed(level) { this._ensure(); if (!this.ctx) return; this.bed.gain.setTargetAtTime(level, this.ctx.currentTime, 0.25); }
+  hit() {
+    this._ensure(); if (!this.ctx) return;
+    const g = this.burst.gain, t = this.ctx.currentTime;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(Math.max(g.value, 0.0001), t);
+    g.linearRampToValueAtTime(0.30, t + 0.04);         // snap up…
+    g.setTargetAtTime(0.0, t + 0.16, 0.35);            // …then decay as the station fades in
+  }
 }
 
 export class Radio {
@@ -59,144 +88,128 @@ export class Radio {
     this.onToast = onToast || (() => {});
     this.stations = STATIONS.slice();
     this.index = 0;
-    this.playing = false;
-    this.ready = false;
-    this.wantPlay = false;      // a play requested before the player was ready
+    this.cand = 0;              // which candidate id within the current station
     this.volume = 55;
+    this.powered = false;
+    this.ready = false;
     this.player = null;
+    this.static = new Static();
 
     this._buildDOM(mount);
-    loadAPI().then((YT) => this._createPlayer(YT));
+    if (this.stations.length) loadAPI().then((YT) => this._createPlayer(YT));
   }
+
+  _bedFor(v) { return v <= 0 ? 0 : 0.006 + 0.03 * (v / 100); }
 
   // ---- UI ----
   _buildDOM(mount) {
     const el = document.createElement('div');
     el.id = 'radio';
     el.innerHTML = `
-      <button class="r-btn r-toggle" title="Play / pause (P)" aria-label="Play">
-        <span class="r-eq"><i></i><i></i><i></i></span>
-      </button>
-      <div class="r-mid">
-        <div class="r-label">RADIO</div>
-        <div class="r-name"></div>
+      <div class="vr-face">
+        <div class="vr-scale"></div>
+        <div class="vr-needle"></div>
+        <div class="vr-read">
+          <span class="vr-freq"></span>
+          <span class="vr-name"></span>
+        </div>
+        <span class="vr-on" title="on air"></span>
       </div>
-      <button class="r-btn r-prev" title="Previous station">‹</button>
-      <button class="r-btn r-next" title="Next station">›</button>
-      <input class="r-vol" type="range" min="0" max="100" value="${this.volume}" title="Volume" />
-      <button class="r-btn r-link" title="Play a YouTube link">＋</button>
-      <div class="r-linkrow hidden">
-        <input class="r-url" type="text" placeholder="Paste a YouTube link…" autocomplete="off" spellcheck="false" />
-        <button class="r-btn r-go">Play</button>
+      <div class="vr-ctrl">
+        <button class="vr-tune vr-prev" aria-label="Previous station">‹</button>
+        <button class="vr-tune vr-next" aria-label="Next station">›</button>
+        <input class="vr-vol" type="range" min="0" max="100" value="${this.volume}" aria-label="Volume" />
       </div>
       <div id="yt-audio"></div>`;
     mount.appendChild(el);
     this.el = el;
-    this.$name = el.querySelector('.r-name');
-    this.$toggle = el.querySelector('.r-toggle');
-    this.$linkrow = el.querySelector('.r-linkrow');
-    this.$url = el.querySelector('.r-url');
+    this.$freq = el.querySelector('.vr-freq');
+    this.$name = el.querySelector('.vr-name');
+    this.$needle = el.querySelector('.vr-needle');
 
-    const blur = (fn) => (e) => { fn(e); if (e.currentTarget) e.currentTarget.blur(); };
-    this.$toggle.addEventListener('click', blur(() => this.toggle()));
-    el.querySelector('.r-prev').addEventListener('click', blur(() => this.prev()));
-    el.querySelector('.r-next').addEventListener('click', blur(() => this.next()));
-    el.querySelector('.r-vol').addEventListener('input', (e) => this.setVolume(+e.target.value));
-    el.querySelector('.r-vol').addEventListener('change', (e) => e.target.blur());
-    el.querySelector('.r-link').addEventListener('click', blur(() => this._toggleLinkRow()));
-    el.querySelector('.r-go').addEventListener('click', () => this._playFromInput());
-    this.$url.addEventListener('keydown', (e) => {
-      e.stopPropagation();                 // keep typing out of the driving controls
-      if (e.key === 'Enter') this._playFromInput();
-      if (e.key === 'Escape') this._toggleLinkRow(false);
-    });
+    const tap = (fn) => (e) => { this._boot(); fn(e); if (e.currentTarget) e.currentTarget.blur(); };
+    el.querySelector('.vr-prev').addEventListener('click', tap(() => this.prev()));
+    el.querySelector('.vr-next').addEventListener('click', tap(() => this.next()));
+    const vol = el.querySelector('.vr-vol');
+    vol.addEventListener('input', (e) => { this._boot(); this.setVolume(+e.target.value); });
+    vol.addEventListener('change', (e) => e.target.blur());
 
-    // P toggles the radio from anywhere
-    window.addEventListener('keydown', (e) => {
-      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
-      if (e.key.toLowerCase() === 'p') this.toggle();
-    });
+    // power on with the first interaction anywhere (a driving key counts), like
+    // switching on a real set — no play button needed
+    this._bootBound = () => this._boot();
+    window.addEventListener('pointerdown', this._bootBound, { once: true });
+    window.addEventListener('keydown', this._bootBound, { once: true });
 
-    this._renderName();
+    this._render();
   }
 
-  _renderName() {
+  _render() {
     const s = this.stations[this.index];
-    this.$name.textContent = s ? s.name : '—';
+    this.$freq.textContent = s ? s.freq : '––.–';
+    this.$name.textContent = s ? s.name : 'no signal';
+    const n = this.stations.length;
+    const pct = n > 1 ? (this.index / (n - 1)) * 100 : 50;
+    this.$needle.style.left = `calc(8% + ${pct * 0.84}%)`;
   }
 
-  _toggleLinkRow(force) {
-    const show = force === undefined ? this.$linkrow.classList.contains('hidden') : force;
-    this.$linkrow.classList.toggle('hidden', !show);
-    if (show) this.$url.focus();
-  }
-
-  _setPlayingUI(on) {
-    this.playing = on;
-    this.el.classList.toggle('is-playing', on);
-    this.$toggle.setAttribute('aria-label', on ? 'Pause' : 'Play');
+  _boot() {
+    if (this.powered) return;
+    this.powered = true;
+    this.el.classList.add('is-on');
+    this.static.resume();
+    this.static.setBed(this._bedFor(this.volume));
+    if (this.player && this.ready) {
+      this.player.unMute();
+      this.player.setVolume(this.volume);
+      this.player.playVideo();
+    }
   }
 
   // ---- player ----
   _createPlayer(YT) {
     this.player = new YT.Player('yt-audio', {
       width: 1, height: 1,
-      videoId: this.stations[this.index].id,
-      playerVars: { autoplay: 0, controls: 0, disablekb: 1, playsinline: 1, rel: 0 },
+      videoId: this.stations[this.index].ids[0],
+      // muted autoplay is permitted; we unmute on the first user gesture
+      playerVars: { autoplay: 1, mute: 1, controls: 0, disablekb: 1, playsinline: 1, rel: 0 },
       events: {
         onReady: () => {
           this.ready = true;
           this.player.setVolume(this.volume);
-          if (this.wantPlay) { this.wantPlay = false; this.player.playVideo(); }
+          if (this.powered) { this.player.unMute(); this.player.playVideo(); }
         },
-        onStateChange: (e) => {
-          if (e.data === YT.PlayerState.PLAYING) this._setPlayingUI(true);
-          else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) this._setPlayingUI(false);
-        },
-        onError: (e) => this._onError(e),
+        onError: () => this._onError(),
       },
     });
   }
 
   _onError() {
-    // 100/101/150 = unavailable or embedding disabled → skip to the next station
-    this.onToast('That station is unavailable — skipping', true);
-    if (this.stations.length > 1) this.next();
-    else this._setPlayingUI(false);
-  }
-
-  // ---- public controls ----
-  toggle() {
-    if (!this.player || !this.ready) { this.wantPlay = true; return; }
-    if (this.playing) this.player.pauseVideo();
-    else this.player.playVideo();
-  }
-
-  _load(play = true) {
+    // try the next candidate id for this station; if none, sit on static
     const s = this.stations[this.index];
-    this._renderName();
-    if (!this.player || !this.ready) { this.wantPlay = play; return; }
-    this.player.loadVideoById(s.id);       // loadVideoById autoplays
-    if (!play) this.player.pauseVideo();
+    if (s && this.cand < s.ids.length - 1) {
+      this.cand++;
+      if (this.player && this.ready) this.player.loadVideoById(s.ids[this.cand]);
+    } else {
+      this.onToast('No signal on that station', true);
+    }
   }
 
-  next() { this.index = (this.index + 1) % this.stations.length; this._load(true); }
-  prev() { this.index = (this.index - 1 + this.stations.length) % this.stations.length; this._load(true); }
+  _load() {
+    const s = this.stations[this.index];
+    this.cand = 0;
+    this._render();
+    this.static.hit();                       // burst of static while we retune
+    if (!this.player || !this.ready) return;
+    this.player.loadVideoById(s.ids[0]);     // loadVideoById autoplays
+    this.player.setVolume(this.volume);
+  }
+
+  next() { if (!this.stations.length) return; this.index = (this.index + 1) % this.stations.length; this._load(); }
+  prev() { if (!this.stations.length) return; this.index = (this.index - 1 + this.stations.length) % this.stations.length; this._load(); }
 
   setVolume(v) {
     this.volume = Math.max(0, Math.min(100, v | 0));
     if (this.player && this.ready) this.player.setVolume(this.volume);
-  }
-
-  _playFromInput() {
-    const id = parseId(this.$url.value);
-    if (!id) { this.onToast('Could not read a YouTube link there', true); return; }
-    // add as a station (dedupe) and switch to it
-    let i = this.stations.findIndex((s) => s.id === id);
-    if (i < 0) { this.stations.push({ name: 'Your link', id }); i = this.stations.length - 1; }
-    this.index = i;
-    this.$url.value = '';
-    this._toggleLinkRow(false);
-    this._load(true);
+    this.static.setBed(this._bedFor(this.volume));
   }
 }
