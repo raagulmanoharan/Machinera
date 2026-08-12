@@ -35,16 +35,22 @@ export class Environment {
   }
 
   _loadHDR(url) {
+    // HDR is used only for image-based lighting + reflections (the wet road,
+    // the car). The sky itself is a solid mood colour so dark moods stay dark —
+    // no warm horizon bleeding through the fog.
     new RGBELoader().load(url, (tex) => {
       tex.mapping = THREE.EquirectangularReflectionMapping;
       this._envRT = this.pmrem.fromEquirectangular(tex);
       this.scene.environment = this._envRT.texture;
-      this.scene.environmentIntensity = 1.0;
-      this.scene.background = tex;
-      this.scene.backgroundBlurriness = 0.04;   // soften the baked horizon a touch
+      this.scene.environmentIntensity = 0.6;
       this._hdr = tex;
-    }, undefined, () => { this.scene.background = new THREE.Color(0xbfd0e0); });
+    });
+    this._bgc = new THREE.Color(0x10151c);
+    this.scene.background = this._bgc;
   }
+
+  // solid sky colour (mood-driven); the HDR stays only for reflections
+  setBackground(color) { if (color != null) this._bgc.set(color); }
 
   // kept for API compatibility — the HDR is the look, so these are no-ops
   setSun() {}
@@ -64,11 +70,8 @@ export class Environment {
     this.hemi.color.set(hemiColor);
     this.hemi.intensity = hemiI;
   }
-  // dim the HDR sky/reflections for dark, foggy moods
-  setEnvIntensity(v) {
-    this.scene.environmentIntensity = v;
-    this.scene.backgroundIntensity = v;
-  }
+  // dim the HDR reflections for dark, foggy moods
+  setEnvIntensity(v) { this.scene.environmentIntensity = v; }
 
   update(target) {
     this.sun.position.copy(target).addScaledVector(this.sunDir, 200);

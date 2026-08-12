@@ -17,7 +17,7 @@ export class MoodDirector {
     this.t = 1;         // transition progress (1 = settled)
     this.timer = 0;
     this._fog = new THREE.Color(); this._sun = new THREE.Color();
-    this._hemi = new THREE.Color(); this._tmp = new THREE.Color();
+    this._hemi = new THREE.Color(); this._sky = new THREE.Color(); this._tmp = new THREE.Color();
     this._apply(MOODS[0], MOODS[0], 1);
     // no initial announcement — the default mood just is; drifts are announced
   }
@@ -60,6 +60,7 @@ export class MoodDirector {
   _apply(a, b, k) {
     const e = this.env, pl = this.pipeline;
     e.setFog(this._mix(this._fog, a.fog[0], b.fog[0], k), this._l(a.fog[1], b.fog[1], k), this._l(a.fog[2], b.fog[2], k));
+    e.setBackground(this._mix(this._sky, a.sky ?? a.fog[0], b.sky ?? b.fog[0], k));
     e.setExposure(this._l(a.exposure, b.exposure, k));
     e.setEnvIntensity(this._l(a.env, b.env, k));
     e.setLight(

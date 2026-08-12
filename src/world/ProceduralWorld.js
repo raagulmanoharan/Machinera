@@ -159,32 +159,24 @@ export class ProceduralWorld {
       return { x, z: zz, h: heightAt(x, zz) };
     };
 
-    // rusted, abandoned cars — mostly settled, a few tipped on their side
-    const carGeo = makeCarProp();
-    const carMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0.28, envMapIntensity: 0.5 });
-    const rust = [0x3a2f26, 0x2a2622, 0x47382b, 0x554636, 0x20201c, 0x6a5a48];
-    const carMats = [], carCols = [];
+    // rusted, abandoned cars — real car model (Kenney sedan) dressed as a burnt
+    // wreck, mostly settled with a few tipped on their side. Falls back to the
+    // procedural car if the model can't load.
+    const carMats = [];
     let placed = 0, guard = 0;
-    while (placed < 72 && guard < 6000) {
+    while (placed < 64 && guard < 6000) {
       guard++;
       const { x, z, h } = roadside([6, 40]);
       if (h < 0.2 || h > 28) continue;
-      const tipped = rng() < 0.18;
-      const roll = tipped ? (rng() < 0.5 ? 1.5 : -1.5) : (rng() - 0.5) * 0.28;
-      q.setFromEuler(new THREE.Euler((rng() - 0.5) * 0.18, rng() * Math.PI * 2, roll, 'YXZ'));
-      const sc = 0.9 + rng() * 0.4; s.set(sc, sc, sc);
-      carMats.push(new THREE.Matrix4().compose(new THREE.Vector3(x, h + (tipped ? 0.8 : 0.15), z), q, s));
-      carCols.push(rust[(rng() * rust.length) | 0]);
-      this.colliders.add(x, z, 1.9);
+      const tipped = rng() < 0.16;
+      const roll = tipped ? (rng() < 0.5 ? 1.5 : -1.5) : (rng() - 0.5) * 0.22;
+      q.setFromEuler(new THREE.Euler((rng() - 0.5) * 0.14, rng() * Math.PI * 2, roll, 'YXZ'));
+      const sc = 1.5 + rng() * 0.5; s.set(sc, sc, sc);   // model is unit-height; ~1.5 m tall
+      carMats.push(new THREE.Matrix4().compose(new THREE.Vector3(x, h + (tipped ? 0.7 : 0.0), z), q, s));
+      this.colliders.add(x, z, 2.0);
       placed++;
     }
-    const carInst = this._addInstanced(carGeo, carMat, carMats);
-    if (carInst) {
-      carInst.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(carMats.length * 3), 3);
-      const col = new THREE.Color();
-      carCols.forEach((c, i) => { carInst.setColorAt(i, col.set(c)); });
-      carInst.instanceColor.needsUpdate = true;
-    }
+    await this._wreckCars(carMats, rng);
 
     // scattered tyres lying in the dirt
     const tyreGeo = new THREE.TorusGeometry(0.34, 0.15, 8, 14).rotateX(Math.PI / 2);
@@ -219,12 +211,49 @@ export class ProceduralWorld {
     this._addInstanced(blockGeo, blockMat, blockMats);
   }
 
+  // Instance the real car model at `mats`, re-materialled as a rusted/burnt
+  // wreck (matte rust body, dark shattered glass, seized wheels). Falls back to
+  // the procedural car geometry if the model can't be loaded.
+  async _wreckCars(mats, rng) {
+    if (!mats.length) return;
+    let prep = null;
+    try { prep = await assets.prepared(MODELS.car); } catch { prep = null; }
+    if (prep && prep.meshes.length) {
+      const rustFor = (name) => {
+        switch (name) {
+          case 'window': return new THREE.MeshStandardMaterial({ color: 0x090a0b, roughness: 0.6, metalness: 0.1, envMapIntensity: 0.3 });
+          case 'carTire': return new THREE.MeshStandardMaterial({ color: 0x111110, roughness: 0.98, metalness: 0.0 });
+          case 'wheelInside': return new THREE.MeshStandardMaterial({ color: 0x39342c, roughness: 0.8, metalness: 0.5, envMapIntensity: 0.35 });
+          case 'lightFront': case 'lightBack': return new THREE.MeshStandardMaterial({ color: 0x1e1813, roughness: 0.7, metalness: 0.1 });
+          default: return new THREE.MeshStandardMaterial({ color: 0x3d3025, roughness: 0.96, metalness: 0.35, envMapIntensity: 0.3 });
+        }
+      };
+      const tmp = new THREE.Matrix4();
+      const matCache = new Map();
+      for (const part of prep.meshes) {
+        const name = (part.material && part.material.name) || '_';
+        if (!matCache.has(name)) matCache.set(name, rustFor(name));
+        const inst = new THREE.InstancedMesh(part.geometry, matCache.get(name), mats.length);
+        inst.castShadow = true; inst.receiveShadow = true;
+        for (let i = 0; i < mats.length; i++) { tmp.multiplyMatrices(mats[i], part.matrix); inst.setMatrixAt(i, tmp); }
+        inst.instanceMatrix.needsUpdate = true;
+        this.group.add(inst);
+      }
+    } else {
+      const carGeo = makeCarProp();
+      const carMat = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x3d3025, roughness: 0.95, metalness: 0.3, envMapIntensity: 0.35 });
+      this._addInstanced(carGeo, carMat, mats);
+    }
+  }
+
   async _lamps() {
     const mats = [];
     const pools = [];
+    const streaks = [];
     const heads = [];
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
     const poolQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+    const streakQ = new THREE.Quaternion();
     const poolS = new THREE.Vector3(1, 1, 1);
     let side = 1;
     for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += 46) {
@@ -244,6 +273,9 @@ export class ProceduralWorld {
       // a pool of light on the road, under the lamp head (shifted toward the road)
       const lx = px - side * ox * 2.4, lz = pz - side * oz * 2.4;
       pools.push(new THREE.Matrix4().compose(new THREE.Vector3(lx, groundY + 0.06, lz), poolQ, poolS));
+      // wet-road reflection streak: elongated along the road tangent under the lamp
+      streakQ.setFromEuler(new THREE.Euler(-Math.PI / 2, Math.atan2(dx, 1), 0, 'YXZ'));
+      streaks.push(new THREE.Matrix4().compose(new THREE.Vector3(lx, groundY + 0.045, lz), streakQ, poolS));
       // the glowing head itself (up the pole, out along the arm toward the road)
       heads.push([px - side * ox * 1.3, groundY + 5.15, pz - side * oz * 1.3]);
     }
@@ -256,8 +288,8 @@ export class ProceduralWorld {
 
     // additive cool light-pools cast on the (wet) road
     const poolMesh = new THREE.InstancedMesh(
-      new THREE.PlaneGeometry(14, 16),
-      new THREE.MeshBasicMaterial({ map: this._glowTex(0.55), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xbcd4ff, toneMapped: false }),
+      new THREE.PlaneGeometry(17, 20),
+      new THREE.MeshBasicMaterial({ map: this._glowTex(0.5), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xb6d0ff, toneMapped: false }),
       pools.length
     );
     poolMesh.frustumCulled = false;
@@ -265,6 +297,18 @@ export class ProceduralWorld {
     poolMesh.instanceMatrix.needsUpdate = true;
     this.group.add(poolMesh);
     this._lampPools = poolMesh;
+
+    // wet reflection streaks — long, thin additive smears down the road
+    const streakMesh = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(3.4, 30).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: this._glowTex(0.28), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xaecaff, toneMapped: false }),
+      streaks.length
+    );
+    streakMesh.frustumCulled = false;
+    streaks.forEach((m, i) => streakMesh.setMatrixAt(i, m));
+    streakMesh.instanceMatrix.needsUpdate = true;
+    this.group.add(streakMesh);
+    this._lampStreaks = streakMesh;
 
     // big soft glow halos at each head — these bloom into orbs through the fog
     this._haloMat = new THREE.SpriteMaterial({ map: this._glowTex(0.32), color: 0xdcebff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
@@ -304,7 +348,7 @@ export class ProceduralWorld {
           gl_FragColor = vec4(uColor, a * uOpacity);
         }`,
     });
-    const coneGeo = new THREE.ConeGeometry(2.9, H, 20, 1, true);
+    const coneGeo = new THREE.ConeGeometry(2.3, H, 20, 1, true);
     const cones = new THREE.Group();
     for (const [hx, hy, hz] of heads) {
       const m = new THREE.Mesh(coneGeo, this._coneMat);
@@ -331,10 +375,11 @@ export class ProceduralWorld {
   // street-lamp glow level (0 off → 1 full), driven by the mood director
   setLamps(level) {
     const n = THREE.MathUtils.clamp(level, 0, 1);
-    if (this._lampMat) this._lampMat.emissiveIntensity = 4.5 * n;
-    if (this._lampPools) this._lampPools.material.opacity = 0.8 * n;
-    if (this._haloMat) this._haloMat.opacity = 0.95 * n;
-    if (this._coneMat) this._coneMat.uniforms.uOpacity.value = 0.6 * n;
+    if (this._lampMat) this._lampMat.emissiveIntensity = 7.0 * n;
+    if (this._lampPools) this._lampPools.material.opacity = 0.95 * n;
+    if (this._lampStreaks) this._lampStreaks.material.opacity = 0.6 * n;
+    if (this._haloMat) this._haloMat.opacity = 0.9 * n;
+    if (this._coneMat) this._coneMat.uniforms.uOpacity.value = 0.26 * n;
   }
 
   update() { /* static world; nothing per-frame */ }
