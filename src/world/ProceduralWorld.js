@@ -153,30 +153,33 @@ export class ProceduralWorld {
     const poolQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
     const streakQ = new THREE.Quaternion();
     const poolS = new THREE.Vector3(1, 1, 1);
+    // deterministic jitter so lamps repeat but each is a little different
+    let seed = 9871; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
     let side = 1;
-    for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += 46) {
+    for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += 44 + rnd() * 14) {
       side *= -1;
-      const cx = roadX(z), dx = roadSlope(z);
+      const zj = z + (rnd() - 0.5) * 8;
+      const cx = roadX(zj), dx = roadSlope(zj);
       const len = Math.hypot(1, dx);
       const ox = 1 / len, oz = -dx / len;
-      const px = cx + side * ox * (ROAD.halfWidth + 1.4);
-      const pz = z + side * oz * (ROAD.halfWidth + 1.4);
-      // arm (local +x) should point toward the road
-      const yaw = Math.atan2(-side * ox, -side * -oz);
+      const px = cx + side * ox * (ROAD.halfWidth + 1.3 + rnd() * 0.5);
+      const pz = zj + side * oz * (ROAD.halfWidth + 1.3);
+      // arm (local +x) points toward the road, with a little random lean
+      const yaw = Math.atan2(-side * ox, -side * -oz) + (rnd() - 0.5) * 0.16;
       q.setFromAxisAngle(up, yaw);
-      s.set(5.4, 5.4, 5.4);
+      const sc = 5.2 + rnd() * 0.7;             // slight height variation
+      s.set(sc, sc, sc);
       const groundY = heightAt(px, pz);
       mats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, groundY, pz), q, s));
       this.colliders.add(px, pz, 0.4);
-      // a pool of light on the road, under the lamp head (shifted toward the road)
-      const lx = px - side * ox * 2.4, lz = pz - side * oz * 2.4;
+      // head, out along the arm toward the road (scale-aware); pool + streak below
+      const reach = sc * 0.31, headH = sc * 0.94;
+      const hx = px - side * ox * reach, hz = pz - side * oz * reach;
+      heads.push([hx, groundY + headH, hz]);
+      const lx = px - side * ox * (reach + 0.3), lz = pz - side * oz * (reach + 0.3);
       pools.push(new THREE.Matrix4().compose(new THREE.Vector3(lx, groundY + 0.06, lz), poolQ, poolS));
-      // wet-road reflection streak: elongated along the road tangent under the
-      // lamp. Geometry is already laid flat, so this is a yaw-only rotation.
       streakQ.setFromAxisAngle(up, Math.atan2(dx, 1));
       streaks.push(new THREE.Matrix4().compose(new THREE.Vector3(lx, groundY + 0.045, lz), streakQ, poolS));
-      // the glowing head itself (up the pole, out along the arm toward the road)
-      heads.push([px - side * ox * 1.3, groundY + 5.15, pz - side * oz * 1.3]);
     }
     const lamp = makeStreetlamp();
     this._addInstanced(this._fallbackGeo(lamp.geo), lamp.materials, mats);

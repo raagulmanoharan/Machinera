@@ -10,22 +10,29 @@ function setVColor(geo, color) {
   return geo;
 }
 
-// ---------- streetlamp: metal pole + arm + emissive head ----------
-// Returns { geo, materials } for a two-group InstancedMesh (0 = metal, 1 = lamp).
+// ---------- cobra-head highway streetlamp ----------
+// Tapered pole, a smooth curved arm and an angled head with an emissive lens on
+// the underside (pointing at the road). Returns { geo, materials } for a
+// two-group InstancedMesh (0 = metal, 1 = lens).
 export function makeStreetlamp() {
-  const H = 5.2;
-  const pole = new THREE.CylinderGeometry(0.09, 0.13, H, 8); pole.translate(0, H / 2, 0);
-  const base = new THREE.CylinderGeometry(0.2, 0.24, 0.5, 8); base.translate(0, 0.25, 0);
-  const arm = new THREE.BoxGeometry(1.4, 0.1, 0.1); arm.translate(0.6, H - 0.1, 0);
-  const metal = mergeGeometries([pole, base, arm]); // group 0
+  const H = 5.6;
+  const base = new THREE.CylinderGeometry(0.24, 0.3, 0.6, 10); base.translate(0, 0.3, 0);
+  const pole = new THREE.CylinderGeometry(0.08, 0.15, H, 10); pole.translate(0, H / 2, 0);
+  const curve = new THREE.QuadraticBezierCurve3(
+    new THREE.Vector3(0, H - 0.1, 0),
+    new THREE.Vector3(0.5, H + 0.55, 0),
+    new THREE.Vector3(1.85, H + 0.12, 0),
+  );
+  const arm = new THREE.TubeGeometry(curve, 16, 0.06, 6, false);
+  const housing = new THREE.BoxGeometry(0.66, 0.2, 0.32); housing.translate(1.8, H + 0.02, 0);
+  const metal = mergeGeometries([base, pole, arm, housing]);
 
-  const head = new THREE.BoxGeometry(0.55, 0.22, 0.34); head.translate(1.25, H - 0.22, 0);
-  // two groups -> two materials
-  const geo = mergeGeometries([metal, head], true);
+  const lens = new THREE.BoxGeometry(0.52, 0.06, 0.24); lens.translate(1.8, H - 0.09, 0);
+  const geo = mergeGeometries([metal, lens], true);
 
   const materials = [
-    new THREE.MeshStandardMaterial({ color: 0x3c4149, roughness: 0.5, metalness: 0.85, envMapIntensity: 1.0 }),
-    new THREE.MeshStandardMaterial({ color: 0xfff2c8, emissive: 0xffd98a, emissiveIntensity: 2.4, roughness: 0.4 }),
+    new THREE.MeshStandardMaterial({ color: 0x2f333a, roughness: 0.55, metalness: 0.8, envMapIntensity: 1.0 }),
+    new THREE.MeshStandardMaterial({ color: 0xfff4d8, emissive: 0xdfe6ff, emissiveIntensity: 0, roughness: 0.35 }),
   ];
   return { geo, materials };
 }
