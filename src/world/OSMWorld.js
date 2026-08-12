@@ -3,6 +3,8 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { loadElevation } from './Elevation.js';
+import { assets, PH_MODELS } from '../render/AssetLibrary.js';
+import { makeStreetlamp, makeTree, makePine, makeCarProp, CAR_COLORS } from './props.js';
 
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
@@ -62,6 +64,8 @@ export class OSMWorld {
     this._buildAreas(ways);
     this._buildBuildings(ways);
     this._placeCarOnRoad(ways);
+    onProgress('Adding trees, lamps and traffic…');
+    await Promise.all([this._streetProps(ways), this._parkTrees(ways)]);
     onProgress('Ready');
     return this;
   }
@@ -162,28 +166,60 @@ export class OSMWorld {
       if (!hw) continue;
       const width = ROAD_WIDTH[hw] || 5;
       const pts = w.geometry.map((g) => this.project(g.lat, g.lon));
-      const ribbon = this._ribbon(pts, width, 0.08);
+      const ribbon = this._ribbon(pts, width, 0.0); // flush with terrain; polygonOffset lifts it
       if (!ribbon) continue;
       (MAJOR.has(hw) ? major : minor).push(ribbon);
       if (MAJOR.has(hw)) {
-        const line = this._ribbon(pts, 0.3, 0.14);
+        const line = this._ribbon(pts, 0.28, 0.04);
         if (line) center.push(line);
       }
     }
     const asphaltNormal = makeNormalMap(512, { freq: 0.09, strength: 1.0, z: 9 });
-    asphaltNormal.repeat.set(1, 1);
     const roughMap = makeRoughnessMap(512, { base: 0.82, range: 0.14, z: 11 });
+    const po = { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 };
     const asphalt = new THREE.MeshStandardMaterial({
-      color: 0x3a3d42, roughness: 0.85, metalness: 0.0,
+      map: this._markingTex(false), roughness: 0.85, metalness: 0.0,
       normalMap: asphaltNormal, normalScale: new THREE.Vector2(0.35, 0.35),
-      roughnessMap: roughMap, envMapIntensity: 0.5,
+      roughnessMap: roughMap, envMapIntensity: 0.5, ...po,
     });
-    const asphalt2 = asphalt.clone();
-    asphalt2.color.setHex(0x44474d);
+    const asphalt2 = new THREE.MeshStandardMaterial({
+      map: this._markingTex(true), roughness: 0.85, metalness: 0.0,
+      normalMap: asphaltNormal, normalScale: new THREE.Vector2(0.35, 0.35),
+      roughnessMap: roughMap, envMapIntensity: 0.5, ...po,
+    });
     this._roadNormal = asphaltNormal;
     if (minor.length) this._addMerged(minor, asphalt, true);
     if (major.length) this._addMerged(major, asphalt2, true);
-    if (center.length) this._addMerged(center, new THREE.MeshStandardMaterial({ color: 0xe9c94a, roughness: 0.6, emissive: 0x2a2410, emissiveIntensity: 0.2 }), false);
+    if (center.length) this._addMerged(center, new THREE.MeshStandardMaterial({
+      color: 0xe9c94a, roughness: 0.6, emissive: 0x2a2410, emissiveIntensity: 0.2, ...po,
+      polygonOffsetFactor: -3, polygonOffsetUnits: -3,
+    }), false);
+  }
+
+  // asphalt colour map with painted edge lines (u across road), optional lane dashes
+  _markingTex(major) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = major ? '#42454b' : '#3a3d42';
+    g.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 1400; i++) {
+      const v = 44 + Math.floor(Math.random() * 34);
+      g.fillStyle = `rgb(${v},${v},${v + 2})`;
+      g.fillRect(Math.random() * 128, Math.random() * 128, 1.2, 1.2);
+    }
+    g.fillStyle = '#dfe0d8';           // solid white edge lines
+    g.fillRect(6, 0, 4, 128);
+    g.fillRect(118, 0, 4, 128);
+    if (major) {                        // dashed white lane divider
+      g.fillStyle = '#e7e8e0';
+      for (let y = 0; y < 128; y += 40) g.fillRect(62, y, 4, 20);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = 8;
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
   }
 
   // build a ribbon from a polyline, draped over terrain, with mitred joins + length UVs
@@ -305,10 +341,10 @@ export class OSMWorld {
     return geo;
   }
 
-  // ---------- buildings (extruded footprints) ----------
+  // ---------- buildings: windowed facades, roofs, height-based palette ----------
   _buildBuildings(ways) {
-    const geos = [];
-    const cA = new THREE.Color(0xbdb4a6), cB = new THREE.Color(0x8f8578);
+    const lowG = [], tallG = [];   // low = concrete/brick, tall = glass
+    const palette = [0xcfc8ba, 0xc2b4a0, 0xb8bcc0, 0xa89f92, 0xcabfae, 0x9fa6ac];
     for (const w of ways) {
       const t = w.tags || {};
       if (!t.building) continue;
@@ -324,41 +360,77 @@ export class OSMWorld {
       try {
         geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, steps: 1 });
       } catch { continue; }
-      geo.rotateX(-Math.PI / 2);
-      // colour per building with slight variation, roofs lighter
-      const col = cA.clone().lerp(cB, ((w.id % 100) / 100));
+      geo.rotateX(-Math.PI / 2); // groups: 0 = caps (roof), 1 = walls
+      const tall = height >= 26;
+      const col = new THREE.Color(tall ? 0x9fb0bd : palette[w.id % palette.length]);
       const pos = geo.attributes.position;
       const colors = new Float32Array(pos.count * 3);
-      for (let i = 0; i < pos.count; i++) {
-        const yv = pos.getY(i);
-        const roof = yv > height - 0.2 ? 1.12 : 1.0;
-        colors[i * 3] = Math.min(1, col.r * roof);
-        colors[i * 3 + 1] = Math.min(1, col.g * roof);
-        colors[i * 3 + 2] = Math.min(1, col.b * roof);
-      }
+      for (let i = 0; i < pos.count; i++) { colors[i * 3] = col.r; colors[i * 3 + 1] = col.g; colors[i * 3 + 2] = col.b; }
       geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      // sit the building base on the terrain
       let cx = 0, cz = 0;
       for (const g of w.geometry) { const p = this.project(g.lat, g.lon); cx += p.x; cz += p.y; }
       cx /= w.geometry.length; cz /= w.geometry.length;
       geo.translate(0, this.heightAt(cx, cz) - 0.3, 0);
-      geos.push(geo);
+      (tall ? tallG : lowG).push(geo);
     }
-    if (!geos.length) return;
-    const merged = mergeGeometries(geos, false);
-    geos.forEach((g) => g.dispose());
-    const facade = makeNormalMap(256, { freq: 0.2, strength: 0.9, z: 31 });
-    facade.repeat.set(0.4, 0.4); // ExtrudeGeometry UVs are in metres
-    const mat = new THREE.MeshStandardMaterial({
-      vertexColors: true, roughness: 0.82, metalness: 0.04,
-      normalMap: facade, normalScale: new THREE.Vector2(0.35, 0.35),
-      envMapIntensity: 0.7,
-    });
-    const mesh = new THREE.Mesh(merged, mat);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    this.group.add(mesh);
-    this._facadeNormal = facade;
+    if (!lowG.length && !tallG.length) return;
+
+    const facadeNormal = makeNormalMap(256, { freq: 0.2, strength: 0.7, z: 31 });
+    facadeNormal.repeat.set(0.4, 0.4);
+    const win = this._facadeTextures();
+    const mkRoof = (c) => new THREE.MeshStandardMaterial({ color: c, vertexColors: true, roughness: 0.9, metalness: 0.05, envMapIntensity: 0.5 });
+
+    if (lowG.length) {
+      const facade = new THREE.MeshStandardMaterial({
+        vertexColors: true, map: win.map, emissiveMap: win.emissive, emissive: 0xffffff, emissiveIntensity: 0.35,
+        normalMap: facadeNormal, normalScale: new THREE.Vector2(0.4, 0.4), roughness: 0.78, metalness: 0.04, envMapIntensity: 0.6,
+      });
+      const merged = mergeGeometries(lowG, true); // keep groups -> [roof, facade]
+      lowG.forEach((g) => g.dispose());
+      const mesh = new THREE.Mesh(merged, [mkRoof(0x9a9488), facade]);
+      mesh.castShadow = mesh.receiveShadow = true;
+      this.group.add(mesh);
+    }
+    if (tallG.length) {
+      const glass = new THREE.MeshStandardMaterial({
+        vertexColors: true, map: win.mapGlass, emissiveMap: win.emissive, emissive: 0xffffff, emissiveIntensity: 0.4,
+        roughness: 0.28, metalness: 0.55, envMapIntensity: 1.1,
+      });
+      const merged = mergeGeometries(tallG, true);
+      tallG.forEach((g) => g.dispose());
+      const mesh = new THREE.Mesh(merged, [mkRoof(0x6f7680), glass]);
+      mesh.castShadow = mesh.receiveShadow = true;
+      this.group.add(mesh);
+    }
+  }
+
+  // window-grid facade colour maps (+ emissive lit windows), UVs are in metres
+  _facadeTextures() {
+    const build = (wall, glassy) => {
+      const c = document.createElement('canvas'); c.width = c.height = 128;
+      const g = c.getContext('2d');
+      g.fillStyle = wall; g.fillRect(0, 0, 128, 128);
+      const cols = 4, rows = 4, mw = 128 / cols, mh = 128 / rows;
+      for (let yy = 0; yy < rows; yy++) for (let xx = 0; xx < cols; xx++) {
+        g.fillStyle = glassy ? '#2b3946' : '#20262e';
+        g.fillRect(xx * mw + mw * 0.18, yy * mh + mh * 0.2, mw * 0.64, mh * 0.56);
+      }
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / 4, 1 / 3.4);
+      t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+      return t;
+    };
+    // emissive: a random subset of windows glow warm
+    const ce = document.createElement('canvas'); ce.width = ce.height = 128;
+    const ge = ce.getContext('2d'); ge.fillStyle = '#000'; ge.fillRect(0, 0, 128, 128);
+    const cols = 4, rows = 4, mw = 128 / cols, mh = 128 / rows; let s = 7;
+    const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+    for (let yy = 0; yy < rows; yy++) for (let xx = 0; xx < cols; xx++) {
+      if (rnd() < 0.28) { ge.fillStyle = rnd() < 0.5 ? '#ffd489' : '#bcd2e6'; ge.fillRect(xx * mw + mw * 0.18, yy * mh + mh * 0.2, mw * 0.64, mh * 0.56); }
+    }
+    const em = new THREE.CanvasTexture(ce);
+    em.wrapS = em.wrapT = THREE.RepeatWrapping; em.repeat.set(1 / 4, 1 / 3.4); em.anisotropy = 8;
+    return { map: build('#b9b2a4', false), mapGlass: build('#8fa6b6', true), emissive: em };
   }
 
   _buildingHeight(tags, id) {
@@ -373,6 +445,123 @@ export class OSMWorld {
     // deterministic pseudo-random from id
     const r = ((id * 2654435761) % 1000) / 1000;
     return 6 + r * 18;
+  }
+
+  async _instanceOrFallback(url, matrices, fallbackGeo, fallbackMat) {
+    if (!matrices.length) return;
+    const g = await assets.instances(url, matrices);
+    if (g) { this.group.add(g); return; }
+    const inst = new THREE.InstancedMesh(fallbackGeo, fallbackMat, matrices.length);
+    inst.castShadow = true; inst.receiveShadow = true;
+    matrices.forEach((m, i) => inst.setMatrixAt(i, m));
+    inst.instanceMatrix.needsUpdate = true;
+    this.group.add(inst);
+  }
+
+  _drivable(w) {
+    return w.tags && w.tags.highway && !/footway|path|cycleway|steps|pedestrian|track/.test(w.tags.highway);
+  }
+
+  // streetlamps along roads + parked traffic cars
+  async _streetProps(ways) {
+    const lampMats = [], carMats = [], carColors = [];
+    const up = new THREE.Vector3(0, 1, 0);
+    const q = new THREE.Quaternion(), s = new THREE.Vector3();
+    let lampSide = 1, carPick = 0;
+    for (const w of ways) {
+      if (!this._drivable(w)) continue;
+      const width = ROAD_WIDTH[w.tags.highway] || 5;
+      const pts = w.geometry.map((g) => this.project(g.lat, g.lon));
+      let acc = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        let tx = b.x - a.x, tz = b.y - a.y;
+        const seg = Math.hypot(tx, tz) || 1; tx /= seg; tz /= seg;
+        const nx = -tz, nz = tx;
+        acc += seg;
+        if (acc >= 46 && lampMats.length < 500) {
+          acc = 0; lampSide *= -1;
+          const px = b.x + lampSide * nx * (width / 2 + 1.1);
+          const pz = b.y + lampSide * nz * (width / 2 + 1.1);
+          const dToRoad = new THREE.Vector3(-lampSide * nx, 0, -lampSide * nz);
+          q.setFromAxisAngle(up, Math.atan2(-dToRoad.z, dToRoad.x));
+          s.set(5.6, 5.6, 5.6);
+          lampMats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, this.heightAt(px, pz), pz), q, s));
+          // occasional parked car on the opposite side
+          if (carMats.length < 260 && Math.abs(px) > 8) {
+            const cpx = b.x - lampSide * nx * (width / 2 - 0.6);
+            const cpz = b.y - lampSide * nz * (width / 2 - 0.6);
+            q.setFromAxisAngle(up, Math.atan2(tx, tz));
+            carMats.push(new THREE.Matrix4().compose(new THREE.Vector3(cpx, this.heightAt(cpx, cpz), cpz), q, new THREE.Vector3(1, 1, 1)));
+            carColors.push(CAR_COLORS[(carPick++) % CAR_COLORS.length]);
+          }
+        }
+      }
+    }
+    const lamp = makeStreetlamp();
+    await this._instanceOrFallback(PH_MODELS.lamp, lampMats, this._unit(lamp.geo), lamp.materials);
+
+    if (carMats.length) {
+      const carGeo = makeCarProp();
+      const carMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.55, envMapIntensity: 1.1 });
+      const cars = new THREE.InstancedMesh(carGeo, carMat, carMats.length);
+      cars.castShadow = true; cars.receiveShadow = true;
+      const col = new THREE.Color();
+      carMats.forEach((m, i) => { cars.setMatrixAt(i, m); cars.setColorAt(i, col.setHex(carColors[i])); });
+      cars.instanceMatrix.needsUpdate = true;
+      this.group.add(cars);
+    }
+  }
+
+  // trees scattered inside parks / green areas
+  async _parkTrees(ways) {
+    const pine = [], leafy = [];
+    const up = new THREE.Vector3(0, 1, 0);
+    const q = new THREE.Quaternion(), s = new THREE.Vector3();
+    let seed = 1;
+    const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    for (const w of ways) {
+      const t = w.tags || {};
+      const green = /grass|forest|meadow|recreation_ground|village_green|cemetery/.test(t.landuse || '') ||
+        /park|garden|golf_course/.test(t.leisure || '');
+      if (!green || w.geometry.length < 4) continue;
+      const poly = w.geometry.map((g) => this.project(g.lat, g.lon));
+      let minx = Infinity, maxx = -Infinity, minz = Infinity, maxz = -Infinity;
+      for (const p of poly) { minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x); minz = Math.min(minz, p.y); maxz = Math.max(maxz, p.y); }
+      const area = (maxx - minx) * (maxz - minz);
+      const n = Math.min(60, Math.max(3, Math.floor(area / 220)));
+      for (let k = 0; k < n && pine.length + leafy.length < 700; k++) {
+        const px = minx + rand() * (maxx - minx);
+        const pz = minz + rand() * (maxz - minz);
+        if (!this._pointInPoly(px, pz, poly)) continue;
+        const height = 5 + rand() * 6;
+        q.setFromAxisAngle(up, rand() * Math.PI * 2);
+        s.set(height, height, height);
+        (rand() < 0.5 ? pine : leafy).push(new THREE.Matrix4().compose(new THREE.Vector3(px, this.heightAt(px, pz), pz), q, s));
+      }
+    }
+    const leafMat = () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4 });
+    await Promise.all([
+      this._instanceOrFallback(PH_MODELS.pine, pine, this._unit(makePine()), leafMat()),
+      this._instanceOrFallback(PH_MODELS.tree, leafy, this._unit(makeTree()), leafMat()),
+    ]);
+  }
+
+  _unit(geo) {
+    geo.computeBoundingBox();
+    const h = (geo.boundingBox.max.y - geo.boundingBox.min.y) || 1;
+    geo.translate(0, -geo.boundingBox.min.y, 0);
+    geo.scale(1 / h, 1 / h, 1 / h);
+    return geo;
+  }
+
+  _pointInPoly(x, z, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i].x, zi = poly[i].y, xj = poly[j].x, zj = poly[j].y;
+      if (((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi)) inside = !inside;
+    }
+    return inside;
   }
 
   // start the car on the nearest road, aligned to its direction

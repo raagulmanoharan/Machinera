@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
+import { assets, PH_MODELS } from '../render/AssetLibrary.js';
+import { makePine, makeTree, makeStreetlamp } from './props.js';
 
 // ---------- deterministic noise ----------
 function hash2(x, y) {
@@ -37,14 +39,15 @@ function mulberry32(seed) {
 }
 
 const FLAT_TO = ROAD.halfWidth + ROAD.shoulder + 1.8;
-const CORRIDOR_Y = -0.15;
+const CORRIDOR_Y = 0.0; // road surface level — car rests here, no clipping
 
 export function heightAt(x, z) {
   const c = distToRoad(x, z);
   if (c <= FLAT_TO) return CORRIDOR_Y;
-  const ramp = smoothstep(FLAT_TO, FLAT_TO + 22, c);
-  const hills = fbm(x * 0.0055, z * 0.0055) * 11 + fbm(x * 0.02, z * 0.02) * 1.4;
-  const mnt = smoothstep(150, 420, c) * (fbm(x * 0.0016 + 10, z * 0.0016 - 4) * 150 + 30);
+  const ramp = smoothstep(FLAT_TO, FLAT_TO + 26, c);
+  // gentle rolling foreground, then dramatic distant peaks for a picturesque skyline
+  const hills = fbm(x * 0.0055, z * 0.0055) * 13 + fbm(x * 0.02, z * 0.02) * 1.6;
+  const mnt = smoothstep(120, 460, c) * (fbm(x * 0.0014 + 10, z * 0.0014 - 4) * 240 + 40);
   return CORRIDOR_Y + ramp * hills + mnt;
 }
 
@@ -72,8 +75,112 @@ export class ProceduralWorld {
   _build() {
     this._terrain();
     this._roadMesh();
-    this._scatter();
     this._guardrails();
+  }
+
+  // async: pull real CC0 models (trees, boulders, lamps) with procedural fallback
+  async populate() {
+    const rng = mulberry32(1337);
+    await Promise.all([
+      this._forest(rng),
+      this._boulders(rng),
+      this._lamps(),
+    ]);
+  }
+
+  // add an instanced real model, or fall back to a procedural geometry
+  async _instanceOrFallback(url, matrices, fallbackGeo, fallbackMat) {
+    const g = await assets.instances(url, matrices);
+    if (g) { this.group.add(g); return; }
+    const inst = new THREE.InstancedMesh(fallbackGeo, fallbackMat, matrices.length);
+    inst.castShadow = true; inst.receiveShadow = true;
+    matrices.forEach((m, i) => inst.setMatrixAt(i, m));
+    inst.instanceMatrix.needsUpdate = true;
+    this.group.add(inst);
+  }
+
+  async _forest(rng) {
+    const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
+    const pine = [], leafy = [];
+    let placed = 0, guard = 0;
+    while (placed < 2600 && guard < 40000) {
+      guard++;
+      const z = ROAD.lengthStart + rng() * (ROAD.lengthEnd - ROAD.lengthStart);
+      const side = rng() < 0.5 ? -1 : 1;
+      const off = 13 + rng() * 260;
+      const x = roadX(z) + side * off;
+      const h = heightAt(x, z);
+      if (h < 0.3 || h > 78) continue;
+      const height = 5 + rng() * 6;             // metres tall (models are unit-height)
+      q.setFromAxisAngle(up, rng() * Math.PI * 2);
+      s.set(height, height, height);
+      const m = new THREE.Matrix4().compose(new THREE.Vector3(x, h, z), q, s);
+      (h > 26 || rng() < 0.6 ? pine : leafy).push(m);
+      placed++;
+    }
+    await Promise.all([
+      this._instanceOrFallback(PH_MODELS.pine, pine, this._fallbackGeo(makePine()), this._leafMat()),
+      this._instanceOrFallback(PH_MODELS.tree, leafy, this._fallbackGeo(makeTree()), this._leafMat()),
+    ]);
+  }
+
+  // procedural fallback trees are ~unit-height already-scaled meshes; normalize to 1 unit
+  _fallbackGeo(geo) {
+    geo.computeBoundingBox();
+    const h = geo.boundingBox.max.y - geo.boundingBox.min.y || 1;
+    geo.translate(0, -geo.boundingBox.min.y, 0);
+    geo.scale(1 / h, 1 / h, 1 / h);
+    return geo;
+  }
+  _leafMat() {
+    if (!this._lmat) this._lmat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4 });
+    return this._lmat;
+  }
+
+  async _boulders(rng) {
+    const q = new THREE.Quaternion(), s = new THREE.Vector3();
+    const mats = [];
+    let placed = 0, guard = 0;
+    while (placed < 320 && guard < 8000) {
+      guard++;
+      const z = ROAD.lengthStart + rng() * (ROAD.lengthEnd - ROAD.lengthStart);
+      const side = rng() < 0.5 ? -1 : 1;
+      const off = 12 + rng() * 320;
+      const x = roadX(z) + side * off;
+      const h = heightAt(x, z);
+      if (h < 0.2) continue;
+      const size = 0.8 + rng() * 3.2;
+      q.setFromAxisAngle(new THREE.Vector3(rng(), rng(), rng()).normalize(), rng() * Math.PI);
+      s.set(size, size * (0.7 + rng() * 0.5), size);
+      mats.push(new THREE.Matrix4().compose(new THREE.Vector3(x, h, z), q, s));
+      placed++;
+    }
+    const rockGeo = new THREE.IcosahedronGeometry(0.5, 0);
+    rockGeo.translate(0, 0.5, 0);
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a8378, roughness: 0.95, flatShading: true, envMapIntensity: 0.5 });
+    await this._instanceOrFallback(PH_MODELS.boulder, mats, rockGeo, rockMat);
+  }
+
+  async _lamps() {
+    const mats = [];
+    const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
+    let side = 1;
+    for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += 68) {
+      side *= -1;
+      const cx = roadX(z), dx = roadSlope(z);
+      const len = Math.hypot(1, dx);
+      const ox = 1 / len, oz = -dx / len;
+      const px = cx + side * ox * (ROAD.halfWidth + 1.4);
+      const pz = z + side * oz * (ROAD.halfWidth + 1.4);
+      // arm (local +x) should point toward the road
+      const yaw = Math.atan2(-side * ox, -side * -oz);
+      q.setFromAxisAngle(up, yaw);
+      s.set(5.4, 5.4, 5.4);
+      mats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, heightAt(px, pz), pz), q, s));
+    }
+    const lamp = makeStreetlamp();
+    const fg = this._fallbackGeo(lamp.geo);
+    await this._instanceOrFallback(PH_MODELS.lamp, mats, fg, lamp.materials);
   }
 
   // ---------- terrain ----------
@@ -160,7 +267,7 @@ export class ProceduralWorld {
     const tex = this._roadTexture();
     const tile = 22;
     const W = ROAD.halfWidth;
-    const y = 0.05;
+    const y = 0.0; // flush with corridor; polygonOffset lifts it above the terrain
     const verts = [], uvs = [], idx = [];
     const zStart = ROAD.lengthStart, zEnd = ROAD.lengthEnd, step = 4;
     let row = 0;
@@ -197,70 +304,6 @@ export class ProceduralWorld {
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
     this.group.add(mesh);
-  }
-
-  // ---------- scatter ----------
-  _treeGeo() {
-    const trunk = new THREE.CylinderGeometry(0.22, 0.32, 2.2, 6);
-    trunk.translate(0, 1.1, 0);
-    const foliage = new THREE.ConeGeometry(1.7, 4.6, 8);
-    foliage.translate(0, 4.3, 0);
-    return mergeGeometries([trunk, foliage], true);
-  }
-
-  _scatter() {
-    const rng = mulberry32(1337);
-    const treeGeo = this._treeGeo();
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3f28, roughness: 1 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f5d2a, roughness: 0.9, envMapIntensity: 0.4 });
-    const N = 2200;
-    const trees = new THREE.InstancedMesh(treeGeo, [trunkMat, leafMat], N);
-    trees.castShadow = true; trees.receiveShadow = true;
-    const m = new THREE.Matrix4();
-    const q = new THREE.Quaternion();
-    const scaleV = new THREE.Vector3();
-    let placed = 0, guard = 0;
-    while (placed < N && guard < N * 12) {
-      guard++;
-      const z = ROAD.lengthStart + rng() * (ROAD.lengthEnd - ROAD.lengthStart);
-      const side = rng() < 0.5 ? -1 : 1;
-      const off = 14 + rng() * 240;
-      const x = roadX(z) + side * off;
-      const h = heightAt(x, z);
-      if (h < 0.4 || h > 60) continue;
-      const s = 0.7 + rng() * 1.1;
-      scaleV.set(s, s * (0.85 + rng() * 0.4), s);
-      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rng() * Math.PI * 2);
-      m.compose(new THREE.Vector3(x, h, z), q, scaleV);
-      trees.setMatrixAt(placed++, m);
-    }
-    trees.count = placed;
-    trees.instanceMatrix.needsUpdate = true;
-    this.group.add(trees);
-
-    const rockGeo = new THREE.IcosahedronGeometry(1, 0);
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a8378, roughness: 0.95, flatShading: true, envMapIntensity: 0.5 });
-    const RN = 600;
-    const rocks = new THREE.InstancedMesh(rockGeo, rockMat, RN);
-    rocks.castShadow = true; rocks.receiveShadow = true;
-    let rp = 0; guard = 0;
-    while (rp < RN && guard < RN * 12) {
-      guard++;
-      const z = ROAD.lengthStart + rng() * (ROAD.lengthEnd - ROAD.lengthStart);
-      const side = rng() < 0.5 ? -1 : 1;
-      const off = 10 + rng() * 320;
-      const x = roadX(z) + side * off;
-      const h = heightAt(x, z);
-      if (h < 0.2) continue;
-      const s = 0.4 + rng() * 2.4;
-      scaleV.set(s, s * (0.6 + rng() * 0.6), s);
-      q.setFromAxisAngle(new THREE.Vector3(rng(), rng(), rng()).normalize(), rng() * Math.PI);
-      m.compose(new THREE.Vector3(x, h + s * 0.2, z), q, scaleV);
-      rocks.setMatrixAt(rp++, m);
-    }
-    rocks.count = rp;
-    rocks.instanceMatrix.needsUpdate = true;
-    this.group.add(rocks);
   }
 
   // ---------- guardrails ----------

@@ -51,21 +51,24 @@ async function loadWorld() {
 
   if (world) { world.dispose(); world = null; }
 
-  const source = prefs.source || 'osm';
+  const source = prefs.source || 'procedural';
   try {
     if (source === 'osm') {
-      const [lat, lng] = parseLatLng(prefs.location) || [40.758, -73.9855];
+      const [lat, lng] = parseLatLng(prefs.location) || [46.5197, 6.6323];
       const w = new OSMWorld(scene);
       await w.load({ lat, lng, radius: prefs.radius || 750, sunDir: env.sunDir, onProgress: (m) => setLoader(m) });
       world = w;
     } else {
+      setLoader('Growing the forest…');
       world = new ProceduralWorld(scene);
+      await world.populate();
     }
   } catch (err) {
     console.warn(err);
-    toast('Could not load real-world map (' + err.message + '). Dropping you on the procedural highway instead.', true);
+    toast('Could not load that place (' + err.message + '). Dropping you on the scenic route instead.', true);
     if (world) { world.dispose(); world = null; }
     world = new ProceduralWorld(scene);
+    await world.populate();
   }
 
   car.reset(world.carStart.pos, world.carStart.heading);
