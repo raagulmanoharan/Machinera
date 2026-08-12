@@ -26,6 +26,11 @@ export class Car {
     this.speed = 0;                   // signed forward speed, for HUD
     this._wheelSpin = 0;
     this._steerVis = 0;
+    this._prevVLong = 0;
+    this._pitch = 0;   // body pitch from accel/brake (weight transfer)
+    this._roll = 0;    // body roll from cornering
+    this._dist = 0;    // distance travelled, drives road-hump bob
+    this._bobY = 0;
 
     this._build();
   }
@@ -39,6 +44,9 @@ export class Car {
 
   _build() {
     const g = this.group;
+    this.body = new THREE.Group(); // pitches/rolls with weight transfer; wheels stay planted
+    g.add(this.body);
+    const b = this.body;
 
     const paint = new THREE.MeshPhysicalMaterial({
       color: 0xb01f2e, roughness: 0.3, metalness: 0.55,
@@ -58,39 +66,39 @@ export class Car {
     const body = new THREE.Mesh(this._rounded(1.9, 0.55, 4.3, 0.18), paint);
     body.position.y = 0.55;
     body.castShadow = true; body.receiveShadow = true;
-    g.add(body);
+    b.add(body);
 
     // cabin
     const cabin = new THREE.Mesh(this._rounded(1.66, 0.6, 2.2, 0.2), paint);
     cabin.position.set(0, 1.05, -0.1);
     cabin.scale.z = 1;
     cabin.castShadow = true;
-    g.add(cabin);
+    b.add(cabin);
 
     // greenhouse / windows
     const winMat = glass;
     const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 0.08), winMat);
     windshield.position.set(0, 1.08, 0.98);
     windshield.rotation.x = -0.5;
-    g.add(windshield);
+    b.add(windshield);
     const rearWin = windshield.clone();
     rearWin.position.set(0, 1.08, -1.18);
     rearWin.rotation.x = 0.6;
-    g.add(rearWin);
+    b.add(rearWin);
     const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 1.9), winMat);
     sideL.position.set(0.82, 1.08, -0.1);
-    g.add(sideL);
-    const sideR = sideL.clone(); sideR.position.x = -0.82; g.add(sideR);
+    b.add(sideL);
+    const sideR = sideL.clone(); sideR.position.x = -0.82; b.add(sideR);
 
     // bumpers / trim
     const skirt = new THREE.Mesh(new THREE.BoxGeometry(1.94, 0.18, 4.32), trim);
-    skirt.position.y = 0.28; g.add(skirt);
+    skirt.position.y = 0.28; b.add(skirt);
 
     // lights
     const hlGeo = new THREE.BoxGeometry(0.34, 0.16, 0.06);
     for (const sx of [-0.62, 0.62]) {
-      const hl = new THREE.Mesh(hlGeo, lightF); hl.position.set(sx, 0.62, 2.14); g.add(hl);
-      const tl = new THREE.Mesh(hlGeo, lightR); tl.position.set(sx, 0.66, -2.14); g.add(tl);
+      const hl = new THREE.Mesh(hlGeo, lightF); hl.position.set(sx, 0.62, 2.14); b.add(hl);
+      const tl = new THREE.Mesh(hlGeo, lightR); tl.position.set(sx, 0.66, -2.14); b.add(tl);
     }
 
     // wheels
@@ -202,6 +210,28 @@ export class Car {
     const roll = Math.atan(nx) * 0.6;
     const qp = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, 0, roll, 'ZXY'));
     this.group.quaternion.copy(q).multiply(qp);
+
+    // ---- weight transfer + road humps (visual dynamics on the body only) ----
+    const accelLong = (vLong - this._prevVLong) / Math.max(dt, 1e-3);
+    this._prevVLong = vLong;
+    const latAccel = vLong * yawRate; // centripetal
+    // accelerate -> squat (nose up); brake -> dive (nose down)
+    const pitchTarget = THREE.MathUtils.clamp(-accelLong * 0.010, -0.07, 0.07);
+    // lean out of the corner
+    const rollTarget = THREE.MathUtils.clamp(-latAccel * 0.012, -0.11, 0.11);
+    this._pitch += (pitchTarget - this._pitch) * Math.min(1, dt * 7);
+    this._roll += (rollTarget - this._roll) * Math.min(1, dt * 7);
+
+    this._dist += Math.abs(vLong) * dt;
+    const speedFac = Math.min(1, Math.abs(vLong) / 16);
+    const d = this._dist;
+    const hump = (Math.sin(d * 0.55) * 0.5 + Math.sin(d * 1.7 + 1.3) * 0.3 + Math.sin(d * 3.3 + 0.6) * 0.2);
+    const bobTarget = hump * 0.035 * speedFac;
+    this._bobY += (bobTarget - this._bobY) * Math.min(1, dt * 12);
+    const bobPitch = Math.cos(d * 1.7 + 1.3) * 0.012 * speedFac;
+
+    this.body.position.y = this._bobY;
+    this.body.rotation.set(this._pitch + bobPitch, 0, this._roll);
 
     // wheel visuals
     this._wheelSpin += (vLong / 0.36) * dt;

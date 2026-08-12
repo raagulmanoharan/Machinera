@@ -6,6 +6,7 @@ import { OSMWorld } from './world/OSMWorld.js';
 import { ProceduralWorld } from './world/ProceduralWorld.js';
 import { Environment } from './render/Environment.js';
 import { Pipeline } from './render/Pipeline.js';
+import { advanceWind } from './render/wind.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('scene');
@@ -91,10 +92,11 @@ function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 0.05);
   if (world && !loading) {
+    advanceWind(dt);
     input.update(dt);
     car.update(dt, input, world);
     if (world.update) world.update(dt);
-    env.update(car.pos);
+    env.update(car.pos, dt);
     chase.update(dt, car);
     updateHud();
   }

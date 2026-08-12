@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
+import { Lensflare, LensflareElement } from 'three/examples/jsm/objects/Lensflare.js';
 
 // Atmospheric sky (Preetham scattering) + sun light + image-based lighting.
 // The environment map is rendered from the sky itself, so reflections and
@@ -48,6 +49,62 @@ export class Environment {
     this.pmrem = new THREE.PMREMGenerator(renderer);
     this.pmrem.compileEquirectangularShader();
     this._updateEnv();
+
+    this._sunGlare();
+    this._clouds();
+  }
+
+  // ---- sun glare / lens flare ----
+  _radialTex(inner, stops) {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    for (const [o, col] of stops) grd.addColorStop(o, col);
+    g.fillStyle = grd; g.fillRect(0, 0, 256, 256);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
+
+  _sunGlare() {
+    const glow = this._radialTex(0, [[0, 'rgba(255,246,224,1)'], [0.2, 'rgba(255,230,180,0.7)'], [0.5, 'rgba(255,210,150,0.15)'], [1, 'rgba(255,200,140,0)']]);
+    const ghost = this._radialTex(0, [[0, 'rgba(255,240,220,0.5)'], [0.6, 'rgba(200,220,255,0.12)'], [1, 'rgba(255,255,255,0)']]);
+    const lf = new Lensflare();
+    lf.addElement(new LensflareElement(glow, 620, 0, new THREE.Color(0xfff2da)));
+    lf.addElement(new LensflareElement(ghost, 60, 0.55));
+    lf.addElement(new LensflareElement(ghost, 90, 0.7));
+    lf.addElement(new LensflareElement(ghost, 140, 0.9));
+    lf.addElement(new LensflareElement(ghost, 70, 1.0));
+    const anchor = new THREE.Object3D();
+    anchor.add(lf);
+    this.scene.add(anchor);
+    this._flareAnchor = anchor;
+  }
+
+  // ---- drifting clouds on a seamless sky dome (no visible edge) ----
+  _clouds() {
+    const W = 1024, H = 512;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    g.clearRect(0, 0, W, H);
+    let s = 5; const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+    for (let i = 0; i < 80; i++) {
+      const x = rnd() * W;
+      const y = H * (0.22 + rnd() * 0.5);          // band above the horizon
+      const r = 30 + rnd() * 110;
+      const a = 0.35 + rnd() * 0.4;
+      const grd = g.createRadialGradient(x, y, 0, x, y, r);
+      grd.addColorStop(0, `rgba(255,255,255,${a})`);
+      grd.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grd; g.beginPath(); g.ellipse(x, y, r, r * 0.6, 0, 0, 7); g.fill();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const geo = new THREE.SphereGeometry(7000, 32, 20);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.BackSide, fog: false, color: 0xf2f5f8 });
+    const dome = new THREE.Mesh(geo, mat);
+    dome.frustumCulled = false;
+    this.scene.add(dome);
+    this._clouds_ = dome; this._cloudTex = tex;
   }
 
   _applySun() {
@@ -81,11 +138,14 @@ export class Environment {
     this._updateEnv();
   }
 
-  // keep the sun rig and shadow frustum centred on the car
-  update(target) {
+  // keep the sun rig, sky, glare and clouds centred on the car
+  update(target, dt = 0.016) {
     this.sun.position.copy(target).addScaledVector(this.sunDir, 200);
     this.sun.target.position.copy(target);
     this.sky.position.copy(target);
+    if (this._flareAnchor) this._flareAnchor.position.copy(target).addScaledVector(this.sunDir, 6000);
+    if (this._clouds_) { this._clouds_.position.x = target.x; this._clouds_.position.z = target.z; }
+    if (this._cloudTex) { this._cloudTex.offset.x += dt * 0.0045; this._cloudTex.offset.y += dt * 0.0012; } // wind
   }
 
   dispose() {

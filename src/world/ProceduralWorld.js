@@ -4,6 +4,7 @@ import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { assets, PH_MODELS } from '../render/AssetLibrary.js';
 import { makePine, makeTree, makeStreetlamp } from './props.js';
+import { applyWind } from '../render/wind.js';
 
 // ---------- deterministic noise ----------
 function hash2(x, y) {
@@ -133,7 +134,7 @@ export class ProceduralWorld {
     return geo;
   }
   _leafMat() {
-    if (!this._lmat) this._lmat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4 });
+    if (!this._lmat) this._lmat = applyWind(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4 }));
     return this._lmat;
   }
 
@@ -256,6 +257,14 @@ export class ProceduralWorld {
     g.fillRect(235, 0, 5, 256);
     g.fillStyle = '#e9c94a';
     for (let y = 0; y < 256; y += 64) g.fillRect(125, y, 6, 34);
+    // dirt / tyre grime toward the edges and a worn centre
+    for (let i = 0; i < 40; i++) {
+      const gx = Math.random() * 256, gy = Math.random() * 256, r = 8 + Math.random() * 30;
+      const grd = g.createRadialGradient(gx, gy, 0, gx, gy, r);
+      grd.addColorStop(0, `rgba(${20 + Math.random() * 15|0},${18},${16},${0.15 + Math.random() * 0.2})`);
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grd; g.beginPath(); g.arc(gx, gy, r, 0, 7); g.fill();
+    }
     const tex = new THREE.CanvasTexture(c);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.anisotropy = 8;

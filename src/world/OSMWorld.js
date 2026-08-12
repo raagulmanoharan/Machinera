@@ -5,6 +5,7 @@ import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/te
 import { loadElevation } from './Elevation.js';
 import { assets, PH_MODELS } from '../render/AssetLibrary.js';
 import { makeStreetlamp, makeTree, makePine, makeCarProp, CAR_COLORS } from './props.js';
+import { applyWind } from '../render/wind.js';
 
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
@@ -207,6 +208,14 @@ export class OSMWorld {
       const v = 44 + Math.floor(Math.random() * 34);
       g.fillStyle = `rgb(${v},${v},${v + 2})`;
       g.fillRect(Math.random() * 128, Math.random() * 128, 1.2, 1.2);
+    }
+    // dirt / grime blotches
+    for (let i = 0; i < 22; i++) {
+      const gx = Math.random() * 128, gy = Math.random() * 128, r = 5 + Math.random() * 18;
+      const grd = g.createRadialGradient(gx, gy, 0, gx, gy, r);
+      grd.addColorStop(0, `rgba(22,20,17,${0.14 + Math.random() * 0.18})`);
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grd; g.beginPath(); g.arc(gx, gy, r, 0, 7); g.fill();
     }
     g.fillStyle = '#dfe0d8';           // solid white edge lines
     g.fillRect(6, 0, 4, 128);
@@ -540,7 +549,7 @@ export class OSMWorld {
         (rand() < 0.5 ? pine : leafy).push(new THREE.Matrix4().compose(new THREE.Vector3(px, this.heightAt(px, pz), pz), q, s));
       }
     }
-    const leafMat = () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4 });
+    const leafMat = () => applyWind(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4 }));
     await Promise.all([
       this._instanceOrFallback(PH_MODELS.pine, pine, this._unit(makePine()), leafMat()),
       this._instanceOrFallback(PH_MODELS.tree, leafy, this._unit(makeTree()), leafMat()),
