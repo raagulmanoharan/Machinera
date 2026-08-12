@@ -10,6 +10,7 @@ import { Dust } from './render/Dust.js';
 import { MoodDirector } from './world/MoodDirector.js';
 import { advanceWind } from './render/wind.js';
 import { MODELS } from './render/AssetLibrary.js';
+import { Radio } from './Radio.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('scene');
@@ -60,6 +61,10 @@ window.__car = car; // debug handle
 window.__env = env; // debug handle
 window.__mood = mood; // debug handle
 window.__cam = camera; // debug handle
+
+// on-screen radio — streams audio from YouTube (curated stations + custom links)
+const radio = new Radio(document.getElementById('app'), (msg, err) => toast(msg, err));
+window.__radio = radio; // debug handle
 
 let world = null;
 let loading = false;
