@@ -129,13 +129,14 @@ export class ProceduralWorld {
       const off = 13 + rng() * 260;
       const x = roadX(z) + side * off;
       const h = heightAt(x, z);
-      if (h < 0.3 || h > 78) continue;
-      const height = 6 + rng() * 7;             // billboards are unit-height
+      // trees only in the valley + lower foothills — never on the high mountains
+      if (h < 0.3 || h > 24) continue;
+      const height = 6 + rng() * 7;
       // billboards don't need to face the camera, but a little yaw variety helps the crossed planes
       q.setFromAxisAngle(up, rng() * Math.PI);
       s.set(height, height, height);
       const m = new THREE.Matrix4().compose(new THREE.Vector3(x, h, z), q, s);
-      (h > 24 || rng() < 0.5 ? pine : round).push(m);
+      (h > 14 || rng() < 0.45 ? pine : round).push(m);
       this.colliders.add(x, z, 0.9);
       placed++;
     }
@@ -272,8 +273,11 @@ export class ProceduralWorld {
       pos.setZ(i, z);
       const h = heightAt(x, z);
       pos.setY(i, h - 0.05); // sit just below the road plane to avoid z-fighting
-      const g = 0.85 + vnoise(x * 0.05, z * 0.05) * 0.3;
+      // big soft patches (low freq) + finer variation break the tiled look
+      const g = 0.74 + vnoise(x * 0.011, z * 0.011) * 0.4 + vnoise(x * 0.06, z * 0.06) * 0.14;
       tmp.copy(cGrass).multiplyScalar(g);
+      // drift hue slightly between yellow-green and deep green per patch
+      tmp.offsetHSL((vnoise(x * 0.008 + 7, z * 0.008 - 3) - 0.5) * 0.05, 0, 0);
       if (h > 8) tmp.lerp(cRock, smoothstep(8, 42, h));
       if (h > 68) tmp.lerp(cSnow, smoothstep(68, 115, h));
       colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b;
@@ -282,15 +286,15 @@ export class ProceduralWorld {
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
 
-    const grass = loadTexture(TEXTURES.grassDiff, { srgb: true, repeat: 22 });
-    const grassNor = loadTexture(TEXTURES.grassNor, { repeat: 22 });
-    const grassArm = loadTexture(TEXTURES.grassArm, { repeat: 22 });
+    const grass = loadTexture(TEXTURES.grassDiff, { srgb: true, repeat: 16 });
+    const grassNor = loadTexture(TEXTURES.grassNor, { repeat: 16 });
+    const grassArm = loadTexture(TEXTURES.grassArm, { repeat: 16 });
     const mat = deTile(new THREE.MeshStandardMaterial({
       vertexColors: true, roughness: 1.0, metalness: 0.0,
       map: grass, normalMap: grassNor, roughnessMap: grassArm,
-      normalScale: new THREE.Vector2(1.2, 1.2),
+      normalScale: new THREE.Vector2(0.8, 0.8),
       envMapIntensity: 0.9,
-    }), { scale: 0.06, amount: 0.45 });
+    }), { scale: 0.04, amount: 0.7 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
     mesh.castShadow = false;
