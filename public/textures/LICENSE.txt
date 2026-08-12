@@ -1,0 +1,7 @@
+Textures & HDRI from Poly Haven (https://polyhaven.com):
+  sky.hdr       — "Kloofendal 48d Partly Cloudy (Pure Sky)"
+  grass_diff/nor — "Aerial Grass Rock"
+  asphalt_diff/nor — "Asphalt 02"
+All licensed CC0 1.0 Universal (public domain):
+https://creativecommons.org/publicdomain/zero/1.0/
+No rights reserved; attribution appreciated but not required.

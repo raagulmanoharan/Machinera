@@ -7,7 +7,7 @@ import { ProceduralWorld } from './world/ProceduralWorld.js';
 import { Environment } from './render/Environment.js';
 import { Pipeline } from './render/Pipeline.js';
 import { advanceWind } from './render/wind.js';
-import { MODELS } from './render/AssetLibrary.js';
+import { MODELS, TEXTURES } from './render/AssetLibrary.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('scene');
@@ -25,7 +25,8 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.5, 12000);
 
-const env = new Environment(scene, renderer, { elevation: 34, azimuth: 150 });
+const env = new Environment(scene, renderer, { elevation: 48, azimuth: 150 });
+env.loadHDRI(TEXTURES.sky); // swap in the real photographic sky when it loads
 const pipeline = new Pipeline(renderer, scene, camera);
 
 const input = new Input(canvas);
