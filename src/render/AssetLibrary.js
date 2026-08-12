@@ -13,9 +13,31 @@ export const TEXTURES = {
   sky: `${BASE}textures/sky.hdr`,
   grassDiff: `${BASE}textures/grass_diff.jpg`,
   grassNor: `${BASE}textures/grass_nor.jpg`,
+  grassArm: `${BASE}textures/grass_arm.jpg`,
   asphaltDiff: `${BASE}textures/asphalt_diff.jpg`,
   asphaltNor: `${BASE}textures/asphalt_nor.jpg`,
+  dirtDiff: `${BASE}textures/dirt_diff.jpg`,
+  dirtNor: `${BASE}textures/dirt_nor.jpg`,
 };
+
+// Break obvious texture repetition by modulating the albedo with a large-scale
+// noise (in the fragment shader). Cheap way to make tiled ground read natural.
+export function deTile(material, { scale = 0.08, amount = 0.4 } = {}) {
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader =
+      `float _h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+       float _vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+         return mix(mix(_h(i),_h(i+vec2(1,0)),f.x),mix(_h(i+vec2(0,1)),_h(i+vec2(1,1)),f.x),f.y);}
+      ` + shader.fragmentShader.replace(
+        '#include <map_fragment>',
+        `#include <map_fragment>
+         float _m = _vn(vMapUv*${scale.toFixed(3)})*0.65 + _vn(vMapUv*${(scale * 3.1).toFixed(3)})*0.35;
+         diffuseColor.rgb *= (1.0 - ${amount.toFixed(3)}) + ${amount.toFixed(3)} * (0.6 + 0.9*_m);`
+      );
+  };
+  material.customProgramCacheKey = () => 'detile' + scale + amount;
+  return material;
+}
 
 // Load a tiling texture (returns immediately, fills in when decoded).
 export function loadTexture(url, { srgb = false, repeat = 1, anisotropy = 8 } = {}) {
