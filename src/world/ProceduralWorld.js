@@ -61,10 +61,11 @@ function dirtShade(material, { scale = 0.08, amount = 0.4, greenKill = 0.0 } = {
          float _g = clamp(diffuseColor.g - max(diffuseColor.r, diffuseColor.b), 0.0, 1.0);
          vec3 _dirt = vec3(dot(diffuseColor.rgb, vec3(0.5,0.4,0.32))) * vec3(1.28, 0.92, 0.70);
          diffuseColor.rgb = mix(diffuseColor.rgb, _dirt, clamp(_g * 5.0, 0.0, ${greenKill.toFixed(3)}));` : ''}
-         // desaturate + compress highlights — kills the colourful sub-pixel
-         // sparkle at grazing angles
-         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.38,0.36,0.30))), 0.3);
-         diffuseColor.rgb = diffuseColor.rgb / (1.0 + diffuseColor.rgb * 0.7);`
+         // desaturate + flatten texel contrast — removes the high-frequency
+         // amplitude that aliases into colourful sparkle at grazing angles
+         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.38,0.36,0.30))), 0.35);
+         diffuseColor.rgb = diffuseColor.rgb / (1.0 + diffuseColor.rgb * 0.7);
+         diffuseColor.rgb = (diffuseColor.rgb - 0.26) * 0.6 + 0.26;`
       );
   };
   material.customProgramCacheKey = () => 'dirtshade' + scale + amount + greenKill;
@@ -79,8 +80,13 @@ export function heightAt(x, z) {
   const hills = fbm(x * 0.0055, z * 0.0055) * 14 + fbm(x * 0.02, z * 0.02) * 3.2;
   const rough = (fbm(x * 0.09 + 5, z * 0.09 - 5) - 0.5) * 5.5      // rocky bumps
     + (fbm(x * 0.28, z * 0.28) - 0.5) * 1.8;                        // gravelly grain
-  const mnt = smoothstep(120, 460, c) * (fbm(x * 0.0014 + 10, z * 0.0014 - 4) * 240 + 40);
-  return CORRIDOR_Y + ramp * (hills + rough) + mnt;
+  // layered ridges that rise with distance — overlapping ridgelines that recede
+  // and fade into the fog at different depths, so the haze reads with depth
+  const ridge = (a, b, f, amp) => { const n = fbm(x * f + a, z * f + b); return (1 - Math.abs(2 * n - 1)) * amp; };
+  const layers = smoothstep(70, 240, c) * ridge(3, 7, 0.0065, 26)
+    + smoothstep(150, 400, c) * ridge(21, -5, 0.0034, 85)
+    + smoothstep(120, 460, c) * (fbm(x * 0.0014 + 10, z * 0.0014 - 4) * 210 + 40);
+  return CORRIDOR_Y + ramp * (hills + rough) + layers;
 }
 
 export class ProceduralWorld {
@@ -126,22 +132,29 @@ export class ProceduralWorld {
   // dark bare-tree silhouettes lining the road, thinning with distance and
   // fading into the fog — the roadside framing from the reference
   _bareTrees() {
-    const variants = [makeBareTree(3), makeBareTree(17), makeBareTree(42), makeBareTree(88)];
+    // several distinct silhouettes so they don't read as one repeated tree
+    const variants = [3, 17, 42, 88, 131, 205, 260].map((s) => makeBareTree(s));
     const buckets = variants.map(() => []);
     let seed = 5150; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3();
-    for (let z = ROAD.lengthStart + 20; z < ROAD.lengthEnd; z += 9 + rnd() * 12) {
+    for (let z = ROAD.lengthStart + 20; z < ROAD.lengthEnd; z += 7 + rnd() * 11) {
       for (const side of [-1, 1]) {
-        if (rnd() > 0.82) continue;                 // gaps, not a solid wall
+        // a drifting density so trees clump and thin instead of an even row
+        const dens = 0.35 + 0.5 * vnoise(z * 0.012 + side * 5, side * 2);
+        if (rnd() > dens) continue;
         const cx = roadX(z), dx = roadSlope(z);
         const len = Math.hypot(1, dx), ox = 1 / len, oz = -dx / len;
-        const off = ROAD.halfWidth + 6 + rnd() * 34;  // set back from the verge
-        const px = cx + side * ox * off, pz = z + side * oz * off + (rnd() - 0.5) * 6;
-        const h = 5.5 + rnd() * 5.5;
-        q.setFromAxisAngle(up, rnd() * Math.PI * 2);
-        sc.set(h * (0.5 + rnd() * 0.3), h, h * (0.5 + rnd() * 0.3));
+        // set-back varies a lot: some right at the verge (clear), some far into
+        // the fog — a distance spread gives real depth
+        const near = rnd() < 0.4;
+        const off = near ? (ROAD.halfWidth + 4 + rnd() * 14) : (ROAD.halfWidth + 24 + rnd() * 120);
+        const px = cx + side * ox * off, pz = z + side * oz * off + (rnd() - 0.5) * 10;
+        const h = 4.5 + rnd() * rnd() * 9.0;         // mostly mid, a few tall
+        const lean = (rnd() - 0.5) * 0.18;
+        q.setFromEuler(new THREE.Euler(lean, rnd() * Math.PI * 2, (rnd() - 0.5) * 0.14));
+        sc.set(h * (0.45 + rnd() * 0.35), h * (0.85 + rnd() * 0.4), h * (0.45 + rnd() * 0.35));
         buckets[(rnd() * variants.length) | 0].push(
-          new THREE.Matrix4().compose(new THREE.Vector3(px, heightAt(px, pz), pz), q, sc));
+          new THREE.Matrix4().compose(new THREE.Vector3(px, heightAt(px, pz) - 0.2, pz), q, sc));
       }
     }
     const mat = new THREE.MeshStandardMaterial({ color: 0x0b0d11, roughness: 1.0, metalness: 0.0, envMapIntensity: 0.15 });
@@ -202,7 +215,7 @@ export class ProceduralWorld {
     }
     const rockGeo = new THREE.IcosahedronGeometry(0.5, 0);
     rockGeo.translate(0, 0.5, 0);
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a8378, roughness: 0.95, flatShading: true, envMapIntensity: 0.5 });
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a8378, roughness: 1.0, metalness: 0.0, flatShading: true, envMapIntensity: 0.0 });
     this._addInstanced(rockGeo, rockMat, mats);
   }
 
@@ -253,7 +266,7 @@ export class ProceduralWorld {
     // deterministic jitter so lamps repeat but each is a little different
     let seed = 9871; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
     let side = 1;
-    for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += 44 + rnd() * 14) {
+    for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += 95 + rnd() * 55) {  // sparse
       side *= -1;
       const zj = z + (rnd() - 0.5) * 8;
       const cx = roadX(zj), dx = roadSlope(zj);
@@ -286,42 +299,47 @@ export class ProceduralWorld {
     // fog scattering) — expose the bulb positions for it
     this.lampHeads = heads;
 
-    // warm reflection on the wet road: a soft pool under the lamp plus a long
-    // vertical smear down the tarmac toward the viewer
-    this._poolMat = new THREE.MeshBasicMaterial({
-      map: this._glowTex(), color: 0xffa63c, transparent: true, opacity: 0,
-      depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
-    });
-    this._streakMat = new THREE.MeshBasicMaterial({
-      map: this._streakTex(), color: 0xff9a34, transparent: true, opacity: 0,
-      depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
-    });
-    const poolGeo = new THREE.PlaneGeometry(7, 7);
-    const streakGeo = new THREE.PlaneGeometry(3.4, 30);
-    const qFlat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
-    const refl = new THREE.Group();
-    for (const rp of road) {
-      const pool = new THREE.Mesh(poolGeo, this._poolMat);
-      pool.quaternion.copy(qFlat); pool.position.set(rp.x, 0.045, rp.z);
-      refl.add(pool);
-      const streak = new THREE.Mesh(streakGeo, this._streakMat);
-      streak.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(up, Math.atan2(rp.slope, 1))).multiply(qFlat);
-      streak.position.set(rp.x, 0.05, rp.z);
-      refl.add(streak);
+    // real light that actually hits the ground: a small pool of spotlights,
+    // re-homed each frame onto the nearest lamps (WebGL can't afford one light
+    // per lamp), casting a warm pool on the wet road + nearby terrain
+    this._lampLights = [];
+    for (let i = 0; i < 3; i++) {
+      const sl = new THREE.SpotLight(0xffb267, 0, 60, 0.6, 0.7, 1.3);
+      sl.visible = false;
+      sl.castShadow = false;
+      this.group.add(sl); this.group.add(sl.target);
+      this._lampLights.push(sl);
     }
-    refl.frustumCulled = false; this.group.add(refl);
   }
 
   // street-lamp glow level (0 off → 1 full), driven by the mood director
   setLamps(level) {
-    const n = THREE.MathUtils.clamp(level, 0, 1);
-    this.lampLevel = n;                       // read by the volumetric pass
-    if (this._lensMat) this._lensMat.emissiveIntensity = 7.0 * n;
-    if (this._poolMat) this._poolMat.opacity = 0.7 * n;
-    if (this._streakMat) this._streakMat.opacity = 0.55 * n;
+    this.lampLevel = THREE.MathUtils.clamp(level, 0, 1);   // read by update() + the volumetric pass
+    if (this._lensMat) this._lensMat.emissiveIntensity = 7.0 * this.lampLevel;
   }
 
-  update() { /* static world; the volumetric lamp light is driven from main */ }
+  // re-home the real spotlights onto the nearest lamps so their light pools
+  // follow the drive; the volumetric glow is driven from main
+  update(dt, pos, camera) {
+    if (!this._lampLights || !this.lampHeads) return;
+    const ref = pos || (camera && camera.position);
+    if (!ref) return;
+    const level = this.lampLevel || 0;
+    const near = this.lampHeads
+      .map((h) => [h, h.distanceToSquared(ref)])
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, this._lampLights.length);
+    for (let i = 0; i < this._lampLights.length; i++) {
+      const sl = this._lampLights[i];
+      if (level > 0 && i < near.length) {
+        const h = near[i][0];
+        sl.visible = true;
+        sl.position.copy(h);
+        sl.target.position.set(roadX(h.z), 0.0, h.z);   // aim down at the road
+        sl.intensity = 240 * level;
+      } else { sl.visible = false; }
+    }
+  }
 
   // ---------- terrain ----------
   _terrain() {
@@ -411,10 +429,27 @@ export class ProceduralWorld {
     const c = document.createElement('canvas'); c.width = 64; c.height = 256;
     const g = c.getContext('2d');
     g.clearRect(0, 0, 64, 256);
-    g.fillStyle = '#eceade';              // solid white edge lines
-    g.fillRect(3, 0, 4, 256); g.fillRect(57, 0, 4, 256);
-    g.fillStyle = '#e9c94a';              // dashed yellow centre
-    g.fillRect(29, 40, 6, 150);
+    let s = 771; const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+    // worn, uneven paint — varying alpha, ragged edges, patchy wear
+    const line = (x, w, col, base) => {
+      for (let y = 0; y < 256; y++) {
+        const wear = base * (0.55 + 0.45 * rnd());          // fades along its length
+        if (rnd() < 0.06) continue;                          // scuffed-away rows
+        g.fillStyle = `rgba(${col},${wear.toFixed(2)})`;
+        const jx = x + (rnd() - 0.5) * 1.4;                  // ragged edge
+        g.fillRect(jx, y, w + (rnd() - 0.5), 1);
+      }
+    };
+    line(4, 4, '236,234,222', 0.85); line(56, 4, '236,234,222', 0.85);  // edge lines
+    // dashed yellow centre — each dash a slightly different length/wear
+    for (let d = 20; d < 256; d += 96) {
+      const len = 120 + (rnd() - 0.5) * 40;
+      for (let y = d; y < d + len && y < 256; y++) {
+        if (rnd() < 0.08) continue;
+        g.fillStyle = `rgba(233,201,74,${(0.5 + 0.4 * rnd()).toFixed(2)})`;
+        g.fillRect(29 + (rnd() - 0.5) * 1.2, y, 6 + (rnd() - 0.5), 1);
+      }
+    }
     const t = new THREE.CanvasTexture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
     return t;

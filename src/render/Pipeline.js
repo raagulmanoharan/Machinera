@@ -112,7 +112,7 @@ const VolumetricLightShader = {
         for (int l = 0; l < ${MAX_LAMPS}; l++){
           if (l >= uCount) break;
           vec3 to = uLamps[l] - p; float dl = length(to);
-          float att = 1.0 / (1.0 + 0.07 * dl * dl);
+          float att = 1.0 / (1.0 + 0.16 * dl * dl);      // tighter, more physical falloff
           float down = clamp((uLamps[l].y - p.y) / (dl + 0.2), 0.0, 1.0); // pool below the lamp
           s += att * (0.4 + 0.6 * down);
         }
@@ -144,9 +144,9 @@ export class Pipeline {
 
     // ground-truth ambient occlusion for contact shadows / crevices
     this.gtao = new GTAOPass(scene, camera, size.x, size.y);
-    this.gtao.blendIntensity = 0.9;
+    this.gtao.blendIntensity = 0.5;   // subtler AO — avoids grazing-angle sample noise
     try {
-      this.gtao.updateGtaoMaterial({ radius: 0.4, distanceExponent: 1.0, thickness: 1.0, scale: 1.0, samples: 16, screenSpaceRadius: false });
+      this.gtao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.2, thickness: 1.0, scale: 1.0, samples: 16, screenSpaceRadius: false });
     } catch (e) { /* keep defaults across minor version diffs */ }
     this.composer.addPass(this.gtao);
 
