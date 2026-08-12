@@ -254,12 +254,22 @@ window.addEventListener('keydown', (e) => {
   if (k === 'r' && world) { car.reset(world.carStart.pos, world.carStart.heading); chase.snap(); }
 });
 
-window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
+function resizeView() {
+  const w = innerWidth, h = innerHeight;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-  pipeline.setSize(innerWidth, innerHeight);
+  renderer.setSize(w, h);
+  pipeline.setSize(w, h);
+}
+window.addEventListener('resize', resizeView);
+// iOS reports stale dimensions right at orientationchange (portrait <-> landscape),
+// so re-fit again after the rotation settles.
+window.addEventListener('orientationchange', () => {
+  resizeView();
+  setTimeout(resizeView, 250);
+  setTimeout(resizeView, 600);
 });
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeView);
 
 // ---------- boot ----------
 initSettings();
