@@ -47,6 +47,7 @@ const mood = new MoodDirector(env, pipeline, car, { onChange: (name) => toast('Â
 window.__car = car; // debug handle
 window.__env = env; // debug handle
 window.__mood = mood; // debug handle
+window.__cam = camera; // debug handle
 
 let world = null;
 let loading = false;

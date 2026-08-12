@@ -1,7 +1,9 @@
-// A vocabulary of dark, gloomy, subtle liminal "moods" the world drifts between
-// — cold winter dusk, deep blue nights, ashen overcast. Each retunes exponential
-// fog (colour + density), the gradient sky (sun elevation / turbidity), light,
-// exposure and the colour grade. Kept dark and low-key — not washed out.
+// Dark, gloomy, low-key liminal moods. The sun sits at or below the horizon so
+// the sky stays a dim dusk gradient; a raised hemisphere fill (a desaturated
+// grey-blue, not a near-black saturated tint) subtly reveals the terrain and
+// road without touching the sky dome — so the ground reads while the sky stays
+// gloomy. Fog is kept light enough that the near road isn't swallowed but the
+// far mountains still fade to silhouettes.
 //
 // fog:  [colorHex, density]        grade: [r,g,b] cast + night 0..1
 // sun:  [colorHex, intensity]      hemi:  [colorHex, intensity]
@@ -11,44 +13,44 @@
 export const MOODS = [
   {
     name: 'Winter Dusk',
-    fog: [0x4a545f, 0.014], exposure: 0.58, env: 0.42,
-    skyElev: 1.5, skyTurb: 4, skyRayl: 2.4,
-    sun: [0x7e8b9a, 0.5], hemi: [0x353d47, 0.5],
-    grade: [0.93, 0.96, 1.03], night: 0.25, lamps: 0.0, headlights: 0.5,
+    fog: [0x161b22, 0.009], exposure: 0.6, env: 0.4,
+    skyElev: -3, skyTurb: 3, skyRayl: 2.0,
+    sun: [0x5a6675, 0.35], hemi: [0x8a94a2, 2.2],
+    grade: [0.93, 0.96, 1.03], night: 0.45, lamps: 0.0, headlights: 0.6,
   },
   {
     name: 'Deep Night',
-    fog: [0x0c131f, 0.03], exposure: 0.5, env: 0.28,
-    skyElev: -4, skyTurb: 3, skyRayl: 1.1,
-    sun: [0x33465f, 0.25], hemi: [0x181f2c, 0.55],
-    grade: [0.9, 0.96, 1.12], night: 0.92, lamps: 0.0, headlights: 1.0,
+    fog: [0x070b12, 0.013], exposure: 0.52, env: 0.26,
+    skyElev: -9, skyTurb: 2, skyRayl: 0.9,
+    sun: [0x28374d, 0.18], hemi: [0x646f82, 1.9],
+    grade: [0.9, 0.96, 1.12], night: 0.95, lamps: 0.0, headlights: 1.0,
   },
   {
     name: 'Blue Dusk',
-    fog: [0x18222f, 0.016], exposure: 0.56, env: 0.34,
-    skyElev: -1, skyTurb: 4, skyRayl: 2.6,
-    sun: [0x44597a, 0.4], hemi: [0x232f40, 0.55],
-    grade: [0.85, 0.94, 1.13], night: 0.6, lamps: 0.0, headlights: 0.8,
+    fog: [0x0f1622, 0.010], exposure: 0.56, env: 0.34,
+    skyElev: -5, skyTurb: 3, skyRayl: 2.4,
+    sun: [0x3a4d6c, 0.34], hemi: [0x78879b, 2.1],
+    grade: [0.85, 0.94, 1.13], night: 0.7, lamps: 0.0, headlights: 0.9,
   },
   {
     name: 'Ashen Overcast',
-    fog: [0x565a5e, 0.02], exposure: 0.6, env: 0.4,
-    skyElev: 4, skyTurb: 9, skyRayl: 1.6,
-    sun: [0x8b8f93, 0.5], hemi: [0x44484c, 0.55],
-    grade: [0.96, 0.97, 0.98], night: 0.2, lamps: 0.0, headlights: 0.5,
+    fog: [0x272b2f, 0.009], exposure: 0.6, env: 0.4,
+    skyElev: 0, skyTurb: 7, skyRayl: 1.6,
+    sun: [0x777b7f, 0.48], hemi: [0x8f96a0, 2.2],
+    grade: [0.96, 0.97, 0.98], night: 0.3, lamps: 0.0, headlights: 0.6,
   },
   {
     name: 'Dead Fields',
-    fog: [0x2a2d26, 0.014], exposure: 0.56, env: 0.32,
-    skyElev: 2, skyTurb: 6, skyRayl: 2.0,
-    sun: [0x6d7060, 0.55], hemi: [0x2c3026, 0.5],
-    grade: [0.97, 1.0, 0.9], night: 0.35, lamps: 0.0, headlights: 0.6,
+    fog: [0x1a1d16, 0.010], exposure: 0.58, env: 0.34,
+    skyElev: -2, skyTurb: 5, skyRayl: 1.9,
+    sun: [0x5f6252, 0.48], hemi: [0x878d76, 2.0],
+    grade: [0.97, 1.0, 0.9], night: 0.45, lamps: 0.0, headlights: 0.7,
   },
   {
     name: 'Barren Dust',
-    fog: [0x36301f, 0.016], exposure: 0.58, env: 0.3,
-    skyElev: 2, skyTurb: 10, skyRayl: 1.6,
-    sun: [0x87764e, 0.55], hemi: [0x2f2a1d, 0.45],
-    grade: [1.04, 1.0, 0.86], night: 0.3, lamps: 0.0, headlights: 0.55,
+    fog: [0x201b11, 0.010], exposure: 0.58, env: 0.32,
+    skyElev: -2, skyTurb: 9, skyRayl: 1.5,
+    sun: [0x7a6a44, 0.48], hemi: [0x968b76, 2.0],
+    grade: [1.04, 1.0, 0.86], night: 0.4, lamps: 0.0, headlights: 0.65,
   },
 ];

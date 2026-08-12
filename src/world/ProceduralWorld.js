@@ -89,6 +89,7 @@ export class ProceduralWorld {
     const rng = mulberry32(1337);
     await Promise.all([
       this._boulders(rng),
+      this._lamps(),
     ]);
   }
 
@@ -145,13 +146,7 @@ export class ProceduralWorld {
 
   async _lamps() {
     const mats = [];
-    const pools = [];
-    const streaks = [];
-    const heads = [];
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
-    const poolQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
-    const streakQ = new THREE.Quaternion();
-    const poolS = new THREE.Vector3(1, 1, 1);
     // deterministic jitter so lamps repeat but each is a little different
     let seed = 9871; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
     let side = 1;
@@ -171,80 +166,17 @@ export class ProceduralWorld {
       const groundY = heightAt(px, pz);
       mats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, groundY, pz), q, s));
       this.colliders.add(px, pz, 0.4);
-      // head, out along the arm toward the road (scale-aware); pool + streak below
-      const reach = sc * 0.31, headH = sc * 0.94;
-      const hx = px - side * ox * reach, hz = pz - side * oz * reach;
-      heads.push([hx, groundY + headH, hz]);
-      const lx = px - side * ox * (reach + 0.3), lz = pz - side * oz * (reach + 0.3);
-      pools.push(new THREE.Matrix4().compose(new THREE.Vector3(lx, groundY + 0.06, lz), poolQ, poolS));
-      streakQ.setFromAxisAngle(up, Math.atan2(dx, 1));
-      streaks.push(new THREE.Matrix4().compose(new THREE.Vector3(lx, groundY + 0.045, lz), streakQ, poolS));
     }
+    // unlit lamp posts — dark, weathered, rusted metal; no light source
     const lamp = makeStreetlamp();
+    const [metalM, lensM] = lamp.materials;
+    metalM.color.set(0x232019); metalM.roughness = 0.92; metalM.metalness = 0.35; metalM.envMapIntensity = 0.25;
+    lensM.color.set(0x14140f); lensM.emissive.set(0x000000); lensM.emissiveIntensity = 0; lensM.roughness = 0.7; lensM.metalness = 0.2;
     this._addInstanced(this._fallbackGeo(lamp.geo), lamp.materials, mats);
-    this._lampMat = lamp.materials[1];    // emissive head — cool white, driven by night
-    this._lampMat.color.set(0xeaf3ff);
-    this._lampMat.emissive.set(0xcfe3ff);
-    this._lampMat.emissiveIntensity = 0;  // off by day
-
-    // additive cool light-pools cast on the (wet) road
-    const poolMesh = new THREE.InstancedMesh(
-      new THREE.PlaneGeometry(17, 20),
-      new THREE.MeshBasicMaterial({ map: this._glowTex(0.5), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xb6d0ff, toneMapped: false }),
-      pools.length
-    );
-    poolMesh.frustumCulled = false;
-    pools.forEach((m, i) => poolMesh.setMatrixAt(i, m));
-    poolMesh.instanceMatrix.needsUpdate = true;
-    this.group.add(poolMesh);
-    this._lampPools = poolMesh;
-
-    // wet reflection streaks — long, thin additive smears down the road
-    const streakMesh = new THREE.InstancedMesh(
-      new THREE.PlaneGeometry(3.4, 30).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ map: this._glowTex(0.28), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xaecaff, toneMapped: false }),
-      streaks.length
-    );
-    streakMesh.frustumCulled = false;
-    streaks.forEach((m, i) => streakMesh.setMatrixAt(i, m));
-    streakMesh.instanceMatrix.needsUpdate = true;
-    this.group.add(streakMesh);
-    this._lampStreaks = streakMesh;
-
-    // big soft glow halos at each head — these bloom into orbs through the fog
-    this._haloMat = new THREE.SpriteMaterial({ map: this._glowTex(0.32), color: 0xdcebff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
-    const halos = new THREE.Group();
-    for (const [hx, hy, hz] of heads) {
-      const sp = new THREE.Sprite(this._haloMat);
-      sp.position.set(hx, hy, hz);
-      sp.scale.set(5, 5, 1);
-      halos.add(sp);
-    }
-    halos.frustumCulled = false;
-    this.group.add(halos);
-    this._halos = halos;
   }
 
-  // soft radial glow sprite; `core` sets how tight the bright centre is
-  _glowTex(core = 0.45) {
-    const c = document.createElement('canvas'); c.width = c.height = 128;
-    const g = c.getContext('2d');
-    const grd = g.createRadialGradient(64, 64, 1, 64, 64, 64);
-    grd.addColorStop(0, 'rgba(255,255,255,0.95)');
-    grd.addColorStop(core, 'rgba(255,255,255,0.35)');
-    grd.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-  }
-
-  // street-lamp glow level (0 off → 1 full), driven by the mood director
-  setLamps(level) {
-    const n = THREE.MathUtils.clamp(level, 0, 1);
-    if (this._lampMat) this._lampMat.emissiveIntensity = 5.0 * n;
-    if (this._lampPools) this._lampPools.material.opacity = 0.95 * n;
-    if (this._lampStreaks) this._lampStreaks.material.opacity = 0.6 * n;
-    if (this._haloMat) this._haloMat.opacity = 0.9 * n;
-  }
+  // lamps carry no light now; kept as a no-op for the mood director
+  setLamps() {}
 
   update() { /* static world; nothing per-frame */ }
 
@@ -355,15 +287,16 @@ export class ProceduralWorld {
     const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.5, 1 / 3.5);
     const aNor = loadTexture(TEXTURES.asphaltNor); aNor.repeat.copy(aDiff.repeat);
     const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshStandardMaterial({
-      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(0.5, 0.5), roughness: 0.55, metalness: 0.0, envMapIntensity: 1.0,
+      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.92, metalness: 0.0, envMapIntensity: 0.2,
+      color: 0x5f5f5f,   // darker, grimier asphalt
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-    }), { scale: 0.15, amount: 0.28 }));
+    }), { scale: 0.15, amount: 0.4 }));
     road.position.y = 0.0; road.receiveShadow = true; this.group.add(road);
 
-    // painted markings overlay
+    // painted markings overlay — faded and worn
     const mTex = this._markingTex(); mTex.repeat.set(1, 1 / 12);
     const marks = new THREE.Mesh(this._ribbonGeo(W), new THREE.MeshStandardMaterial({
-      map: mTex, alphaTest: 0.45, roughness: 0.55, envMapIntensity: 0.4,
+      map: mTex, color: 0x8c877a, alphaTest: 0.45, roughness: 0.85, envMapIntensity: 0.2,
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     }));
     marks.position.y = 0.015; this.group.add(marks);
@@ -376,16 +309,21 @@ export class ProceduralWorld {
     const railGeo = new THREE.BoxGeometry(0.1, 0.16, 4.2);
     railGeo.translate(0, 0.7, 0);
     const merged = mergeGeometries([postGeo, railGeo]);
-    const mat = new THREE.MeshStandardMaterial({ color: 0xaab0b8, roughness: 0.35, metalness: 0.85, envMapIntensity: 1.0 });
+    // weathered galvanised steel — matte, dark, with per-post rust variation
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.82, metalness: 0.35, envMapIntensity: 0.4 });
     const spacing = 4.2;
     const count = Math.floor((ROAD.lengthEnd - ROAD.lengthStart) / spacing) * 2;
     const rail = new THREE.InstancedMesh(merged, mat, count);
+    rail.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
     rail.castShadow = true;
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const one = new THREE.Vector3(1, 1, 1);
     const up = new THREE.Vector3(0, 1, 0);
-    let i = 0;
+    const col = new THREE.Color();
+    const rustA = new THREE.Color(0x4a4139), rustB = new THREE.Color(0x6e5140), steel = new THREE.Color(0x6a6660);
+    let i = 0, seed = 4242;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
     const W = ROAD.halfWidth + 0.7;
     for (let z = ROAD.lengthStart; z < ROAD.lengthEnd && i < count - 1; z += spacing) {
       const cx = roadX(z), dx = roadSlope(z);
@@ -396,12 +334,17 @@ export class ProceduralWorld {
       for (const side of [-1, 1]) {
         const px = cx + side * ox * W, pz = z + side * oz * W;
         m.compose(new THREE.Vector3(px, 0.02, pz), q, one);
-        rail.setMatrixAt(i++, m);
+        rail.setMatrixAt(i, m);
+        // mix steel with rust patches, each post a little different
+        col.copy(steel).lerp(rnd() < 0.5 ? rustA : rustB, rnd() * 0.8).multiplyScalar(0.7 + rnd() * 0.3);
+        rail.setColorAt(i, col);
+        i++;
         this.colliders.add(px, pz, 1.3); // rail keeps the car on the road
       }
     }
     rail.count = i;
     rail.instanceMatrix.needsUpdate = true;
+    if (rail.instanceColor) rail.instanceColor.needsUpdate = true;
     this.group.add(rail);
   }
 }
