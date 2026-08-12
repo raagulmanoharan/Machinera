@@ -19,6 +19,7 @@ export class MoodDirector {
     this._fog = new THREE.Color(); this._sun = new THREE.Color();
     this._hemi = new THREE.Color(); this._sky = new THREE.Color(); this._tmp = new THREE.Color();
     this._apply(MOODS[0], MOODS[0], 1);
+    this._applyDiscrete(MOODS[0]);
     // no initial announcement — the default mood just is; drifts are announced
   }
 
@@ -41,9 +42,9 @@ export class MoodDirector {
     if (this.onChange) this.onChange(this.to.name);
   }
 
+  // sky changes are baked to a PMREM env, so do them once per mood change
   _applyDiscrete(m) {
-    if (this.world && this.world.grass && this.world.grass.setMood)
-      this.world.grass.setMood({ tint: m.grass.tint, heightScale: m.grass.h });
+    this.env.setSky(m.skyElev ?? 4, m.skyAzi ?? 165, m.skyTurb ?? 8, m.skyRayl ?? 2);
   }
 
   update(dt) {
@@ -60,9 +61,7 @@ export class MoodDirector {
   _apply(a, b, k) {
     const e = this.env, pl = this.pipeline;
     e.setFog(this._mix(this._fog, a.fog[0], b.fog[0], k), this._l(a.fog[1], b.fog[1], k));
-    const ev = this._l(a.env, b.env, k);
-    e.setEnvIntensity(ev);              // reflections / IBL
-    e.setBackground(ev * 1.3);          // HDR sky brightness (dark moods stay dim)
+    e.setEnvIntensity(this._l(a.env, b.env, k));   // reflections / IBL
     e.setExposure(this._l(a.exposure, b.exposure, k));
     e.setLight(
       this._mix(this._sun, a.sun[0], b.sun[0], k), this._l(a.sun[1], b.sun[1], k),
