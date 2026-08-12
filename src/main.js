@@ -7,7 +7,8 @@ import { ProceduralWorld } from './world/ProceduralWorld.js';
 import { Environment } from './render/Environment.js';
 import { Pipeline } from './render/Pipeline.js';
 import { advanceWind } from './render/wind.js';
-import { MODELS, TEXTURES } from './render/AssetLibrary.js';
+import { MODELS } from './render/AssetLibrary.js';
+import { fetchWeather } from './render/weather.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('scene');
@@ -25,8 +26,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.5, 12000);
 
-const env = new Environment(scene, renderer, { elevation: 48, azimuth: 150 });
-env.loadHDRI(TEXTURES.sky); // swap in the real photographic sky when it loads
+const env = new Environment(scene, renderer);
 const pipeline = new Pipeline(renderer, scene, camera);
 
 const input = new Input(canvas);
@@ -34,6 +34,7 @@ const car = new Car(scene);
 car.loadModel(MODELS.car); // swap in the real CC0 car when it loads
 const chase = new ChaseCamera(camera);
 window.__car = car; // debug handle
+window.__env = env; // debug handle
 
 let world = null;
 let loading = false;
@@ -57,9 +58,11 @@ async function loadWorld() {
   if (world) { world.dispose(); world = null; }
 
   const source = prefs.source || 'procedural';
+  let sunLat = 46.55, sunLng = 8.0; // scenic default: the Alps
   try {
     if (source === 'osm') {
       const [lat, lng] = parseLatLng(prefs.location) || [46.5197, 6.6323];
+      sunLat = lat; sunLng = lng;
       const w = new OSMWorld(scene);
       await w.load({ lat, lng, radius: prefs.radius || 750, sunDir: env.sunDir, onProgress: (m) => setLoader(m) });
       world = w;
@@ -79,6 +82,13 @@ async function loadWorld() {
   car.reset(world.carStart.pos, world.carStart.heading);
   window.__world = world; // debug handle
   chase.snap();
+
+  // contextual sky: sun for this place + right now, then live weather
+  env.setSun(sunLat, sunLng, new Date());
+  fetchWeather(sunLat, sunLng).then((w) => {
+    if (w) { env.applyWeather(w); if (w.isDay === false) toast('Night drive — it is currently dark at this location.'); }
+  });
+
   showLoader(false);
   $('hud').classList.remove('hidden');
   loading = false;
@@ -102,6 +112,7 @@ function frame() {
     car.update(dt, input, world);
     if (world.update) world.update(dt);
     env.update(car.pos, dt);
+    car.setHeadlights(env.nightFactor);
     chase.update(dt, car);
     updateHud();
   }

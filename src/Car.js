@@ -130,12 +130,27 @@ export class Car {
       if (front) this.frontWheels.push(pivot);
     }
 
-    // headlight beams (real lights, subtle)
-    const hlA = new THREE.SpotLight(0xfff0d0, 0.0, 60, 0.5, 0.4, 1.2);
-    hlA.position.set(0, 0.7, 2.0);
-    hlA.target.position.set(0, 0, 20);
-    g.add(hlA); g.add(hlA.target);
-    this.headlight = hlA;
+    // headlight beams — real spotlights, off by day, lighting the road at night
+    this.headlights = [];
+    this._headMats = [lightF, lightR]; // front/rear emissive, boosted at night
+    for (const sx of [-0.6, 0.6]) {
+      const hl = new THREE.SpotLight(0xfff1cf, 0, 95, 0.62, 0.55, 1.3);
+      hl.position.set(sx, 0.62, 2.0);
+      hl.target.position.set(sx * 1.6, -0.35, 26);
+      g.add(hl); g.add(hl.target);
+      this.headlights.push(hl);
+    }
+  }
+
+  // Fade headlights up as night falls (n: 0 day → 1 night). Also lifts the
+  // emissive glow on the head/tail-light lenses so the car reads as "lit".
+  setHeadlights(n) {
+    const on = THREE.MathUtils.clamp(n, 0, 1);
+    for (const hl of this.headlights) hl.intensity = 220 * on;
+    if (this._headMats) {
+      this._headMats[0].emissiveIntensity = 0.55 + 1.7 * on;
+      this._headMats[1].emissiveIntensity = 0.7 + 1.3 * on;
+    }
   }
 
   _rounded(w, h, d, r) {

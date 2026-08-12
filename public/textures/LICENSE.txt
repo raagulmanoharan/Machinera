@@ -1,7 +1,10 @@
-Textures & HDRI from Poly Haven (https://polyhaven.com):
-  sky.hdr       — "Kloofendal 48d Partly Cloudy (Pure Sky)"
-  grass_diff/nor — "Aerial Grass Rock"
-  asphalt_diff/nor — "Asphalt 02"
+Textures from Poly Haven (https://polyhaven.com):
+  grass_diff/nor/arm — "Aerial Grass Rock"
+  asphalt_diff/nor   — "Asphalt 02"
+  dirt_diff/nor      — "Brown Mud Leaves 01"
 All licensed CC0 1.0 Universal (public domain):
 https://creativecommons.org/publicdomain/zero/1.0/
 No rights reserved; attribution appreciated but not required.
+
+The sky is rendered procedurally (atmospheric scattering) from the real sun
+position and live weather — no HDRI is bundled.

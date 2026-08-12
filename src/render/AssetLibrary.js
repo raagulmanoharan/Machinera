@@ -10,7 +10,6 @@ export const MODELS = {
   car: `${BASE}models/kenney/car.glb`,
 };
 export const TEXTURES = {
-  sky: `${BASE}textures/sky.hdr`,
   grassDiff: `${BASE}textures/grass_diff.jpg`,
   grassNor: `${BASE}textures/grass_nor.jpg`,
   grassArm: `${BASE}textures/grass_arm.jpg`,
