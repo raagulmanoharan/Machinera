@@ -162,6 +162,54 @@ button.primary {
 }
 button.primary:hover { filter: brightness(1.06); }
 
+/* Touch driving controls — floating accelerate + small brake, shown only on
+   touch devices. Steering is by tilt (gyro). */
+#touch {
+  position: absolute;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(22px, env(safe-area-inset-bottom));
+  z-index: 16;
+  display: none;
+  align-items: flex-end;
+  gap: 16px;
+  pointer-events: none;
+}
+@media (hover: none) and (pointer: coarse) { #touch { display: flex; } }
+.tbtn {
+  pointer-events: auto;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 20, 24, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  color: var(--fg);
+  line-height: 1;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  transition: transform 0.06s ease, background 0.12s ease;
+}
+.tbtn.accel {
+  width: 96px;
+  height: 96px;
+  font-size: 34px;
+  color: var(--accent-2);
+  border-color: rgba(255, 209, 102, 0.45);
+}
+.tbtn.brake {
+  width: 60px;
+  height: 60px;
+  font-size: 17px;
+  margin-bottom: 8px;
+  color: #ff8a8a;
+  border-color: rgba(255, 130, 130, 0.4);
+}
+.tbtn.accel:active { background: rgba(255, 209, 102, 0.24); transform: scale(0.94); }
+.tbtn.brake:active { background: rgba(255, 130, 130, 0.24); transform: scale(0.94); }
+
 /* Radio — a slim vintage FM tuner, warm amber dial on the dark panel */
 #radio {
   position: absolute;

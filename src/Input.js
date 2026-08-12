@@ -9,6 +9,8 @@ export class Input {
     this.brake = 0;    // 0..1
     this.steer = 0;    // -1..1 (left negative)
     this.handbrake = false;
+    this.btnThrottle = false; // on-screen accelerate button held
+    this.btnBrake = false;    // on-screen brake button held
 
     this._onKey = (e, down) => {
       const k = e.key.toLowerCase();
@@ -28,21 +30,18 @@ export class Input {
   get gyroActive() { return this._gyro.active; }
 
   _initTouch(dom) {
-    // Hold to accelerate; two fingers to brake. Fingers are counted only on the
-    // canvas, so the radio/settings UI keep their own touches.
-    this._fingers = new Set();
+    // Throttle/brake come from the on-screen buttons (wired in main). A touch on
+    // the canvas still counts as a driving gesture: it enables the gyro and
+    // recalibrates "straight".
     this._touchSeen = false;
+    dom.addEventListener('touchstart', () => { this._touchSeen = true; this.driveGesture(); }, { passive: true });
+  }
 
-    const start = (e) => {
-      this._touchSeen = true;
-      for (const t of e.changedTouches) this._fingers.add(t.identifier);
-      this._enableGyro();               // first touch is the gesture iOS needs
-      this._recenterGyro();             // your current tilt becomes "straight"
-    };
-    const end = (e) => { for (const t of e.changedTouches) this._fingers.delete(t.identifier); };
-    dom.addEventListener('touchstart', start, { passive: true });
-    dom.addEventListener('touchend', end, { passive: true });
-    dom.addEventListener('touchcancel', end, { passive: true });
+  // An intentional driving gesture (canvas touch or accelerate press): the right
+  // moment to ask for gyro access and to recalibrate the neutral tilt.
+  driveGesture() {
+    this._enableGyro();
+    this._recenterGyro();
   }
 
   _initGyro() {
@@ -57,18 +56,25 @@ export class Input {
 
   get gyroBlocked() { return !!(this._gyroDenied || this._gyroUnsupported); }
 
-  // Ask for gyro access (iOS 13+ needs a gesture) and start listening.
+  // Ask for gyro access (iOS 13+ needs a gesture) and start listening. Safe to
+  // call on every driving gesture: it only attaches the listener once, but will
+  // retry the permission prompt until granted — the first (passive) attempt on
+  // iOS doesn't always count as a valid activation, so a later button tap can.
   _enableGyro() {
-    if (this._gyroReq) return;
-    this._gyroReq = true;
+    if (this._gyroAdded) return;
     const DOE = window.DeviceOrientationEvent;
-    const add = () => window.addEventListener('deviceorientation', this._onOrient, true);
     if (!DOE) { this._gyroUnsupported = true; return; }   // e.g. some in-app browsers
+    const add = () => {
+      if (this._gyroAdded) return;
+      this._gyroAdded = true;
+      window.addEventListener('deviceorientation', this._onOrient, true);
+    };
     if (typeof DOE.requestPermission === 'function') {
-      // iOS 13+: shows a one-time Motion & Orientation prompt (needs a gesture)
+      if (this._gyroRequesting) return;                   // one request in flight
+      this._gyroRequesting = true;
       DOE.requestPermission()
-        .then((s) => { if (s === 'granted') add(); else this._gyroDenied = true; })
-        .catch(() => { this._gyroDenied = true; });
+        .then((s) => { this._gyroRequesting = false; if (s === 'granted') add(); else this._gyroDenied = true; })
+        .catch(() => { this._gyroRequesting = false; this._gyroDenied = true; });
     } else {
       add();   // Android / older iOS: no prompt needed
     }
@@ -95,12 +101,8 @@ export class Input {
     const right = k.has('d') || k.has('arrowright');
     this.handbrake = k.has(' ');
 
-    const n = this._fingers.size;
-    const touchThr = n === 1 ? 1 : 0;         // one finger = go
-    const touchBrk = n >= 2 ? 1 : 0;          // two fingers = brake / reverse
-
-    const targThr = (up ? 1 : 0) || touchThr;
-    const targBrk = (down ? 1 : 0) || touchBrk;
+    const targThr = (up ? 1 : 0) || (this.btnThrottle ? 1 : 0);
+    const targBrk = (down ? 1 : 0) || (this.btnBrake ? 1 : 0);
     this.throttle += (targThr - this.throttle) * Math.min(1, dt * 12);
     this.brake += (targBrk - this.brake) * Math.min(1, dt * 12);
 

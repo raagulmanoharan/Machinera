@@ -72,6 +72,35 @@ const engine = new EngineSound();
 window.__engine = engine; // debug handle
 window.__input = input; // debug handle
 
+// ---------- on-screen touch pedals ----------
+function bindPedal(el, set, gesture) {
+  if (!el) return;
+  const down = (e) => {
+    e.preventDefault();
+    if (el.setPointerCapture && e.pointerId != null) { try { el.setPointerCapture(e.pointerId); } catch { /* ignore */ } }
+    set(true);
+    if (gesture) input.driveGesture();   // accelerate press = ask for tilt + recenter
+  };
+  const up = () => set(false);
+  el.addEventListener('pointerdown', down);
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+  el.addEventListener('lostpointercapture', up);
+}
+bindPedal($('accelBtn'), (v) => { input.btnThrottle = v; }, true);
+bindPedal($('brakeBtn'), (v) => { input.btnBrake = v; }, false);
+
+// ---------- tilt-steering feedback ----------
+let gyroNotified = false;
+window.addEventListener('touchstart', () => {
+  const iv = setInterval(() => {
+    if (gyroNotified) { clearInterval(iv); return; }
+    if (input.gyroActive) { gyroNotified = true; toast('Tilt steering on — hold ▲ and tilt to steer'); clearInterval(iv); }
+    else if (input.gyroBlocked) { gyroNotified = true; toast('Tilt blocked. Open in Safari, then Settings ▸ Safari ▸ Motion & Orientation Access = On', true); clearInterval(iv); }
+  }, 500);
+  setTimeout(() => clearInterval(iv), 9000);
+}, { once: true, passive: true });
+
 let world = null;
 let loading = false;
 
@@ -123,25 +152,10 @@ async function loadWorld() {
   // one-time mobile controls hint
   if (!hintShown && (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) {
     hintShown = true;
-    toast('Hold to accelerate · tilt to steer · two fingers to brake');
+    toast('▲ accelerate · ❚❚ brake · tilt to steer');
   }
 }
 let hintShown = false;
-
-// If tilt steering never activates after the first touch (common in in-app
-// browsers, which block motion sensors), point the player to real Safari.
-let gyroChecked = false;
-window.addEventListener('touchstart', () => {
-  if (gyroChecked) return;
-  gyroChecked = true;
-  setTimeout(() => {
-    if (!input.gyroActive) {
-      toast(input.gyroBlocked
-        ? 'Tilt steering is blocked here — tap ⃝ to open in Safari, then allow Motion access'
-        : 'For tilt steering, open in Safari (compass icon) and allow Motion access');
-    }
-  }, 3200);
-}, { passive: true });
 
 function parseLatLng(s) {
   if (!s) return null;
