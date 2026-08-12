@@ -12,10 +12,10 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 // A `night` uniform cools and deepens the image for mood after dark. Runs last,
 // on the tonemapped sRGB image.
 const CinematicShader = {
-  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amount: { value: 1.0 }, night: { value: 0.0 } },
+  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amount: { value: 1.0 }, night: { value: 0.0 }, tint: { value: new THREE.Color(1, 1, 1) } },
   vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
   fragmentShader: /* glsl */`
-    uniform sampler2D tDiffuse; uniform float time; uniform float amount; uniform float night; varying vec2 vUv;
+    uniform sampler2D tDiffuse; uniform float time; uniform float amount; uniform float night; uniform vec3 tint; varying vec2 vUv;
     float rand(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233)))*43758.5453); }
     void main(){
       vec3 col = texture2D(tDiffuse, vUv).rgb;
@@ -46,6 +46,9 @@ const CinematicShader = {
       // vignette
       vec2 d = vUv - 0.5; float vig = smoothstep(0.95, 0.30, length(d));
       g *= mix(mix(0.86, 1.0, vig), mix(0.80, 1.0, vig), night);
+
+      // per-mood colour cast (liminal grade)
+      g *= tint;
 
       // fine film grain
       g += (rand(vUv + fract(time)) - 0.5) * 0.022;
@@ -88,6 +91,7 @@ export class Pipeline {
 
   setGrade(amount) { this.grade.uniforms.amount.value = amount; }
   setNight(n) { this.grade.uniforms.night.value = n; }
+  setTint(r, g, b) { this.grade.uniforms.tint.value.setRGB(r, g, b); }
 
   setCamera(camera) {
     for (const p of this.composer.passes) {

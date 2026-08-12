@@ -252,10 +252,14 @@ export class ProceduralWorld {
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   }
 
-  update(dt, target, night = 0) {
-    const n = THREE.MathUtils.clamp(night, 0, 1);
+  // street-lamp glow level (0 off → 1 full), driven by the mood director
+  setLamps(level) {
+    const n = THREE.MathUtils.clamp(level, 0, 1);
     if (this._lampMat) this._lampMat.emissiveIntensity = 3.8 * n;
     if (this._lampPools) this._lampPools.material.opacity = 0.85 * n;
+  }
+
+  update(dt, target) {
     if (this.grass && target) this.grass.update(target);
   }
 

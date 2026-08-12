@@ -6,6 +6,7 @@ import { OSMWorld } from './world/OSMWorld.js';
 import { ProceduralWorld } from './world/ProceduralWorld.js';
 import { Environment } from './render/Environment.js';
 import { Pipeline } from './render/Pipeline.js';
+import { MoodDirector } from './world/MoodDirector.js';
 import { advanceWind } from './render/wind.js';
 import { MODELS } from './render/AssetLibrary.js';
 
@@ -33,8 +34,11 @@ const car = new Car(scene);
 // prefer the detailed showroom car; fall back to the CC0 low-poly, then procedural
 car.loadFerrari(MODELS.ferrari).then((ok) => { if (!ok) car.loadModel(MODELS.car); });
 const chase = new ChaseCamera(camera);
+// liminal moods: the world drifts between atmospheres as you drive
+const mood = new MoodDirector(env, pipeline, car, { onChange: (name) => toast('· ' + name + ' ·') });
 window.__car = car; // debug handle
 window.__env = env; // debug handle
+window.__mood = mood; // debug handle
 
 let world = null;
 let loading = false;
@@ -79,6 +83,7 @@ async function loadWorld() {
 
   car.reset(world.carStart.pos, world.carStart.heading);
   window.__world = world; // debug handle
+  mood.setWorld(world);
   chase.snap();
 
   showLoader(false);
@@ -102,10 +107,9 @@ function frame() {
     advanceWind(dt);
     input.update(dt);
     car.update(dt, input, world);
-    if (world.update) world.update(dt, car.pos, env.nightFactor);
+    if (world.update) world.update(dt, car.pos);
     env.update(car.pos, dt);
-    car.setHeadlights(env.nightFactor);
-    pipeline.setNight(env.nightFactor);
+    mood.update(dt);
     chase.update(dt, car);
     updateHud();
   }

@@ -50,6 +50,26 @@ export class Environment {
   setSun() {}
   applyWeather() {}
 
+  // ---- dynamic hooks for the liminal mood system ----
+  setFog(color, near, far) {
+    if (!this.scene.fog) return;
+    this.scene.fog.color.set(color);
+    this.scene.fog.near = near;
+    this.scene.fog.far = far;
+  }
+  setExposure(e) { this.renderer.toneMappingExposure = e; }
+  setLight(sunColor, sunI, hemiColor, hemiI) {
+    this.sun.color.set(sunColor);
+    this.sun.intensity = sunI;
+    this.hemi.color.set(hemiColor);
+    this.hemi.intensity = hemiI;
+  }
+  // dim the HDR sky/reflections for dark, foggy moods
+  setEnvIntensity(v) {
+    this.scene.environmentIntensity = v;
+    this.scene.backgroundIntensity = v;
+  }
+
   update(target) {
     this.sun.position.copy(target).addScaledVector(this.sunDir, 200);
     this.sun.target.position.copy(target);
