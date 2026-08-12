@@ -106,6 +106,35 @@ export function makeStylizedTree(kind = 'round', seed = 1) {
   return normalizeUnit(mergeGeometries(parts));
 }
 
+// ---------- bare winter tree (dark silhouette) ----------
+// A recursively-branched leafless tree, merged to one unit-height geometry so it
+// instances cheaply. Rendered near-black, it reads as a fog silhouette.
+export function makeBareTree(seed = 1) {
+  let s = (seed * 2654435761) >>> 0;
+  const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+  const parts = [];
+  const up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3();
+  const grow = (x, y, z, dx, dy, dz, len, rad, depth) => {
+    dir.set(dx, dy, dz).normalize();
+    const g = new THREE.CylinderGeometry(rad * 0.6, rad, len, 5);
+    g.translate(0, len / 2, 0);
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, dir));
+    g.translate(x, y, z);
+    parts.push(g);
+    const ex = x + dir.x * len, ey = y + dir.y * len, ez = z + dir.z * len;
+    if (depth <= 0 || len < 0.55) return;
+    const n = 2 + ((rnd() * 2) | 0);
+    for (let i = 0; i < n; i++) {
+      const spread = 0.7 + rnd() * 0.8;
+      grow(ex, ey, ez,
+        dir.x + (rnd() - 0.5) * spread, dir.y * 0.7 + 0.35 + rnd() * 0.3, dir.z + (rnd() - 0.5) * spread,
+        len * (0.62 + rnd() * 0.18), rad * 0.66, depth - 1);
+    }
+  };
+  grow(0, 0, 0, 0, 1, 0, 3.0 + rnd() * 0.8, 0.2, 4);
+  return normalizeUnit(mergeGeometries(parts));
+}
+
 function normalizeUnit(geo) {
   geo.computeBoundingBox();
   const h = geo.boundingBox.max.y - geo.boundingBox.min.y || 1;

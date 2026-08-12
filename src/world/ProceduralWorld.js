@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { assets, MODELS, TEXTURES, loadTexture, deTile } from '../render/AssetLibrary.js';
-import { makeStreetlamp } from './props.js';
+import { makeStreetlamp, makeBareTree } from './props.js';
 import { Colliders } from './Colliders.js';
 
 // ---------- deterministic noise ----------
@@ -116,6 +116,39 @@ export class ProceduralWorld {
       this._boulders(rng),
       this._lamps(),
     ]);
+    this._bareTrees();
+  }
+
+  // dark bare-tree silhouettes lining the road, thinning with distance and
+  // fading into the fog — the roadside framing from the reference
+  _bareTrees() {
+    const variants = [makeBareTree(3), makeBareTree(17), makeBareTree(42), makeBareTree(88)];
+    const buckets = variants.map(() => []);
+    let seed = 5150; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3();
+    for (let z = ROAD.lengthStart + 20; z < ROAD.lengthEnd; z += 9 + rnd() * 12) {
+      for (const side of [-1, 1]) {
+        if (rnd() > 0.82) continue;                 // gaps, not a solid wall
+        const cx = roadX(z), dx = roadSlope(z);
+        const len = Math.hypot(1, dx), ox = 1 / len, oz = -dx / len;
+        const off = ROAD.halfWidth + 6 + rnd() * 34;  // set back from the verge
+        const px = cx + side * ox * off, pz = z + side * oz * off + (rnd() - 0.5) * 6;
+        const h = 5.5 + rnd() * 5.5;
+        q.setFromAxisAngle(up, rnd() * Math.PI * 2);
+        sc.set(h * (0.5 + rnd() * 0.3), h, h * (0.5 + rnd() * 0.3));
+        buckets[(rnd() * variants.length) | 0].push(
+          new THREE.Matrix4().compose(new THREE.Vector3(px, heightAt(px, pz), pz), q, sc));
+      }
+    }
+    const mat = new THREE.MeshStandardMaterial({ color: 0x0b0d11, roughness: 1.0, metalness: 0.0, envMapIntensity: 0.15 });
+    variants.forEach((geo, i) => {
+      if (!buckets[i].length) return;
+      const inst = new THREE.InstancedMesh(geo, mat, buckets[i].length);
+      buckets[i].forEach((m, k) => inst.setMatrixAt(k, m));
+      inst.instanceMatrix.needsUpdate = true;
+      inst.castShadow = false; inst.frustumCulled = true;
+      this.group.add(inst);
+    });
   }
 
   // add an instanced real model, or fall back to a procedural geometry
@@ -169,9 +202,40 @@ export class ProceduralWorld {
     this._addInstanced(rockGeo, rockMat, mats);
   }
 
+  // soft radial glow sprite; `core` sets how tight the bright centre is
+  _glowTex(core = 0.4) {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(64, 64, 1, 64, 64, 64);
+    grd.addColorStop(0, 'rgba(255,255,255,0.98)');
+    grd.addColorStop(core, 'rgba(255,255,255,0.4)');
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
+
+  // a long soft vertical smear — the lamp reflected down the wet road
+  _streakTex() {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 256;
+    const g = c.getContext('2d');
+    const grd = g.createLinearGradient(0, 0, 0, 256);
+    grd.addColorStop(0.0, 'rgba(255,255,255,0)');
+    grd.addColorStop(0.5, 'rgba(255,255,255,0.9)');
+    grd.addColorStop(1.0, 'rgba(255,255,255,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, 64, 256);
+    // feather the sides so it isn't a hard band
+    const side = g.createLinearGradient(0, 0, 64, 0);
+    side.addColorStop(0, 'rgba(0,0,0,1)'); side.addColorStop(0.5, 'rgba(0,0,0,0)'); side.addColorStop(1, 'rgba(0,0,0,1)');
+    g.globalCompositeOperation = 'destination-out'; g.fillStyle = side; g.fillRect(0, 0, 64, 256);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
+
   async _lamps() {
     const mats = [];
+    const heads = [];     // lamp-head world positions (for the glowing halos)
+    const road = [];      // nearest road point + slope (for wet reflections)
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
+    const headLocal = new THREE.Vector3(0.30, 0.93, 0);  // head in unit-lamp space
     // deterministic jitter so lamps repeat but each is a little different
     let seed = 9871; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
     let side = 1;
@@ -189,19 +253,68 @@ export class ProceduralWorld {
       const sc = 5.2 + rnd() * 0.7;             // slight height variation
       s.set(sc, sc, sc);
       const groundY = heightAt(px, pz);
-      mats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, groundY, pz), q, s));
+      const M = new THREE.Matrix4().compose(new THREE.Vector3(px, groundY, pz), q, s);
+      mats.push(M);
       this.colliders.add(px, pz, 0.4);
+      heads.push(headLocal.clone().applyMatrix4(M));
+      road.push({ x: roadX(zj), z: zj, slope: dx });
     }
-    // unlit lamp posts — dark, weathered, rusted metal; no light source
+    // lamp posts — weathered metal with a warm sodium lens that lights at night
     const lamp = makeStreetlamp();
     const [metalM, lensM] = lamp.materials;
-    metalM.color.set(0x232019); metalM.roughness = 0.92; metalM.metalness = 0.35; metalM.envMapIntensity = 0.25;
-    lensM.color.set(0x14140f); lensM.emissive.set(0x000000); lensM.emissiveIntensity = 0; lensM.roughness = 0.7; lensM.metalness = 0.2;
+    metalM.color.set(0x2b2723); metalM.roughness = 0.82; metalM.metalness = 0.45; metalM.envMapIntensity = 0.4;
+    lensM.color.set(0xffcf8c); lensM.emissive.set(0xff9a2e); lensM.emissiveIntensity = 0; lensM.roughness = 0.4; lensM.metalness = 0.1;
+    lensM.toneMapped = true;
+    this._lensMat = lensM;
     this._addInstanced(this._fallbackGeo(lamp.geo), lamp.materials, mats);
+
+    // warm halo orbs at each head — additive billboards that bloom into the fog
+    this._haloMat = new THREE.SpriteMaterial({
+      map: this._glowTex(0.32), color: 0xffb054, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+    });
+    const halos = new THREE.Group();
+    for (const h of heads) {
+      const sp = new THREE.Sprite(this._haloMat);
+      sp.position.copy(h); sp.scale.setScalar(7.0);
+      halos.add(sp);
+    }
+    halos.frustumCulled = false; this.group.add(halos);
+
+    // warm reflection on the wet road: a soft pool under the lamp plus a long
+    // vertical smear down the tarmac toward the viewer
+    this._poolMat = new THREE.MeshBasicMaterial({
+      map: this._glowTex(0.5), color: 0xffa63c, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+    });
+    this._streakMat = new THREE.MeshBasicMaterial({
+      map: this._streakTex(), color: 0xff9a34, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+    });
+    const poolGeo = new THREE.PlaneGeometry(7, 7);
+    const streakGeo = new THREE.PlaneGeometry(3.4, 30);
+    const qFlat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
+    const refl = new THREE.Group();
+    for (const rp of road) {
+      const pool = new THREE.Mesh(poolGeo, this._poolMat);
+      pool.quaternion.copy(qFlat); pool.position.set(rp.x, 0.045, rp.z);
+      refl.add(pool);
+      const streak = new THREE.Mesh(streakGeo, this._streakMat);
+      streak.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(up, Math.atan2(rp.slope, 1))).multiply(qFlat);
+      streak.position.set(rp.x, 0.05, rp.z);
+      refl.add(streak);
+    }
+    refl.frustumCulled = false; this.group.add(refl);
   }
 
-  // lamps carry no light now; kept as a no-op for the mood director
-  setLamps() {}
+  // street-lamp glow level (0 off → 1 full), driven by the mood director
+  setLamps(level) {
+    const n = THREE.MathUtils.clamp(level, 0, 1);
+    if (this._lensMat) this._lensMat.emissiveIntensity = 6.0 * n;
+    if (this._haloMat) this._haloMat.opacity = 0.95 * n;
+    if (this._poolMat) this._poolMat.opacity = 0.8 * n;
+    if (this._streakMat) this._streakMat.opacity = 0.6 * n;
+  }
 
   update() { /* static world; nothing per-frame */ }
 
@@ -321,10 +434,10 @@ export class ProceduralWorld {
     const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.5, 1 / 3.5);
     const aNor = loadTexture(TEXTURES.asphaltNor); aNor.repeat.copy(aDiff.repeat);
     const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshStandardMaterial({
-      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.92, metalness: 0.0, envMapIntensity: 0.2,
-      color: 0x5f5f5f,   // darker, grimier asphalt
+      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(0.35, 0.35), roughness: 0.42, metalness: 0.0, envMapIntensity: 1.0,
+      color: 0x33373b,   // dark, wet-looking asphalt (low roughness -> reflective)
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-    }), { scale: 0.15, amount: 0.4 }));
+    }), { scale: 0.15, amount: 0.3 }));
     road.position.y = 0.0; road.receiveShadow = true; this.group.add(road);
 
     // painted markings overlay — faded and worn
