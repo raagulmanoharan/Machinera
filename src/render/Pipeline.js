@@ -88,7 +88,9 @@ const VolumetricLightShader = {
     uniform vec3 uPos[${MAX_LIGHTS}]; uniform vec3 uCol[${MAX_LIGHTS}]; uniform vec3 uDir[${MAX_LIGHTS}];
     uniform float uCone[${MAX_LIGHTS}]; uniform float uAtt[${MAX_LIGHTS}]; uniform int uCount;
     varying vec2 vUv;
-    float rnd(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233)))*43758.5453); }
+    // interleaved gradient noise — a structured dither that reads far cleaner
+    // than white noise for breaking up raymarch banding
+    float ign(vec2 p){ return fract(52.9829189 * fract(0.06711056 * p.x + 0.00583715 * p.y)); }
     void main(){
       vec3 scene = texture2D(tDiffuse, vUv).rgb;
       float d = unpackRGBAToDepth(texture2D(tDepth, vUv));   // [0,1] non-linear
@@ -100,9 +102,9 @@ const VolumetricLightShader = {
       vec4 vpF = uProjInv * clipF; vpF /= vpF.w;
       vec3 dir = normalize((uCamWorld * vpF).xyz - uCamPos);
       float tMax = (d <= 0.0011) ? 78.0 : min(distance(uCamPos, P), 130.0);
-      const int STEPS = 14;
+      const int STEPS = 20;
       float stepLen = tMax / float(STEPS);
-      float jit = rnd(vUv + fract(uTime)) * stepLen;
+      float jit = ign(gl_FragCoord.xy) * stepLen;   // stable structured dither (no flicker)
       vec3 acc = vec3(0.0);
       for (int i = 0; i < STEPS; i++){
         float t = jit + float(i) * stepLen;
