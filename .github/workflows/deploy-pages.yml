@@ -35,6 +35,9 @@ jobs:
 
   deploy:
     needs: build
+    # GitHub Pages can only deploy from the default branch; build still runs
+    # on feature branches to validate, but we skip the deploy there.
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
