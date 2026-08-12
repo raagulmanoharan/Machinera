@@ -60,7 +60,11 @@ function dirtShade(material, { scale = 0.08, amount = 0.4, greenKill = 0.0 } = {
          ${greenKill > 0 ? `
          float _g = clamp(diffuseColor.g - max(diffuseColor.r, diffuseColor.b), 0.0, 1.0);
          vec3 _dirt = vec3(dot(diffuseColor.rgb, vec3(0.5,0.4,0.32))) * vec3(1.28, 0.92, 0.70);
-         diffuseColor.rgb = mix(diffuseColor.rgb, _dirt, clamp(_g * 5.0, 0.0, ${greenKill.toFixed(3)}));` : ''}`
+         diffuseColor.rgb = mix(diffuseColor.rgb, _dirt, clamp(_g * 5.0, 0.0, ${greenKill.toFixed(3)}));` : ''}
+         // desaturate + compress highlights — kills the colourful sub-pixel
+         // sparkle at grazing angles
+         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.38,0.36,0.30))), 0.3);
+         diffuseColor.rgb = diffuseColor.rgb / (1.0 + diffuseColor.rgb * 0.7);`
       );
   };
   material.customProgramCacheKey = () => 'dirtshade' + scale + amount + greenKill;
@@ -278,23 +282,14 @@ export class ProceduralWorld {
     this._lensMat = lensM;
     this._addInstanced(this._fallbackGeo(lamp.geo), lamp.materials, mats);
 
-    // warm glow at each head — layered additive billboards: a tight warm-white
-    // core plus a large, faint orange halo. The gaussian falloff means the glow
-    // diffuses smoothly into the fog rather than reading as a hard disc.
-    const gtex = this._glowTex();
-    this._haloCore = new THREE.SpriteMaterial({ map: gtex, color: 0xffdca6, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
-    this._haloWide = new THREE.SpriteMaterial({ map: gtex, color: 0xff8f34, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
-    const halos = new THREE.Group();
-    for (const h of heads) {
-      const core = new THREE.Sprite(this._haloCore); core.position.copy(h); core.scale.setScalar(4.0); halos.add(core);
-      const wide = new THREE.Sprite(this._haloWide); wide.position.copy(h); wide.scale.setScalar(22); halos.add(wide);
-    }
-    halos.frustumCulled = false; this.group.add(halos);
+    // the airborne glow is done volumetrically in the post pipeline (real 3D
+    // fog scattering) — expose the bulb positions for it
+    this.lampHeads = heads;
 
     // warm reflection on the wet road: a soft pool under the lamp plus a long
     // vertical smear down the tarmac toward the viewer
     this._poolMat = new THREE.MeshBasicMaterial({
-      map: gtex, color: 0xffa63c, transparent: true, opacity: 0,
+      map: this._glowTex(), color: 0xffa63c, transparent: true, opacity: 0,
       depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
     });
     this._streakMat = new THREE.MeshBasicMaterial({
@@ -320,14 +315,13 @@ export class ProceduralWorld {
   // street-lamp glow level (0 off → 1 full), driven by the mood director
   setLamps(level) {
     const n = THREE.MathUtils.clamp(level, 0, 1);
+    this.lampLevel = n;                       // read by the volumetric pass
     if (this._lensMat) this._lensMat.emissiveIntensity = 7.0 * n;
-    if (this._haloCore) this._haloCore.opacity = 0.85 * n;
-    if (this._haloWide) this._haloWide.opacity = 0.5 * n;
     if (this._poolMat) this._poolMat.opacity = 0.7 * n;
     if (this._streakMat) this._streakMat.opacity = 0.55 * n;
   }
 
-  update() { /* static world; nothing per-frame */ }
+  update() { /* static world; the volumetric lamp light is driven from main */ }
 
   // ---------- terrain ----------
   _terrain() {
@@ -380,13 +374,11 @@ export class ProceduralWorld {
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
 
-    const dirt = loadTexture(TEXTURES.dirtDiff, { srgb: true, repeat: 13 });
-    const dirtNor = loadTexture(TEXTURES.dirtNor, { repeat: 13 });
+    const dirt = loadTexture(TEXTURES.dirtDiff, { srgb: true, repeat: 13, anisotropy: 16 });
     const mat = dirtShade(new THREE.MeshStandardMaterial({
       vertexColors: true, roughness: 1.0, metalness: 0.0,
-      map: dirt, normalMap: dirtNor,
-      normalScale: new THREE.Vector2(1.6, 1.6),   // roughened surface
-      envMapIntensity: 0.35,                        // gloomy — little sky sheen
+      map: dirt,                                     // no normal map — its grazing-angle glints were the sparkle
+      envMapIntensity: 0.0,                          // matte earth — no env specular (no fireflies)
     }), { scale: 0.03, amount: 0.8, greenKill: 0.9 });  // de-tile + kill fake green
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
@@ -444,11 +436,13 @@ export class ProceduralWorld {
     // asphalt surface
     const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.5, 1 / 3.5);
     const aNor = loadTexture(TEXTURES.asphaltNor); aNor.repeat.copy(aDiff.repeat);
+    const aRough = loadTexture(TEXTURES.asphaltDiff); aRough.repeat.copy(aDiff.repeat);  // reuse albedo as a rough/wet variation map
     const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshStandardMaterial({
-      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(0.35, 0.35), roughness: 0.42, metalness: 0.0, envMapIntensity: 1.0,
-      color: 0x33373b,   // dark, wet-looking asphalt (low roughness -> reflective)
+      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(1.3, 1.3),  // keep the surface relief/texture
+      roughnessMap: aRough, roughness: 0.72, metalness: 0.0, envMapIntensity: 0.7,
+      color: 0x51555a,   // damp asphalt — texture reads, with a wet sheen (not a flat mirror)
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-    }), { scale: 0.15, amount: 0.3 }));
+    }), { scale: 0.15, amount: 0.35 }));
     road.position.y = 0.0; road.receiveShadow = true; this.group.add(road);
 
     // painted markings overlay — faded and worn
@@ -468,7 +462,8 @@ export class ProceduralWorld {
     railGeo.translate(0, 0.7, 0);
     const merged = mergeGeometries([postGeo, railGeo]);
     // weathered galvanised steel — matte, dark, with per-post rust variation
-    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.82, metalness: 0.35, envMapIntensity: 0.4 });
+    // (low metalness/env so it doesn't throw specular fireflies at grazing angle)
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.1, envMapIntensity: 0.12 });
     const spacing = 4.2;
     const count = Math.floor((ROAD.lengthEnd - ROAD.lengthStart) / spacing) * 2;
     const rail = new THREE.InstancedMesh(merged, mat, count);

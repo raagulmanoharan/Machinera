@@ -23,9 +23,9 @@ export class Dust {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this.material = new THREE.PointsMaterial({
-      size: 0.05, sizeAttenuation: true, color: 0x8894a2,
-      transparent: true, opacity: 0.22, depthWrite: false,
-      blending: THREE.AdditiveBlending, fog: true, toneMapped: false,
+      size: 0.03, sizeAttenuation: true, color: 0x6b7686,
+      transparent: true, opacity: 0.13, depthWrite: false,
+      blending: THREE.AdditiveBlending, fog: true, toneMapped: true,
     });
     this.points = new THREE.Points(geo, this.material);
     this.points.frustumCulled = false;

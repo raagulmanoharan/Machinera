@@ -30,6 +30,8 @@ const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.5, 12
 const env = new Environment(scene, renderer);
 const pipeline = new Pipeline(renderer, scene, camera);
 const dust = new Dust(scene);
+const VOLUMETRIC_WARM = new THREE.Color(0xffb060);   // sodium-lamp scatter tint
+pipeline.depthExcludes = [env.sky, dust.points];     // don't let these write depth
 
 const input = new Input(canvas);
 const car = new Car(scene);
@@ -121,9 +123,19 @@ function frame() {
     advanceWind(dt);
     input.update(dt);
     car.update(dt, input, world);
-    if (world.update) world.update(dt, car.pos);
+    if (world.update) world.update(dt, car.pos, camera);
     env.update(car.pos, dt);
     mood.update(dt);
+    // drive the volumetric lamp light (real 3D fog scattering) from the world
+    if (world.lampHeads) {
+      pipeline.updateVolumetric(camera, world.lampHeads, {
+        strength: (world.lampLevel || 0) * 0.11,
+        fog: (scene.fog && scene.fog.density) || 0.02,
+        color: VOLUMETRIC_WARM,
+      });
+    } else {
+      pipeline.updateVolumetric(camera, null, { strength: 0 });
+    }
     dust.update(camera.position, dt);
     chase.update(dt, car);
     updateHud();
