@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { assets, MODELS, TEXTURES, loadTexture } from '../render/AssetLibrary.js';
-import { makePine, makeTree, makeStreetlamp } from './props.js';
+import { makeStreetlamp, makeTreeBillboard } from './props.js';
 import { applyWind } from '../render/wind.js';
 import { Colliders } from './Colliders.js';
 
@@ -101,17 +101,18 @@ export class ProceduralWorld {
   }
 
   _addInstanced(geo, mat, matrices) {
-    if (!matrices.length) return;
+    if (!matrices.length) return null;
     const inst = new THREE.InstancedMesh(geo, mat, matrices.length);
     inst.castShadow = true; inst.receiveShadow = true;
     matrices.forEach((m, i) => inst.setMatrixAt(i, m));
     inst.instanceMatrix.needsUpdate = true;
     this.group.add(inst);
+    return inst;
   }
 
   async _forest(rng) {
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
-    const kenney = [], pine = [];
+    const round = [], pine = [];
     let placed = 0, guard = 0;
     while (placed < 2400 && guard < 40000) {
       guard++;
@@ -121,19 +122,20 @@ export class ProceduralWorld {
       const x = roadX(z) + side * off;
       const h = heightAt(x, z);
       if (h < 0.3 || h > 78) continue;
-      const height = 5 + rng() * 6;             // metres tall (models are unit-height)
-      q.setFromAxisAngle(up, rng() * Math.PI * 2);
+      const height = 6 + rng() * 7;             // billboards are unit-height
+      // billboards don't need to face the camera, but a little yaw variety helps the crossed planes
+      q.setFromAxisAngle(up, rng() * Math.PI);
       s.set(height, height, height);
       const m = new THREE.Matrix4().compose(new THREE.Vector3(x, h, z), q, s);
-      // high ground gets pines; elsewhere a mix of the real Kenney tree and pines
-      (h > 26 || rng() < 0.45 ? pine : kenney).push(m);
+      (h > 24 || rng() < 0.5 ? pine : round).push(m);
       this.colliders.add(x, z, 0.9);
       placed++;
     }
-    // real CC0 Kenney tree (bundled) with a procedural fallback
-    await this._instanceOrFallback(MODELS.tree, kenney, this._fallbackGeo(makeTree()), this._leafMat());
-    // pines are procedural (kit has no conifer)
-    this._addInstanced(this._fallbackGeo(makePine()), this._leafMat(), pine);
+    // billboard trees (crossed planes with a foliage cutout) — realistic at distance, cheap
+    const rb = makeTreeBillboard('round', 3), pb = makeTreeBillboard('pine', 7);
+    const m1 = this._addInstanced(rb.geo, applyWind(rb.material, 0.05), round);
+    const m2 = this._addInstanced(pb.geo, applyWind(pb.material, 0.04), pine);
+    for (const m of [m1, m2]) if (m) { m.castShadow = false; m.receiveShadow = false; }
   }
 
   // procedural fallback trees are ~unit-height already-scaled meshes; normalize to 1 unit
