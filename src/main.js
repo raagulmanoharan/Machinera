@@ -83,7 +83,6 @@ async function loadWorld() {
   if (loading) return;
   loading = true;
   showLoader(true, 'Preparing…');
-  $('hud').classList.add('hidden');
 
   if (world) { world.dispose(); world = null; }
 
@@ -113,7 +112,6 @@ async function loadWorld() {
   chase.snap();
 
   showLoader(false);
-  $('hud').classList.remove('hidden');
   loading = false;
 }
 
@@ -160,15 +158,8 @@ function frame() {
     });
     dust.update(camera.position, dt);
     chase.update(dt, car);
-    updateHud();
   }
   pipeline.render(dt);
-}
-
-function updateHud() {
-  const kmh = Math.round(Math.abs(car.speed) * 3.6);
-  $('speed').textContent = kmh;
-  $('gear').textContent = car.speed < -0.5 ? 'R' : 'D';
 }
 
 // ---------- UI ----------
