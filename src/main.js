@@ -11,6 +11,7 @@ import { MoodDirector } from './world/MoodDirector.js';
 import { advanceWind } from './render/wind.js';
 import { MODELS } from './render/AssetLibrary.js';
 import { Radio } from './Radio.js';
+import { EngineSound } from './EngineSound.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('scene');
@@ -65,6 +66,9 @@ window.__cam = camera; // debug handle
 // on-screen radio — streams audio from YouTube (curated stations + custom links)
 const radio = new Radio(document.getElementById('app'), (msg, err) => toast(msg, err));
 window.__radio = radio; // debug handle
+// procedural engine sound — pitch tracks speed/throttle
+const engine = new EngineSound();
+window.__engine = engine; // debug handle
 
 let world = null;
 let loading = false;
@@ -158,6 +162,7 @@ function frame() {
     });
     dust.update(camera.position, dt);
     chase.update(dt, car);
+    engine.update(dt, { speed: car.speed, throttle: input.throttle });
   }
   pipeline.render(dt);
 }
