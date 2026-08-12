@@ -127,6 +127,21 @@ async function loadWorld() {
 }
 let hintShown = false;
 
+// If tilt steering never activates after the first touch (common in in-app
+// browsers, which block motion sensors), point the player to real Safari.
+let gyroChecked = false;
+window.addEventListener('touchstart', () => {
+  if (gyroChecked) return;
+  gyroChecked = true;
+  setTimeout(() => {
+    if (!input.gyroActive) {
+      toast(input.gyroBlocked
+        ? 'Tilt steering is blocked here — tap ⃝ to open in Safari, then allow Motion access'
+        : 'For tilt steering, open in Safari (compass icon) and allow Motion access');
+    }
+  }, 3200);
+}, { passive: true });
+
 function parseLatLng(s) {
   if (!s) return null;
   const m = String(s).split(',').map((v) => parseFloat(v.trim()));

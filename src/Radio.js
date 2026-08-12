@@ -134,11 +134,14 @@ export class Radio {
     vol.addEventListener('input', (e) => { this._boot(); this.setVolume(+e.target.value); });
     vol.addEventListener('change', (e) => e.target.blur());
 
-    // power on with the first interaction anywhere (a driving key counts), like
-    // switching on a real set — no play button needed
+    // Power on with user interaction. iOS blocks audio unless playVideo() runs
+    // *inside* a gesture, and the first gesture may land before the player is
+    // ready — so we retry on EVERY gesture (touch/click/key) until it's actually
+    // playing, then detach. Tapping the radio itself also works.
     this._bootBound = () => this._boot();
-    window.addEventListener('pointerdown', this._bootBound, { once: true });
-    window.addEventListener('keydown', this._bootBound, { once: true });
+    ['pointerdown', 'touchend', 'keydown'].forEach((ev) =>
+      window.addEventListener(ev, this._bootBound, { passive: true }));
+    el.addEventListener('click', this._bootBound);
 
     this._render();
   }
@@ -153,16 +156,21 @@ export class Radio {
   }
 
   _boot() {
-    if (this.powered) return;
     this.powered = true;
     this.el.classList.add('is-on');
     this.static.resume();
     this.static.setBed(this._bedFor(this.volume));
-    if (this.player && this.ready) {
-      this.player.unMute();
-      this.player.setVolume(this.volume);
-      this.player.playVideo();
+    // (re)attempt playback within this gesture; onStateChange detaches the
+    // gesture handlers once it's genuinely playing
+    if (this.player && this.ready && !this._playing) {
+      try { this.player.unMute(); this.player.setVolume(this.volume); this.player.playVideo(); } catch { /* not ready */ }
     }
+  }
+
+  _stopKick() {
+    if (!this._bootBound) return;
+    ['pointerdown', 'touchend', 'keydown'].forEach((ev) =>
+      window.removeEventListener(ev, this._bootBound));
   }
 
   // ---- player ----
@@ -170,13 +178,19 @@ export class Radio {
     this.player = new YT.Player('yt-audio', {
       width: 1, height: 1,
       videoId: this.stations[this.index].ids[0],
-      // muted autoplay is permitted; we unmute on the first user gesture
-      playerVars: { autoplay: 1, mute: 1, controls: 0, disablekb: 1, playsinline: 1, rel: 0 },
+      // no muted autoplay — iOS ignores the later unmute. We start on a gesture.
+      playerVars: { autoplay: 0, controls: 0, disablekb: 1, playsinline: 1, rel: 0 },
       events: {
         onReady: () => {
           this.ready = true;
           this.player.setVolume(this.volume);
-          if (this.powered) { this.player.unMute(); this.player.playVideo(); }
+          // if the user already interacted, this runs outside a gesture and may
+          // be blocked on iOS — the retry-on-gesture handlers cover that case
+          if (this.powered && !this._playing) { try { this.player.unMute(); this.player.playVideo(); } catch { /* ignore */ } }
+        },
+        onStateChange: (e) => {
+          if (e.data === YT.PlayerState.PLAYING) { this._playing = true; this._stopKick(); }
+          else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) { this._playing = false; }
         },
         onError: () => this._onError(),
       },

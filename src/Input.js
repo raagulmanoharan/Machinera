@@ -55,16 +55,22 @@ export class Input {
     };
   }
 
+  get gyroBlocked() { return !!(this._gyroDenied || this._gyroUnsupported); }
+
   // Ask for gyro access (iOS 13+ needs a gesture) and start listening.
   _enableGyro() {
     if (this._gyroReq) return;
     this._gyroReq = true;
     const DOE = window.DeviceOrientationEvent;
     const add = () => window.addEventListener('deviceorientation', this._onOrient, true);
-    if (DOE && typeof DOE.requestPermission === 'function') {
-      DOE.requestPermission().then((s) => { if (s === 'granted') add(); }).catch(() => {});
-    } else if (DOE) {
-      add();
+    if (!DOE) { this._gyroUnsupported = true; return; }   // e.g. some in-app browsers
+    if (typeof DOE.requestPermission === 'function') {
+      // iOS 13+: shows a one-time Motion & Orientation prompt (needs a gesture)
+      DOE.requestPermission()
+        .then((s) => { if (s === 'granted') add(); else this._gyroDenied = true; })
+        .catch(() => { this._gyroDenied = true; });
+    } else {
+      add();   // Android / older iOS: no prompt needed
     }
   }
 
