@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
-import { assets, PH_MODELS } from '../render/AssetLibrary.js';
+import { assets, MODELS } from '../render/AssetLibrary.js';
 import { makePine, makeTree, makeStreetlamp } from './props.js';
 import { applyWind } from '../render/wind.js';
+import { Colliders } from './Colliders.js';
 
 // ---------- deterministic noise ----------
 function hash2(x, y) {
@@ -59,8 +60,11 @@ export class ProceduralWorld {
     scene.add(this.group);
     this.heightAt = heightAt;
     this.carStart = { pos: new THREE.Vector3(roadX(0), 0, 0), heading: 0 };
+    this.colliders = new Colliders(6);
     this._build();
   }
+
+  resolveCollision(x, z, r) { return this.colliders.resolve(x, z, r); }
 
   dispose() {
     this.group.traverse((o) => {
@@ -93,7 +97,12 @@ export class ProceduralWorld {
   async _instanceOrFallback(url, matrices, fallbackGeo, fallbackMat) {
     const g = await assets.instances(url, matrices);
     if (g) { this.group.add(g); return; }
-    const inst = new THREE.InstancedMesh(fallbackGeo, fallbackMat, matrices.length);
+    this._addInstanced(fallbackGeo, fallbackMat, matrices);
+  }
+
+  _addInstanced(geo, mat, matrices) {
+    if (!matrices.length) return;
+    const inst = new THREE.InstancedMesh(geo, mat, matrices.length);
     inst.castShadow = true; inst.receiveShadow = true;
     matrices.forEach((m, i) => inst.setMatrixAt(i, m));
     inst.instanceMatrix.needsUpdate = true;
@@ -102,9 +111,9 @@ export class ProceduralWorld {
 
   async _forest(rng) {
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
-    const pine = [], leafy = [];
+    const kenney = [], pine = [];
     let placed = 0, guard = 0;
-    while (placed < 2600 && guard < 40000) {
+    while (placed < 2400 && guard < 40000) {
       guard++;
       const z = ROAD.lengthStart + rng() * (ROAD.lengthEnd - ROAD.lengthStart);
       const side = rng() < 0.5 ? -1 : 1;
@@ -116,13 +125,15 @@ export class ProceduralWorld {
       q.setFromAxisAngle(up, rng() * Math.PI * 2);
       s.set(height, height, height);
       const m = new THREE.Matrix4().compose(new THREE.Vector3(x, h, z), q, s);
-      (h > 26 || rng() < 0.6 ? pine : leafy).push(m);
+      // high ground gets pines; elsewhere a mix of the real Kenney tree and pines
+      (h > 26 || rng() < 0.45 ? pine : kenney).push(m);
+      this.colliders.add(x, z, 0.9);
       placed++;
     }
-    await Promise.all([
-      this._instanceOrFallback(PH_MODELS.pine, pine, this._fallbackGeo(makePine()), this._leafMat()),
-      this._instanceOrFallback(PH_MODELS.tree, leafy, this._fallbackGeo(makeTree()), this._leafMat()),
-    ]);
+    // real CC0 Kenney tree (bundled) with a procedural fallback
+    await this._instanceOrFallback(MODELS.tree, kenney, this._fallbackGeo(makeTree()), this._leafMat());
+    // pines are procedural (kit has no conifer)
+    this._addInstanced(this._fallbackGeo(makePine()), this._leafMat(), pine);
   }
 
   // procedural fallback trees are ~unit-height already-scaled meshes; normalize to 1 unit
@@ -154,12 +165,13 @@ export class ProceduralWorld {
       q.setFromAxisAngle(new THREE.Vector3(rng(), rng(), rng()).normalize(), rng() * Math.PI);
       s.set(size, size * (0.7 + rng() * 0.5), size);
       mats.push(new THREE.Matrix4().compose(new THREE.Vector3(x, h, z), q, s));
+      if (size > 1.2) this.colliders.add(x, z, size * 0.6); // only big rocks block
       placed++;
     }
     const rockGeo = new THREE.IcosahedronGeometry(0.5, 0);
     rockGeo.translate(0, 0.5, 0);
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a8378, roughness: 0.95, flatShading: true, envMapIntensity: 0.5 });
-    await this._instanceOrFallback(PH_MODELS.boulder, mats, rockGeo, rockMat);
+    this._addInstanced(rockGeo, rockMat, mats);
   }
 
   async _lamps() {
@@ -178,10 +190,10 @@ export class ProceduralWorld {
       q.setFromAxisAngle(up, yaw);
       s.set(5.4, 5.4, 5.4);
       mats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, heightAt(px, pz), pz), q, s));
+      this.colliders.add(px, pz, 0.4);
     }
     const lamp = makeStreetlamp();
-    const fg = this._fallbackGeo(lamp.geo);
-    await this._instanceOrFallback(PH_MODELS.lamp, mats, fg, lamp.materials);
+    this._addInstanced(this._fallbackGeo(lamp.geo), lamp.materials, mats);
   }
 
   // ---------- terrain ----------
@@ -211,7 +223,7 @@ export class ProceduralWorld {
       const z = pos.getZ(i) + zMid;
       pos.setZ(i, z);
       const h = heightAt(x, z);
-      pos.setY(i, h);
+      pos.setY(i, h - 0.05); // sit just below the road plane to avoid z-fighting
       const g = vnoise(x * 0.05, z * 0.05);
       tmp.copy(cGrass).lerp(cGrass2, g);
       if (h > 8) tmp.lerp(cRock, smoothstep(8, 40, h));
@@ -340,8 +352,10 @@ export class ProceduralWorld {
       const ang = Math.atan2(dx, 1);
       q.setFromAxisAngle(up, ang);
       for (const side of [-1, 1]) {
-        m.compose(new THREE.Vector3(cx + side * ox * W, 0.02, z + side * oz * W), q, one);
+        const px = cx + side * ox * W, pz = z + side * oz * W;
+        m.compose(new THREE.Vector3(px, 0.02, pz), q, one);
         rail.setMatrixAt(i++, m);
+        this.colliders.add(px, pz, 1.3); // rail keeps the car on the road
       }
     }
     rail.count = i;

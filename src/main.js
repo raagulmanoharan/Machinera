@@ -30,6 +30,7 @@ const pipeline = new Pipeline(renderer, scene, camera);
 const input = new Input(canvas);
 const car = new Car(scene);
 const chase = new ChaseCamera(camera);
+window.__car = car; // debug handle
 
 let world = null;
 let loading = false;
@@ -73,6 +74,7 @@ async function loadWorld() {
   }
 
   car.reset(world.carStart.pos, world.carStart.heading);
+  window.__world = world; // debug handle
   chase.snap();
   showLoader(false);
   $('hud').classList.remove('hidden');
