@@ -3,11 +3,10 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { assets, MODELS, TEXTURES, loadTexture, deTile } from '../render/AssetLibrary.js';
-import { makeStreetlamp, makeStylizedTree, stylizedTreeMaterial } from './props.js';
+import { makeStreetlamp, makeStylizedTree, stylizedTreeMaterial, makeCarProp } from './props.js';
 import { makeEzTree } from './ezTrees.js';
 import { applyWind } from '../render/wind.js';
 import { Colliders } from './Colliders.js';
-import { GrassField } from './GrassField.js';
 
 // ---------- deterministic noise ----------
 function hash2(x, y) {
@@ -83,14 +82,6 @@ export class ProceduralWorld {
     this._terrain();
     this._roadMesh();
     this._guardrails();
-    // real 3D grass that follows the car (skips the road + dirt verge)
-    const edge = ROAD.halfWidth + ROAD.shoulder + 0.4;
-    this.grass = new GrassField(this.group, {
-      heightAt,
-      skip: (x, z) => distToRoad(x, z) < edge,
-      count: 190, spacing: 0.3,     // dense meadow, larger radius with a soft edge
-      hMin: 0.45, hMax: 1.45, windAmp: 0.18,
-    });
   }
 
   // async: pull real CC0 models (trees, boulders, lamps) with procedural fallback
@@ -100,6 +91,7 @@ export class ProceduralWorld {
       this._forest(rng),
       this._boulders(rng),
       this._lamps(),
+      this._wreckage(rng),
     ]);
   }
 
@@ -199,6 +191,80 @@ export class ProceduralWorld {
     this._addInstanced(rockGeo, rockMat, mats);
   }
 
+  // ---------- abandoned wreckage: rusted cars, tyres, broken concrete ----------
+  async _wreckage(rng) {
+    const q = new THREE.Quaternion(), s = new THREE.Vector3();
+    const roadside = (off) => {
+      const z = ROAD.lengthStart + rng() * (ROAD.lengthEnd - ROAD.lengthStart);
+      const side = rng() < 0.5 ? -1 : 1;
+      const cx = roadX(z), dx = roadSlope(z), len = Math.hypot(1, dx);
+      const ox = 1 / len, oz = -dx / len;
+      const d = off[0] + rng() * (off[1] - off[0]);
+      const x = cx + side * ox * d + (rng() - 0.5) * 5;
+      const zz = z + side * oz * d;
+      return { x, z: zz, h: heightAt(x, zz) };
+    };
+
+    // rusted, abandoned cars — mostly settled, a few tipped on their side
+    const carGeo = makeCarProp();
+    const carMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0.28, envMapIntensity: 0.5 });
+    const rust = [0x3a2f26, 0x2a2622, 0x47382b, 0x554636, 0x20201c, 0x6a5a48];
+    const carMats = [], carCols = [];
+    let placed = 0, guard = 0;
+    while (placed < 72 && guard < 6000) {
+      guard++;
+      const { x, z, h } = roadside([6, 40]);
+      if (h < 0.2 || h > 28) continue;
+      const tipped = rng() < 0.18;
+      const roll = tipped ? (rng() < 0.5 ? 1.5 : -1.5) : (rng() - 0.5) * 0.28;
+      q.setFromEuler(new THREE.Euler((rng() - 0.5) * 0.18, rng() * Math.PI * 2, roll, 'YXZ'));
+      const sc = 0.9 + rng() * 0.4; s.set(sc, sc, sc);
+      carMats.push(new THREE.Matrix4().compose(new THREE.Vector3(x, h + (tipped ? 0.8 : 0.15), z), q, s));
+      carCols.push(rust[(rng() * rust.length) | 0]);
+      this.colliders.add(x, z, 1.9);
+      placed++;
+    }
+    const carInst = this._addInstanced(carGeo, carMat, carMats);
+    if (carInst) {
+      carInst.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(carMats.length * 3), 3);
+      const col = new THREE.Color();
+      carCols.forEach((c, i) => { carInst.setColorAt(i, col.set(c)); });
+      carInst.instanceColor.needsUpdate = true;
+    }
+
+    // scattered tyres lying in the dirt
+    const tyreGeo = new THREE.TorusGeometry(0.34, 0.15, 8, 14).rotateX(Math.PI / 2);
+    const tyreMat = new THREE.MeshStandardMaterial({ color: 0x141410, roughness: 0.96, metalness: 0.0 });
+    const tyreMats = []; placed = 0; guard = 0;
+    while (placed < 200 && guard < 9000) {
+      guard++;
+      const { x, z, h } = roadside([4, 40]);
+      if (h < 0.1 || h > 30) continue;
+      q.setFromEuler(new THREE.Euler((rng() - 0.5) * 0.5, rng() * Math.PI * 2, (rng() - 0.5) * 0.5, 'YXZ'));
+      s.setScalar(0.8 + rng() * 0.5);
+      tyreMats.push(new THREE.Matrix4().compose(new THREE.Vector3(x, h + 0.14, z), q, s));
+      placed++;
+    }
+    this._addInstanced(tyreGeo, tyreMat, tyreMats);
+
+    // broken concrete blocks / toppled barriers
+    const blockGeo = new THREE.BoxGeometry(0.8, 0.85, 2.2);
+    const blockMat = new THREE.MeshStandardMaterial({ color: 0x8b897f, roughness: 0.92, metalness: 0.0, envMapIntensity: 0.4 });
+    const blockMats = []; placed = 0; guard = 0;
+    while (placed < 72 && guard < 6000) {
+      guard++;
+      const { x, z, h } = roadside([5, 30]);
+      if (h < 0.1 || h > 26) continue;
+      const toppled = rng() < 0.5;
+      q.setFromEuler(new THREE.Euler(toppled ? Math.PI / 2 : (rng() - 0.5) * 0.2, rng() * Math.PI * 2, (rng() - 0.5) * 0.2, 'YXZ'));
+      s.set(0.9 + rng() * 0.5, 0.9 + rng() * 0.6, 0.9 + rng() * 0.5);
+      blockMats.push(new THREE.Matrix4().compose(new THREE.Vector3(x, h + (toppled ? 0.4 : 0.42), z), q, s));
+      this.colliders.add(x, z, 1.1);
+      placed++;
+    }
+    this._addInstanced(blockGeo, blockMat, blockMats);
+  }
+
   async _lamps() {
     const mats = [];
     const pools = [];
@@ -280,9 +346,7 @@ export class ProceduralWorld {
     if (this._haloMat) this._haloMat.opacity = 0.95 * n;
   }
 
-  update(dt, target) {
-    if (this.grass && target) this.grass.update(target);
-  }
+  update() { /* static world; nothing per-frame */ }
 
   // ---------- terrain ----------
   _terrain() {
@@ -299,11 +363,13 @@ export class ProceduralWorld {
     const colors = new Float32Array(pos.count * 3);
     const uv = geo.attributes.uv;
 
-    // vertex colours act as MULTIPLIERS over the grass texture: ~white on grass,
-    // darker rock mid-slope, bright to fake snow on the peaks.
-    const cGrass = new THREE.Color(0.72, 1.02, 0.55); // tint the dry texture toward lush green
-    const cRock = new THREE.Color(0.52, 0.46, 0.40);
-    const cSnow = new THREE.Color(2.6, 2.6, 2.9);
+    // vertex colours MULTIPLY the dirt texture: barren earth with patches of
+    // dry mud, dark damp soil and pale dust; rock mid-slope, grey scree up high.
+    const cDirt = new THREE.Color(0.62, 0.5, 0.38);   // dry dirt
+    const cMud = new THREE.Color(0.32, 0.26, 0.2);    // dark damp patches
+    const cDust = new THREE.Color(0.82, 0.74, 0.6);   // pale dust
+    const cRock = new THREE.Color(0.5, 0.46, 0.42);
+    const cScree = new THREE.Color(0.62, 0.6, 0.6);
     const tmp = new THREE.Color();
     const zMid = (zStart + zEnd) / 2;
 
@@ -313,28 +379,27 @@ export class ProceduralWorld {
       pos.setZ(i, z);
       const h = heightAt(x, z);
       pos.setY(i, h - 0.05); // sit just below the road plane to avoid z-fighting
-      // big soft patches (low freq) + finer variation break the tiled look
-      const g = 0.74 + vnoise(x * 0.011, z * 0.011) * 0.4 + vnoise(x * 0.06, z * 0.06) * 0.14;
-      tmp.copy(cGrass).multiplyScalar(g);
-      // drift hue slightly between yellow-green and deep green per patch
-      tmp.offsetHSL((vnoise(x * 0.008 + 7, z * 0.008 - 3) - 0.5) * 0.05, 0, 0);
-      if (h > 8) tmp.lerp(cRock, smoothstep(8, 42, h));
-      if (h > 68) tmp.lerp(cSnow, smoothstep(68, 115, h));
+      // large patches pick between dust / dirt / mud for a random barren ground
+      const p = vnoise(x * 0.009 + 3, z * 0.009 - 2);
+      tmp.copy(cDirt).lerp(cDust, smoothstep(0.55, 0.85, p)).lerp(cMud, smoothstep(0.5, 0.15, p));
+      const g = 0.8 + vnoise(x * 0.05, z * 0.05) * 0.3;   // fine grain
+      tmp.multiplyScalar(g);
+      if (h > 6) tmp.lerp(cRock, smoothstep(6, 40, h));
+      if (h > 60) tmp.lerp(cScree, smoothstep(60, 110, h));
       colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b;
       uv.setXY(i, x * 0.02, z * 0.02); // 50 m per uv unit; texture.repeat tiles it
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
 
-    const grass = loadTexture(TEXTURES.grassDiff, { srgb: true, repeat: 16 });
-    const grassNor = loadTexture(TEXTURES.grassNor, { repeat: 16 });
-    const grassArm = loadTexture(TEXTURES.grassArm, { repeat: 16 });
+    const dirt = loadTexture(TEXTURES.dirtDiff, { srgb: true, repeat: 20 });
+    const dirtNor = loadTexture(TEXTURES.dirtNor, { repeat: 20 });
     const mat = deTile(new THREE.MeshStandardMaterial({
       vertexColors: true, roughness: 1.0, metalness: 0.0,
-      map: grass, normalMap: grassNor, roughnessMap: grassArm,
-      normalScale: new THREE.Vector2(0.8, 0.8),
-      envMapIntensity: 0.9,
-    }), { scale: 0.04, amount: 0.7 });
+      map: dirt, normalMap: dirtNor,
+      normalScale: new THREE.Vector2(1.0, 1.0),
+      envMapIntensity: 0.6,
+    }), { scale: 0.04, amount: 0.65 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
     mesh.castShadow = false;
