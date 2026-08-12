@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { assets, MODELS, TEXTURES, loadTexture, deTile } from '../render/AssetLibrary.js';
-import { makeStreetlamp, makeCarProp } from './props.js';
+import { makeStreetlamp } from './props.js';
 import { Colliders } from './Colliders.js';
 
 // ---------- deterministic noise ----------
@@ -90,7 +90,6 @@ export class ProceduralWorld {
     await Promise.all([
       this._boulders(rng),
       this._lamps(),
-      this._wreckage(rng),
     ]);
   }
 
@@ -143,107 +142,6 @@ export class ProceduralWorld {
     rockGeo.translate(0, 0.5, 0);
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a8378, roughness: 0.95, flatShading: true, envMapIntensity: 0.5 });
     this._addInstanced(rockGeo, rockMat, mats);
-  }
-
-  // ---------- abandoned wreckage: rusted cars, tyres, broken concrete ----------
-  async _wreckage(rng) {
-    const q = new THREE.Quaternion(), s = new THREE.Vector3();
-    const roadside = (off) => {
-      const z = ROAD.lengthStart + rng() * (ROAD.lengthEnd - ROAD.lengthStart);
-      const side = rng() < 0.5 ? -1 : 1;
-      const cx = roadX(z), dx = roadSlope(z), len = Math.hypot(1, dx);
-      const ox = 1 / len, oz = -dx / len;
-      const d = off[0] + rng() * (off[1] - off[0]);
-      const x = cx + side * ox * d + (rng() - 0.5) * 5;
-      const zz = z + side * oz * d;
-      return { x, z: zz, h: heightAt(x, zz) };
-    };
-
-    // rusted, abandoned cars — real car model (Kenney sedan) dressed as a burnt
-    // wreck, mostly settled with a few tipped on their side. Falls back to the
-    // procedural car if the model can't load.
-    const carMats = [];
-    let placed = 0, guard = 0;
-    while (placed < 64 && guard < 6000) {
-      guard++;
-      const { x, z, h } = roadside([6, 40]);
-      if (h < 0.2 || h > 28) continue;
-      const tipped = rng() < 0.16;
-      const roll = tipped ? (rng() < 0.5 ? 1.5 : -1.5) : (rng() - 0.5) * 0.22;
-      q.setFromEuler(new THREE.Euler((rng() - 0.5) * 0.14, rng() * Math.PI * 2, roll, 'YXZ'));
-      const sc = 1.5 + rng() * 0.5; s.set(sc, sc, sc);   // model is unit-height; ~1.5 m tall
-      carMats.push(new THREE.Matrix4().compose(new THREE.Vector3(x, h + (tipped ? 0.7 : 0.0), z), q, s));
-      this.colliders.add(x, z, 2.0);
-      placed++;
-    }
-    await this._wreckCars(carMats, rng);
-
-    // scattered tyres lying in the dirt
-    const tyreGeo = new THREE.TorusGeometry(0.34, 0.15, 8, 14).rotateX(Math.PI / 2);
-    const tyreMat = new THREE.MeshStandardMaterial({ color: 0x141410, roughness: 0.96, metalness: 0.0 });
-    const tyreMats = []; placed = 0; guard = 0;
-    while (placed < 200 && guard < 9000) {
-      guard++;
-      const { x, z, h } = roadside([4, 40]);
-      if (h < 0.1 || h > 30) continue;
-      q.setFromEuler(new THREE.Euler((rng() - 0.5) * 0.5, rng() * Math.PI * 2, (rng() - 0.5) * 0.5, 'YXZ'));
-      s.setScalar(0.8 + rng() * 0.5);
-      tyreMats.push(new THREE.Matrix4().compose(new THREE.Vector3(x, h + 0.14, z), q, s));
-      placed++;
-    }
-    this._addInstanced(tyreGeo, tyreMat, tyreMats);
-
-    // broken concrete blocks / toppled barriers
-    const blockGeo = new THREE.BoxGeometry(0.8, 0.85, 2.2);
-    const blockMat = new THREE.MeshStandardMaterial({ color: 0x8b897f, roughness: 0.92, metalness: 0.0, envMapIntensity: 0.4 });
-    const blockMats = []; placed = 0; guard = 0;
-    while (placed < 72 && guard < 6000) {
-      guard++;
-      const { x, z, h } = roadside([5, 30]);
-      if (h < 0.1 || h > 26) continue;
-      const toppled = rng() < 0.5;
-      q.setFromEuler(new THREE.Euler(toppled ? Math.PI / 2 : (rng() - 0.5) * 0.2, rng() * Math.PI * 2, (rng() - 0.5) * 0.2, 'YXZ'));
-      s.set(0.9 + rng() * 0.5, 0.9 + rng() * 0.6, 0.9 + rng() * 0.5);
-      blockMats.push(new THREE.Matrix4().compose(new THREE.Vector3(x, h + (toppled ? 0.4 : 0.42), z), q, s));
-      this.colliders.add(x, z, 1.1);
-      placed++;
-    }
-    this._addInstanced(blockGeo, blockMat, blockMats);
-  }
-
-  // Instance the real car model at `mats`, re-materialled as a rusted/burnt
-  // wreck (matte rust body, dark shattered glass, seized wheels). Falls back to
-  // the procedural car geometry if the model can't be loaded.
-  async _wreckCars(mats, rng) {
-    if (!mats.length) return;
-    let prep = null;
-    try { prep = await assets.prepared(MODELS.car); } catch { prep = null; }
-    if (prep && prep.meshes.length) {
-      const rustFor = (name) => {
-        switch (name) {
-          case 'window': return new THREE.MeshStandardMaterial({ color: 0x090a0b, roughness: 0.6, metalness: 0.1, envMapIntensity: 0.3 });
-          case 'carTire': return new THREE.MeshStandardMaterial({ color: 0x111110, roughness: 0.98, metalness: 0.0 });
-          case 'wheelInside': return new THREE.MeshStandardMaterial({ color: 0x39342c, roughness: 0.8, metalness: 0.5, envMapIntensity: 0.35 });
-          case 'lightFront': case 'lightBack': return new THREE.MeshStandardMaterial({ color: 0x1e1813, roughness: 0.7, metalness: 0.1 });
-          default: return new THREE.MeshStandardMaterial({ color: 0x3d3025, roughness: 0.96, metalness: 0.35, envMapIntensity: 0.3 });
-        }
-      };
-      const tmp = new THREE.Matrix4();
-      const matCache = new Map();
-      for (const part of prep.meshes) {
-        const name = (part.material && part.material.name) || '_';
-        if (!matCache.has(name)) matCache.set(name, rustFor(name));
-        const inst = new THREE.InstancedMesh(part.geometry, matCache.get(name), mats.length);
-        inst.castShadow = true; inst.receiveShadow = true;
-        for (let i = 0; i < mats.length; i++) { tmp.multiplyMatrices(mats[i], part.matrix); inst.setMatrixAt(i, tmp); }
-        inst.instanceMatrix.needsUpdate = true;
-        this.group.add(inst);
-      }
-    } else {
-      const carGeo = makeCarProp();
-      const carMat = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x3d3025, roughness: 0.95, metalness: 0.3, envMapIntensity: 0.35 });
-      this._addInstanced(carGeo, carMat, mats);
-    }
   }
 
   async _lamps() {

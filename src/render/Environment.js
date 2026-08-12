@@ -31,26 +31,27 @@ export class Environment {
 
     this.pmrem = new THREE.PMREMGenerator(renderer);
     this.pmrem.compileEquirectangularShader();
-    this._loadHDR(opts.hdr || (import.meta.env.BASE_URL || './') + 'textures/venice_sunset_1k.hdr');
+    this._loadHDR(opts.hdr || (import.meta.env.BASE_URL || './') + 'textures/night_1k.hdr');
   }
 
   _loadHDR(url) {
-    // HDR is used only for image-based lighting + reflections (the wet road,
-    // the car). The sky itself is a solid mood colour so dark moods stay dark —
-    // no warm horizon bleeding through the fog.
+    // A dark night HDR: it lights the scene, casts soft reflections on the wet
+    // road, and is the sky itself. Kept dim (backgroundIntensity) so it stays
+    // dark and mysterious, but real detail beats a flat solid colour.
     new RGBELoader().load(url, (tex) => {
       tex.mapping = THREE.EquirectangularReflectionMapping;
       this._envRT = this.pmrem.fromEquirectangular(tex);
       this.scene.environment = this._envRT.texture;
-      this.scene.environmentIntensity = 0.6;
+      this.scene.environmentIntensity = 0.7;
+      this.scene.background = tex;
+      this.scene.backgroundIntensity = 0.5;
+      this.scene.backgroundBlurriness = 0.85;  // smear the stars into a hazy dark sky
       this._hdr = tex;
-    });
-    this._bgc = new THREE.Color(0x10151c);
-    this.scene.background = this._bgc;
+    }, undefined, () => { this.scene.background = new THREE.Color(0x0c1018); });
   }
 
-  // solid sky colour (mood-driven); the HDR stays only for reflections
-  setBackground(color) { if (color != null) this._bgc.set(color); }
+  // mood hook: scale how bright the HDR sky reads (dark moods dim it further)
+  setBackground(intensity) { if (intensity != null) this.scene.backgroundIntensity = intensity; }
 
   // kept for API compatibility — the HDR is the look, so these are no-ops
   setSun() {}

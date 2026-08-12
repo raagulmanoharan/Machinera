@@ -56,8 +56,8 @@ const CinematicShader = {
       // per-mood colour cast (liminal grade)
       g *= tint;
 
-      // fine film grain
-      g += (rand(vUv + fract(time)) - 0.5) * 0.022;
+      // film grain — a touch heavier for the gritty analog look
+      g += (rand(vUv + fract(time)) - 0.5) * 0.032;
 
       gl_FragColor = vec4(mix(col, g, amount), 1.0);
     }`,

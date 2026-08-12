@@ -18,10 +18,10 @@ export const MOODS = [
   },
   {
     name: 'Fog Night',
-    fog: [0x121b2b, 10, 145], exposure: 0.64, env: 0.32,
+    fog: [0x141e30, 10, 150], exposure: 0.74, env: 0.55,
     sky: 0x0c1220,
-    sun: [0x38506e, 0.18], hemi: [0x27384f, 0.5],
-    grade: [0.9, 0.97, 1.12], night: 0.92, lamps: 1.0, headlights: 1.0,
+    sun: [0x4a648c, 0.4], hemi: [0x3a5170, 0.9],
+    grade: [0.9, 0.97, 1.12], night: 0.9, lamps: 1.0, headlights: 1.0,
   },
   {
     name: 'Blue Dusk',

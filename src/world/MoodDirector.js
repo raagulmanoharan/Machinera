@@ -60,9 +60,10 @@ export class MoodDirector {
   _apply(a, b, k) {
     const e = this.env, pl = this.pipeline;
     e.setFog(this._mix(this._fog, a.fog[0], b.fog[0], k), this._l(a.fog[1], b.fog[1], k), this._l(a.fog[2], b.fog[2], k));
-    e.setBackground(this._mix(this._sky, a.sky ?? a.fog[0], b.sky ?? b.fog[0], k));
+    const ev = this._l(a.env, b.env, k);
+    e.setEnvIntensity(ev);              // reflections / IBL
+    e.setBackground(ev * 1.3);          // HDR sky brightness (dark moods stay dim)
     e.setExposure(this._l(a.exposure, b.exposure, k));
-    e.setEnvIntensity(this._l(a.env, b.env, k));
     e.setLight(
       this._mix(this._sun, a.sun[0], b.sun[0], k), this._l(a.sun[1], b.sun[1], k),
       this._mix(this._hemi, a.hemi[0], b.hemi[0], k), this._l(a.hemi[1], b.hemi[1], k),

@@ -6,6 +6,7 @@ import { OSMWorld } from './world/OSMWorld.js';
 import { ProceduralWorld } from './world/ProceduralWorld.js';
 import { Environment } from './render/Environment.js';
 import { Pipeline } from './render/Pipeline.js';
+import { Dust } from './render/Dust.js';
 import { MoodDirector } from './world/MoodDirector.js';
 import { advanceWind } from './render/wind.js';
 import { MODELS } from './render/AssetLibrary.js';
@@ -28,6 +29,7 @@ const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.5, 12
 
 const env = new Environment(scene, renderer);
 const pipeline = new Pipeline(renderer, scene, camera);
+const dust = new Dust(scene);
 
 const input = new Input(canvas);
 const car = new Car(scene);
@@ -116,6 +118,7 @@ function frame() {
     if (world.update) world.update(dt, car.pos);
     env.update(car.pos, dt);
     mood.update(dt);
+    dust.update(camera.position, dt);
     chase.update(dt, car);
     updateHud();
   }
