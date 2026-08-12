@@ -113,8 +113,8 @@ const VolumetricLightShader = {
           if (l >= uCount) break;
           vec3 to = uLamps[l] - p; float dl = length(to);
           float att = 1.0 / (1.0 + 0.16 * dl * dl);      // tighter, more physical falloff
-          float down = clamp((uLamps[l].y - p.y) / (dl + 0.2), 0.0, 1.0); // pool below the lamp
-          s += att * (0.4 + 0.6 * down);
+          float down = clamp((uLamps[l].y - p.y) / (dl + 0.2), 0.0, 1.0); // below the lamp
+          s += att * (0.15 + 0.85 * down * down);        // glow spills downward, minimal on top
         }
         acc += s * exp(-uFog * t * 2.6) * stepLen;   // fog extinction toward the camera
       }

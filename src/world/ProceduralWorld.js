@@ -304,7 +304,8 @@ export class ProceduralWorld {
     // per lamp), casting a warm pool on the wet road + nearby terrain
     this._lampLights = [];
     for (let i = 0; i < 3; i++) {
-      const sl = new THREE.SpotLight(0xffb267, 0, 60, 0.6, 0.7, 1.3);
+      // wide, fully-soft cone so the pool on the ground has no hard edge
+      const sl = new THREE.SpotLight(0xffb267, 0, 42, 0.9, 1.0, 1.5);
       sl.visible = false;
       sl.castShadow = false;
       this.group.add(sl); this.group.add(sl.target);
@@ -335,8 +336,10 @@ export class ProceduralWorld {
         const h = near[i][0];
         sl.visible = true;
         sl.position.copy(h);
-        sl.target.position.set(roadX(h.z), 0.0, h.z);   // aim down at the road
-        sl.intensity = 240 * level;
+        // aim almost straight down so the pool lands on the ground right below
+        // the lamp (a soft scatter under it), like a real streetlight
+        sl.target.position.set(h.x * 0.6 + roadX(h.z) * 0.4, 0.0, h.z);
+        sl.intensity = 170 * level;
       } else { sl.visible = false; }
     }
   }
@@ -433,21 +436,21 @@ export class ProceduralWorld {
     // worn, uneven paint — varying alpha, ragged edges, patchy wear
     const line = (x, w, col, base) => {
       for (let y = 0; y < 256; y++) {
-        const wear = base * (0.55 + 0.45 * rnd());          // fades along its length
-        if (rnd() < 0.06) continue;                          // scuffed-away rows
+        const wear = base * (0.7 + 0.3 * rnd());             // fades a little along its length
+        if (rnd() < 0.025) continue;                         // occasional scuffed row
         g.fillStyle = `rgba(${col},${wear.toFixed(2)})`;
-        const jx = x + (rnd() - 0.5) * 1.4;                  // ragged edge
-        g.fillRect(jx, y, w + (rnd() - 0.5), 1);
+        const jx = x + (rnd() - 0.5) * 0.7;                  // slightly ragged edge
+        g.fillRect(jx, y, w + (rnd() - 0.5) * 0.6, 1);
       }
     };
-    line(4, 4, '236,234,222', 0.85); line(56, 4, '236,234,222', 0.85);  // edge lines
+    line(4, 4, '228,226,214', 0.78); line(56, 4, '228,226,214', 0.78);  // edge lines
     // dashed yellow centre — each dash a slightly different length/wear
     for (let d = 20; d < 256; d += 96) {
       const len = 120 + (rnd() - 0.5) * 40;
       for (let y = d; y < d + len && y < 256; y++) {
-        if (rnd() < 0.08) continue;
-        g.fillStyle = `rgba(233,201,74,${(0.5 + 0.4 * rnd()).toFixed(2)})`;
-        g.fillRect(29 + (rnd() - 0.5) * 1.2, y, 6 + (rnd() - 0.5), 1);
+        if (rnd() < 0.035) continue;
+        g.fillStyle = `rgba(224,192,70,${(0.62 + 0.3 * rnd()).toFixed(2)})`;
+        g.fillRect(29 + (rnd() - 0.5) * 0.7, y, 6 + (rnd() - 0.5) * 0.6, 1);
       }
     }
     const t = new THREE.CanvasTexture(c);
@@ -471,11 +474,10 @@ export class ProceduralWorld {
     // asphalt surface
     const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.5, 1 / 3.5);
     const aNor = loadTexture(TEXTURES.asphaltNor); aNor.repeat.copy(aDiff.repeat);
-    const aRough = loadTexture(TEXTURES.asphaltDiff); aRough.repeat.copy(aDiff.repeat);  // reuse albedo as a rough/wet variation map
     const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshStandardMaterial({
-      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(1.3, 1.3),  // keep the surface relief/texture
-      roughnessMap: aRough, roughness: 0.72, metalness: 0.0, envMapIntensity: 0.7,
-      color: 0x51555a,   // damp asphalt — texture reads, with a wet sheen (not a flat mirror)
+      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(1.1, 1.1),  // surface relief/texture
+      roughness: 0.78, metalness: 0.0, envMapIntensity: 0.4,  // damp but even — soft diffuse pool, no hard specular streak
+      color: 0x4e5257,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
     }), { scale: 0.15, amount: 0.35 }));
     road.position.y = 0.0; road.receiveShadow = true; this.group.add(road);
