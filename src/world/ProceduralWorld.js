@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
-import { assets, MODELS, TEXTURES, loadTexture } from '../render/AssetLibrary.js';
-import { makePine, makeTree, makeStreetlamp } from './props.js';
+import { assets, MODELS, TEXTURES, loadTexture, deTile } from '../render/AssetLibrary.js';
+import { makeStreetlamp, makeTreeBillboard } from './props.js';
 import { applyWind } from '../render/wind.js';
 import { Colliders } from './Colliders.js';
 
@@ -101,17 +101,18 @@ export class ProceduralWorld {
   }
 
   _addInstanced(geo, mat, matrices) {
-    if (!matrices.length) return;
+    if (!matrices.length) return null;
     const inst = new THREE.InstancedMesh(geo, mat, matrices.length);
     inst.castShadow = true; inst.receiveShadow = true;
     matrices.forEach((m, i) => inst.setMatrixAt(i, m));
     inst.instanceMatrix.needsUpdate = true;
     this.group.add(inst);
+    return inst;
   }
 
   async _forest(rng) {
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
-    const kenney = [], pine = [];
+    const round = [], pine = [];
     let placed = 0, guard = 0;
     while (placed < 2400 && guard < 40000) {
       guard++;
@@ -121,19 +122,20 @@ export class ProceduralWorld {
       const x = roadX(z) + side * off;
       const h = heightAt(x, z);
       if (h < 0.3 || h > 78) continue;
-      const height = 5 + rng() * 6;             // metres tall (models are unit-height)
-      q.setFromAxisAngle(up, rng() * Math.PI * 2);
+      const height = 6 + rng() * 7;             // billboards are unit-height
+      // billboards don't need to face the camera, but a little yaw variety helps the crossed planes
+      q.setFromAxisAngle(up, rng() * Math.PI);
       s.set(height, height, height);
       const m = new THREE.Matrix4().compose(new THREE.Vector3(x, h, z), q, s);
-      // high ground gets pines; elsewhere a mix of the real Kenney tree and pines
-      (h > 26 || rng() < 0.45 ? pine : kenney).push(m);
+      (h > 24 || rng() < 0.5 ? pine : round).push(m);
       this.colliders.add(x, z, 0.9);
       placed++;
     }
-    // real CC0 Kenney tree (bundled) with a procedural fallback
-    await this._instanceOrFallback(MODELS.tree, kenney, this._fallbackGeo(makeTree()), this._leafMat());
-    // pines are procedural (kit has no conifer)
-    this._addInstanced(this._fallbackGeo(makePine()), this._leafMat(), pine);
+    // billboard trees (crossed planes with a foliage cutout) — realistic at distance, cheap
+    const rb = makeTreeBillboard('round', 3), pb = makeTreeBillboard('pine', 7);
+    const m1 = this._addInstanced(rb.geo, applyWind(rb.material, 0.05), round);
+    const m2 = this._addInstanced(pb.geo, applyWind(pb.material, 0.04), pine);
+    for (const m of [m1, m2]) if (m) { m.castShadow = false; m.receiveShadow = false; }
   }
 
   // procedural fallback trees are ~unit-height already-scaled meshes; normalize to 1 unit
@@ -235,93 +237,82 @@ export class ProceduralWorld {
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
 
-    const grass = loadTexture(TEXTURES.grassDiff, { srgb: true, repeat: 20 });
-    const grassNor = loadTexture(TEXTURES.grassNor, { repeat: 20 });
-    const mat = new THREE.MeshStandardMaterial({
-      vertexColors: true, roughness: 0.95, metalness: 0.0,
-      map: grass, normalMap: grassNor,
-      normalScale: new THREE.Vector2(0.8, 0.8),
-      envMapIntensity: 0.85,
-    });
+    const grass = loadTexture(TEXTURES.grassDiff, { srgb: true, repeat: 22 });
+    const grassNor = loadTexture(TEXTURES.grassNor, { repeat: 22 });
+    const grassArm = loadTexture(TEXTURES.grassArm, { repeat: 22 });
+    const mat = deTile(new THREE.MeshStandardMaterial({
+      vertexColors: true, roughness: 1.0, metalness: 0.0,
+      map: grass, normalMap: grassNor, roughnessMap: grassArm,
+      normalScale: new THREE.Vector2(1.2, 1.2),
+      envMapIntensity: 0.9,
+    }), { scale: 0.06, amount: 0.45 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
     mesh.castShadow = false;
     this.group.add(mesh);
   }
 
-  // ---------- road ----------
-  _roadTexture() {
-    const c = document.createElement('canvas');
-    c.width = 256; c.height = 256;
-    const g = c.getContext('2d');
-    g.fillStyle = '#33363b';
-    g.fillRect(0, 0, 256, 256);
-    for (let i = 0; i < 2600; i++) {
-      const v = 40 + Math.floor(Math.random() * 40);
-      g.fillStyle = `rgb(${v},${v},${v + 2})`;
-      g.fillRect(Math.random() * 256, Math.random() * 256, 1.4, 1.4);
-    }
-    g.fillStyle = '#e8e8e0';
-    g.fillRect(16, 0, 5, 256);
-    g.fillRect(235, 0, 5, 256);
-    g.fillStyle = '#e9c94a';
-    for (let y = 0; y < 256; y += 64) g.fillRect(125, y, 6, 34);
-    // dirt / tyre grime toward the edges and a worn centre
-    for (let i = 0; i < 40; i++) {
-      const gx = Math.random() * 256, gy = Math.random() * 256, r = 8 + Math.random() * 30;
-      const grd = g.createRadialGradient(gx, gy, 0, gx, gy, r);
-      grd.addColorStop(0, `rgba(${20 + Math.random() * 15|0},${18},${16},${0.15 + Math.random() * 0.2})`);
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = grd; g.beginPath(); g.arc(gx, gy, r, 0, 7); g.fill();
-    }
-    const tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.anisotropy = 8;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-  }
-
-  _roadMesh() {
-    const tex = this._roadTexture();
-    const tile = 22;
-    const W = ROAD.halfWidth;
-    const y = 0.0; // flush with corridor; polygonOffset lifts it above the terrain
+  // ---------- road: dirt shoulder + real asphalt + painted markings ----------
+  _ribbonGeo(W) {
     const verts = [], uvs = [], idx = [];
     const zStart = ROAD.lengthStart, zEnd = ROAD.lengthEnd, step = 4;
     let row = 0;
     for (let z = zStart; z <= zEnd; z += step) {
-      const cx = roadX(z);
-      const dx = roadSlope(z);
-      const len = Math.hypot(1, dx);
-      const ox = 1 / len, oz = -dx / len;
-      verts.push(cx - ox * W, y, z - oz * W);
-      verts.push(cx + ox * W, y, z + oz * W);
-      const v = (z - zStart) / tile;
-      uvs.push(0, v, 1, v);
-      if (z > zStart) {
-        const a = (row - 1) * 2, b = a + 1, c = row * 2, d = c + 1;
-        idx.push(a, c, b, b, c, d);
-      }
+      const cx = roadX(z), dx = roadSlope(z);
+      const len = Math.hypot(1, dx), ox = 1 / len, oz = -dx / len;
+      verts.push(cx - ox * W, 0, z - oz * W);
+      verts.push(cx + ox * W, 0, z + oz * W);
+      uvs.push(0, z - zStart, 1, z - zStart); // v is metres; texture.repeat tiles it
+      if (z > zStart) { const a = (row - 1) * 2, b = a + 1, c = row * 2, d = c + 1; idx.push(a, c, b, b, c, d); }
       row++;
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    geo.setIndex(idx);
-    geo.computeVertexNormals();
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  }
 
-    const asphaltNormal = makeNormalMap(512, { freq: 0.08, strength: 1.1, z: 5 });
-    asphaltNormal.repeat.set(3, 12);
+  _markingTex() {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 256;
+    const g = c.getContext('2d');
+    g.clearRect(0, 0, 64, 256);
+    g.fillStyle = '#eceade';              // solid white edge lines
+    g.fillRect(3, 0, 4, 256); g.fillRect(57, 0, 4, 256);
+    g.fillStyle = '#e9c94a';              // dashed yellow centre
+    g.fillRect(29, 40, 6, 150);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
 
-    const mat = new THREE.MeshStandardMaterial({
-      map: tex, roughness: 0.72, metalness: 0.0,
-      normalMap: asphaltNormal, normalScale: new THREE.Vector2(0.5, 0.5),
-      envMapIntensity: 0.55,
+  _roadMesh() {
+    const W = ROAD.halfWidth;
+    // dirt shoulder — extends past the asphalt into the grass for a soft verge
+    const SW = W + 3.6;
+    const dDiff = loadTexture(TEXTURES.dirtDiff, { srgb: true }); dDiff.repeat.set(SW * 2 / 4, 1 / 4);
+    const dNor = loadTexture(TEXTURES.dirtNor); dNor.repeat.copy(dDiff.repeat);
+    const dirt = new THREE.Mesh(this._ribbonGeo(SW), deTile(new THREE.MeshStandardMaterial({
+      map: dDiff, normalMap: dNor, normalScale: new THREE.Vector2(1, 1), roughness: 1, envMapIntensity: 0.7,
+    }), { scale: 0.12, amount: 0.4 }));
+    dirt.position.y = -0.035; dirt.receiveShadow = true; this.group.add(dirt);
+
+    // asphalt surface
+    const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.5, 1 / 3.5);
+    const aNor = loadTexture(TEXTURES.asphaltNor); aNor.repeat.copy(aDiff.repeat);
+    const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshStandardMaterial({
+      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(0.8, 0.8), roughness: 0.9, envMapIntensity: 0.45,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.receiveShadow = true;
-    this.group.add(mesh);
+    }), { scale: 0.15, amount: 0.28 }));
+    road.position.y = 0.0; road.receiveShadow = true; this.group.add(road);
+
+    // painted markings overlay
+    const mTex = this._markingTex(); mTex.repeat.set(1, 1 / 12);
+    const marks = new THREE.Mesh(this._ribbonGeo(W), new THREE.MeshStandardMaterial({
+      map: mTex, alphaTest: 0.45, roughness: 0.55, envMapIntensity: 0.4,
+      polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+    }));
+    marks.position.y = 0.015; this.group.add(marks);
   }
 
   // ---------- guardrails ----------

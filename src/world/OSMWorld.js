@@ -4,7 +4,7 @@ import { Water } from 'three/examples/jsm/objects/Water.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { loadElevation } from './Elevation.js';
 import { assets, MODELS } from '../render/AssetLibrary.js';
-import { makeStreetlamp, makeTree, makePine, makeCarProp, CAR_COLORS } from './props.js';
+import { makeStreetlamp, makeCarProp, makeTreeBillboard, CAR_COLORS } from './props.js';
 import { applyWind } from '../render/wind.js';
 import { Colliders } from './Colliders.js';
 
@@ -567,16 +567,17 @@ export class OSMWorld {
         this.colliders.add(px, pz, 0.9);
       }
     }
-    const leafMat = () => applyWind(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4 }));
-    // real CC0 Kenney tree (bundled) for the leafy trees; procedural pines
-    await this._instanceOrFallback(MODELS.tree, leafy, this._unit(makeTree()), leafMat());
-    if (pine.length) {
-      const inst = new THREE.InstancedMesh(this._unit(makePine()), leafMat(), pine.length);
-      inst.castShadow = true; inst.receiveShadow = true;
-      pine.forEach((m, i) => inst.setMatrixAt(i, m));
+    // billboard trees (crossed planes with a foliage cutout)
+    const add = (bb, arr) => {
+      if (!arr.length) return;
+      const inst = new THREE.InstancedMesh(bb.geo, applyWind(bb.material, 0.05), arr.length);
+      inst.castShadow = false; inst.receiveShadow = false;
+      arr.forEach((m, i) => inst.setMatrixAt(i, m));
       inst.instanceMatrix.needsUpdate = true;
       this.group.add(inst);
-    }
+    };
+    add(makeTreeBillboard('round', 5), leafy);
+    add(makeTreeBillboard('pine', 9), pine);
   }
 
   _unit(geo) {
