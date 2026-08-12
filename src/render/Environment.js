@@ -25,7 +25,9 @@ export class Environment {
     this.hemi = new THREE.HemisphereLight(0xcfe0ff, 0x554634, 0.35);
     scene.add(this.hemi);
 
-    scene.fog = new THREE.Fog(0xd8c6a6, 550, 3600);   // warm haze to blend the horizon
+    // exponential fog: realistic distance dispersion — distant mountains fade
+    // into the haze (density is mood-driven)
+    scene.fog = new THREE.FogExp2(0x9aa7b4, 0.012);
 
     renderer.toneMappingExposure = 0.95;
 
@@ -58,11 +60,10 @@ export class Environment {
   applyWeather() {}
 
   // ---- dynamic hooks for the liminal mood system ----
-  setFog(color, near, far) {
+  setFog(color, density) {
     if (!this.scene.fog) return;
     this.scene.fog.color.set(color);
-    this.scene.fog.near = near;
-    this.scene.fog.far = far;
+    this.scene.fog.density = density;
   }
   setExposure(e) { this.renderer.toneMappingExposure = e; }
   setLight(sunColor, sunI, hemiColor, hemiI) {

@@ -171,8 +171,9 @@ export class ProceduralWorld {
       // a pool of light on the road, under the lamp head (shifted toward the road)
       const lx = px - side * ox * 2.4, lz = pz - side * oz * 2.4;
       pools.push(new THREE.Matrix4().compose(new THREE.Vector3(lx, groundY + 0.06, lz), poolQ, poolS));
-      // wet-road reflection streak: elongated along the road tangent under the lamp
-      streakQ.setFromEuler(new THREE.Euler(-Math.PI / 2, Math.atan2(dx, 1), 0, 'YXZ'));
+      // wet-road reflection streak: elongated along the road tangent under the
+      // lamp. Geometry is already laid flat, so this is a yaw-only rotation.
+      streakQ.setFromAxisAngle(up, Math.atan2(dx, 1));
       streaks.push(new THREE.Matrix4().compose(new THREE.Vector3(lx, groundY + 0.045, lz), streakQ, poolS));
       // the glowing head itself (up the pole, out along the arm toward the road)
       heads.push([px - side * ox * 1.3, groundY + 5.15, pz - side * oz * 1.3]);
@@ -214,48 +215,12 @@ export class ProceduralWorld {
     for (const [hx, hy, hz] of heads) {
       const sp = new THREE.Sprite(this._haloMat);
       sp.position.set(hx, hy, hz);
-      sp.scale.set(7, 7, 1);
+      sp.scale.set(5, 5, 1);
       halos.add(sp);
     }
     halos.frustumCulled = false;
     this.group.add(halos);
     this._halos = halos;
-
-    // downward light cones — the lamp's beam scattering in the fog. Soft-edged
-    // via a facing-based alpha so it reads as volume, not a solid cone.
-    const H = 5.15;
-    this._coneMat = new THREE.ShaderMaterial({
-      uniforms: { uColor: { value: new THREE.Color(0xcfe3ff) }, uOpacity: { value: 0 } },
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-      vertexShader: `
-        varying vec3 vN; varying vec3 vV; varying float vH;
-        void main(){
-          vec4 wp = modelMatrix * vec4(position, 1.0);
-          vN = normalize(mat3(modelMatrix) * normal);
-          vV = normalize(cameraPosition - wp.xyz);
-          vH = uv.y;                      // 1 at apex (source), 0 at ground
-          gl_Position = projectionMatrix * viewMatrix * wp;
-        }`,
-      fragmentShader: `
-        uniform vec3 uColor; uniform float uOpacity; varying vec3 vN; varying vec3 vV; varying float vH;
-        void main(){
-          float facing = abs(dot(vN, vV));       // ~1 centre, ~0 at the silhouette
-          float a = facing * facing;
-          a *= smoothstep(0.0, 0.35, vH);        // fade out at the ground
-          a *= mix(0.35, 1.0, vH);               // brighter near the source
-          gl_FragColor = vec4(uColor, a * uOpacity);
-        }`,
-    });
-    const coneGeo = new THREE.ConeGeometry(2.3, H, 20, 1, true);
-    const cones = new THREE.Group();
-    for (const [hx, hy, hz] of heads) {
-      const m = new THREE.Mesh(coneGeo, this._coneMat);
-      m.position.set(hx, hy - H / 2, hz);   // apex at the head, base on the ground
-      cones.add(m);
-    }
-    cones.frustumCulled = false;
-    this.group.add(cones);
-    this._cones = cones;
   }
 
   // soft radial glow sprite; `core` sets how tight the bright centre is
@@ -273,11 +238,10 @@ export class ProceduralWorld {
   // street-lamp glow level (0 off → 1 full), driven by the mood director
   setLamps(level) {
     const n = THREE.MathUtils.clamp(level, 0, 1);
-    if (this._lampMat) this._lampMat.emissiveIntensity = 7.0 * n;
+    if (this._lampMat) this._lampMat.emissiveIntensity = 5.0 * n;
     if (this._lampPools) this._lampPools.material.opacity = 0.95 * n;
     if (this._lampStreaks) this._lampStreaks.material.opacity = 0.6 * n;
     if (this._haloMat) this._haloMat.opacity = 0.9 * n;
-    if (this._coneMat) this._coneMat.uniforms.uOpacity.value = 0.26 * n;
   }
 
   update() { /* static world; nothing per-frame */ }
