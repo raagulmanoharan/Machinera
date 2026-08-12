@@ -31,6 +31,7 @@ const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.5, 12
 
 const env = new Environment(scene, renderer);
 const pipeline = new Pipeline(renderer, scene, camera);
+window.__pipeline = pipeline; // debug handle
 const dust = new Dust(scene);
 pipeline.depthExcludes = [env.sky, dust.points];     // don't let these write depth
 // volumetric light scatter colours (as RGB vectors) + shared emission dirs
