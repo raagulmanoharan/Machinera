@@ -3,9 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { assets, MODELS, TEXTURES, loadTexture, deTile } from '../render/AssetLibrary.js';
-import { makeStreetlamp, makeStylizedTree, stylizedTreeMaterial, makeCarProp } from './props.js';
-import { makeEzTree } from './ezTrees.js';
-import { applyWind } from '../render/wind.js';
+import { makeStreetlamp, makeCarProp } from './props.js';
 import { Colliders } from './Colliders.js';
 
 // ---------- deterministic noise ----------
@@ -47,11 +45,13 @@ const CORRIDOR_Y = 0.0; // road surface level — car rests here, no clipping
 export function heightAt(x, z) {
   const c = distToRoad(x, z);
   if (c <= FLAT_TO) return CORRIDOR_Y;
-  const ramp = smoothstep(FLAT_TO, FLAT_TO + 26, c);
-  // gentle rolling foreground, then dramatic distant peaks for a picturesque skyline
-  const hills = fbm(x * 0.0055, z * 0.0055) * 13 + fbm(x * 0.02, z * 0.02) * 1.6;
+  const ramp = smoothstep(FLAT_TO, FLAT_TO + 20, c);
+  // rolling base + rugged rocky detail for broken, barren ground
+  const hills = fbm(x * 0.0055, z * 0.0055) * 14 + fbm(x * 0.02, z * 0.02) * 3.2;
+  const rough = (fbm(x * 0.09 + 5, z * 0.09 - 5) - 0.5) * 5.5      // rocky bumps
+    + (fbm(x * 0.28, z * 0.28) - 0.5) * 1.8;                        // gravelly grain
   const mnt = smoothstep(120, 460, c) * (fbm(x * 0.0014 + 10, z * 0.0014 - 4) * 240 + 40);
-  return CORRIDOR_Y + ramp * hills + mnt;
+  return CORRIDOR_Y + ramp * (hills + rough) + mnt;
 }
 
 export class ProceduralWorld {
@@ -88,7 +88,6 @@ export class ProceduralWorld {
   async populate() {
     const rng = mulberry32(1337);
     await Promise.all([
-      this._forest(rng),
       this._boulders(rng),
       this._lamps(),
       this._wreckage(rng),
@@ -112,58 +111,13 @@ export class ProceduralWorld {
     return inst;
   }
 
-  async _forest(rng) {
-    const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
-    const round = [], pine = [];
-    let placed = 0, guard = 0;
-    while (placed < 260 && guard < 40000) {
-      guard++;
-      const z = ROAD.lengthStart + rng() * (ROAD.lengthEnd - ROAD.lengthStart);
-      const side = rng() < 0.5 ? -1 : 1;
-      const off = 13 + rng() * 260;
-      const x = roadX(z) + side * off;
-      const h = heightAt(x, z);
-      // trees only in the valley + lower foothills — never on the high mountains
-      if (h < 0.3 || h > 24) continue;
-      const height = 6 + rng() * 7;
-      // billboards don't need to face the camera, but a little yaw variety helps the crossed planes
-      q.setFromAxisAngle(up, rng() * Math.PI);
-      s.set(height, height, height);
-      const m = new THREE.Matrix4().compose(new THREE.Vector3(x, h, z), q, s);
-      (h > 14 || rng() < 0.45 ? pine : round).push(m);
-      this.colliders.add(x, z, 0.9);
-      placed++;
-    }
-    // realistic procedural trees (ez-tree): bark + leaf-card canopy, instanced.
-    // Falls back to the stylized geometry trees if generation fails.
-    try {
-      const oak = makeEzTree('Oak Medium', 3);
-      const pineT = makeEzTree('Pine Medium', 7);
-      const bark1 = this._addInstanced(oak.barkGeo, oak.barkMat, round);
-      const leaf1 = this._addInstanced(oak.leafGeo, oak.leafMat, round);
-      const bark2 = this._addInstanced(pineT.barkGeo, pineT.barkMat, pine);
-      const leaf2 = this._addInstanced(pineT.leafGeo, pineT.leafMat, pine);
-      for (const m of [bark1, bark2]) if (m) { m.castShadow = true; m.receiveShadow = true; }
-      for (const m of [leaf1, leaf2]) if (m) { m.castShadow = false; m.receiveShadow = false; }
-    } catch (e) {
-      console.warn('ez-tree unavailable, using stylized trees', e);
-      const m1 = this._addInstanced(makeStylizedTree('round', 3), applyWind(stylizedTreeMaterial(), 0.05), round);
-      const m2 = this._addInstanced(makeStylizedTree('pine', 7), applyWind(stylizedTreeMaterial(), 0.04), pine);
-      for (const m of [m1, m2]) if (m) { m.castShadow = true; m.receiveShadow = true; }
-    }
-  }
-
-  // procedural fallback trees are ~unit-height already-scaled meshes; normalize to 1 unit
+  // normalize a merged prop geometry to unit height (used by the lamp)
   _fallbackGeo(geo) {
     geo.computeBoundingBox();
     const h = geo.boundingBox.max.y - geo.boundingBox.min.y || 1;
     geo.translate(0, -geo.boundingBox.min.y, 0);
     geo.scale(1 / h, 1 / h, 1 / h);
     return geo;
-  }
-  _leafMat() {
-    if (!this._lmat) this._lmat = applyWind(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4 }));
-    return this._lmat;
   }
 
   async _boulders(rng) {
@@ -390,7 +344,7 @@ export class ProceduralWorld {
     const zStart = ROAD.lengthStart - 200;
     const zEnd = ROAD.lengthEnd + 200;
     const halfX = 520;
-    const stepZ = 12, stepX = 12;
+    const stepZ = 6, stepX = 6;   // finer grid so the rugged detail reads
     const nz = Math.ceil((zEnd - zStart) / stepZ);
     const nx = Math.ceil((halfX * 2) / stepX);
 
@@ -429,14 +383,14 @@ export class ProceduralWorld {
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
 
-    const dirt = loadTexture(TEXTURES.dirtDiff, { srgb: true, repeat: 20 });
-    const dirtNor = loadTexture(TEXTURES.dirtNor, { repeat: 20 });
+    const dirt = loadTexture(TEXTURES.dirtDiff, { srgb: true, repeat: 13 });
+    const dirtNor = loadTexture(TEXTURES.dirtNor, { repeat: 13 });
     const mat = deTile(new THREE.MeshStandardMaterial({
       vertexColors: true, roughness: 1.0, metalness: 0.0,
       map: dirt, normalMap: dirtNor,
-      normalScale: new THREE.Vector2(1.0, 1.0),
-      envMapIntensity: 0.6,
-    }), { scale: 0.04, amount: 0.65 });
+      normalScale: new THREE.Vector2(1.6, 1.6),   // roughened surface
+      envMapIntensity: 0.35,                        // gloomy — little sky sheen
+    }), { scale: 0.03, amount: 0.8 });              // strong de-tile to kill the repeat
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
     mesh.castShadow = false;

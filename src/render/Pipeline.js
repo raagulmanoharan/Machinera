@@ -18,7 +18,13 @@ const CinematicShader = {
     uniform sampler2D tDiffuse; uniform float time; uniform float amount; uniform float night; uniform vec3 tint; varying vec2 vUv;
     float rand(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233)))*43758.5453); }
     void main(){
-      vec3 col = texture2D(tDiffuse, vUv).rgb;
+      // subtle analog chromatic aberration — RGB split grows toward the edges
+      vec2 dir = vUv - 0.5;
+      float ca = 0.0022 * dot(dir, dir) * 4.0;
+      vec3 col;
+      col.r = texture2D(tDiffuse, vUv + dir * ca).r;
+      col.g = texture2D(tDiffuse, vUv).g;
+      col.b = texture2D(tDiffuse, vUv - dir * ca).b;
       vec3 g = col;
 
       // filmic S-curve contrast around mid-grey (richer blacks, controlled highs)
