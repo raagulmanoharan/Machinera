@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
+import { loadElevation } from './Elevation.js';
 
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
@@ -30,8 +31,13 @@ export class OSMWorld {
     this.sunDir = new THREE.Vector3(0.6, 0.5, 0.3).normalize();
   }
 
-  // flat city — car stays at ground level
-  heightAt() { return 0; }
+  // real-world terrain height at local (x, z); 0 when elevation is unavailable
+  heightAt(x, z) {
+    if (!this.elev) return 0;
+    const lat = this.lat0 + z / this.mPerLat;
+    const lng = this.lng0 + x / this.mPerLng;
+    return this.elev.sample(lat, lng);
+  }
 
   async load({ lat, lng, radius = 700, sunDir, onProgress = () => {} }) {
     this.lat0 = lat; this.lng0 = lng;
@@ -41,6 +47,13 @@ export class OSMWorld {
 
     onProgress('Contacting OpenStreetMap…');
     const data = await this._fetch(lat, lng, radius);
+
+    onProgress('Reading real terrain elevation…');
+    try {
+      this.elev = await loadElevation(lat, lng, radius * 1.4);
+    } catch (e) {
+      this.elev = null;
+    }
 
     onProgress('Building the world…');
     this._ground(radius);
@@ -100,19 +113,45 @@ export class OSMWorld {
 
   _ground(radius) {
     const size = radius * 3;
-    const geo = new THREE.PlaneGeometry(size, size);
-    geo.rotateX(-Math.PI / 2);
     const normalMap = makeNormalMap(512, { freq: 0.06, strength: 1.0, z: 7 });
     normalMap.repeat.set(size / 12, size / 12);
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x8f9683, roughness: 1, metalness: 0,
+      color: 0x8b9280, roughness: 1, metalness: 0,
       normalMap, normalScale: new THREE.Vector2(0.4, 0.4), envMapIntensity: 0.4,
+      vertexColors: !!this.elev,
     });
-    const m = new THREE.Mesh(geo, mat);
-    m.position.y = -0.05;
-    m.receiveShadow = true;
-    this.group.add(m);
     this._groundNormal = normalMap;
+
+    if (this.elev) {
+      // subdivided grid draped over real elevation
+      const seg = 180;
+      const geo = new THREE.PlaneGeometry(size, size, seg, seg);
+      geo.rotateX(-Math.PI / 2);
+      const pos = geo.attributes.position;
+      const colors = new Float32Array(pos.count * 3);
+      const cLow = new THREE.Color(0x7c8a63), cHigh = new THREE.Color(0x9a8f7a), cRock = new THREE.Color(0x6f6659);
+      const tmp = new THREE.Color();
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), z = pos.getZ(i);
+        const h = this.heightAt(x, z);
+        pos.setY(i, h - 0.05);
+        const t = THREE.MathUtils.clamp((h + 20) / 120, 0, 1);
+        tmp.copy(cLow).lerp(cHigh, t);
+        colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b;
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geo.computeVertexNormals();
+      const m = new THREE.Mesh(geo, mat);
+      m.receiveShadow = true;
+      this.group.add(m);
+    } else {
+      const geo = new THREE.PlaneGeometry(size, size);
+      geo.rotateX(-Math.PI / 2);
+      const m = new THREE.Mesh(geo, mat);
+      m.position.y = -0.05;
+      m.receiveShadow = true;
+      this.group.add(m);
+    }
   }
 
   // ---------- roads ----------
@@ -123,11 +162,11 @@ export class OSMWorld {
       if (!hw) continue;
       const width = ROAD_WIDTH[hw] || 5;
       const pts = w.geometry.map((g) => this.project(g.lat, g.lon));
-      const ribbon = this._ribbon(pts, width, 0.02);
+      const ribbon = this._ribbon(pts, width, 0.08);
       if (!ribbon) continue;
       (MAJOR.has(hw) ? major : minor).push(ribbon);
       if (MAJOR.has(hw)) {
-        const line = this._ribbon(pts, 0.3, 0.06);
+        const line = this._ribbon(pts, 0.3, 0.14);
         if (line) center.push(line);
       }
     }
@@ -147,8 +186,8 @@ export class OSMWorld {
     if (center.length) this._addMerged(center, new THREE.MeshStandardMaterial({ color: 0xe9c94a, roughness: 0.6, emissive: 0x2a2410, emissiveIntensity: 0.2 }), false);
   }
 
-  // build a flat ribbon geometry from a polyline, with mitred joins + length UVs
-  _ribbon(pts, width, y) {
+  // build a ribbon from a polyline, draped over terrain, with mitred joins + length UVs
+  _ribbon(pts, width, raise) {
     if (pts.length < 2) return null;
     const hw = width / 2;
     const left = [], right = [], vcoord = [];
@@ -163,6 +202,7 @@ export class OSMWorld {
       const nx = -tz, nz = tx;
       if (i > 0) dist += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
       vcoord.push(dist / 3); // one texture tile per ~3 m
+      const y = this.heightAt(p.x, p.y) + raise; // one height per cross-section keeps the road level
       left.push(new THREE.Vector3(p.x + nx * hw, y, p.y + nz * hw));
       right.push(new THREE.Vector3(p.x - nx * hw, y, p.y - nz * hw));
     }
@@ -206,6 +246,11 @@ export class OSMWorld {
       // water stays in the XY plane (Water mesh is rotated); green lies flat
       const shapeGeo = this._fillShape(w.geometry, !isWater);
       if (!shapeGeo) continue;
+      if (isGreen && this.elev) {
+        let cx = 0, cz = 0;
+        for (const g of w.geometry) { const p = this.project(g.lat, g.lon); cx += p.x; cz += p.y; }
+        shapeGeo.translate(0, this.heightAt(cx / w.geometry.length, cz / w.geometry.length), 0);
+      }
       (isWater ? water : green).push(shapeGeo);
     }
     if (green.length) {
@@ -292,6 +337,11 @@ export class OSMWorld {
         colors[i * 3 + 2] = Math.min(1, col.b * roof);
       }
       geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      // sit the building base on the terrain
+      let cx = 0, cz = 0;
+      for (const g of w.geometry) { const p = this.project(g.lat, g.lon); cx += p.x; cz += p.y; }
+      cx /= w.geometry.length; cz /= w.geometry.length;
+      geo.translate(0, this.heightAt(cx, cz) - 0.3, 0);
       geos.push(geo);
     }
     if (!geos.length) return;
@@ -343,6 +393,7 @@ export class OSMWorld {
       }
     }
     if (best) {
+      best.y = this.heightAt(best.x, best.z);
       this.carStart.pos.copy(best);
       this.carStart.heading = bestHeading;
     }
