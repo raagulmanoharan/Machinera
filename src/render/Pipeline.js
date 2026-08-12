@@ -27,9 +27,10 @@ const CinematicShader = {
       col.b = texture2D(tDiffuse, vUv - dir * ca).b;
       vec3 g = col;
 
-      // filmic S-curve contrast around mid-grey (richer blacks, controlled highs)
-      g = clamp((g - 0.5) * 1.14 + 0.5, 0.0, 1.0);
-      g = mix(g, g*g*(3.0-2.0*g), 0.22);
+      // filmic S-curve: stronger contrast + a lower lift for richer blacks, so
+      // the image has real tonal range (depth) instead of a flat mid-grey wash
+      g = clamp((g - 0.5) * 1.26 + 0.46, 0.0, 1.0);
+      g = mix(g, g*g*(3.0-2.0*g), 0.35);
 
       float l = dot(g, vec3(0.2126,0.7152,0.0722));
       // teal-orange split-tone: push shadows cool, highlights warm
@@ -45,8 +46,8 @@ const CinematicShader = {
 
       // night mood: cool the image and drain a little colour (no heavy crush —
       // the world is already dark; headlights and street lamps carry it)
-      vec3 nightG = mix(vec3(dot(g, vec3(0.299,0.587,0.114))), g, 0.85) * vec3(0.86,0.94,1.12);
-      nightG = clamp((nightG - 0.5) * 1.02 + 0.5, 0.0, 1.0);
+      vec3 nightG = mix(vec3(dot(g, vec3(0.299,0.587,0.114))), g, 0.82) * vec3(0.84,0.93,1.14);
+      nightG = clamp((nightG - 0.5) * 1.24 + 0.43, 0.0, 1.0);   // real contrast + deep blacks at night
       g = mix(g, nightG, night);
 
       // vignette
