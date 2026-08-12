@@ -12,7 +12,7 @@
 export const MOODS = [
   {
     name: 'Amber Dusk',
-    fog: [0xd8c6a6, 550, 3600], exposure: 0.95, env: 1.0, rays: 0.5,
+    fog: [0xd8c6a6, 260, 1900], exposure: 0.95, env: 1.0, rays: 0.5,
     sun: [0xffe6bf, 2.4], hemi: [0xcfe0ff, 0.35],
     grade: [1.0, 1.0, 1.0], night: 0.0, lamps: 0.0, headlights: 0.0,
     grass: { tint: 0xffffff, h: 1.0 },
@@ -26,7 +26,7 @@ export const MOODS = [
   },
   {
     name: 'Blue Hour',
-    fog: [0x1b2a3c, 40, 620], exposure: 0.72, env: 0.55, rays: 0.5,
+    fog: [0x1b2a3c, 30, 380], exposure: 0.72, env: 0.55, rays: 0.5,
     sun: [0x6f8cb8, 0.5], hemi: [0x39496a, 0.42],
     grade: [0.84, 0.95, 1.16], night: 0.5, lamps: 0.45, headlights: 0.6,
     grass: { tint: 0x6f918d, h: 1.0 },

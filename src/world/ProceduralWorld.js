@@ -324,6 +324,42 @@ export class ProceduralWorld {
     halos.frustumCulled = false;
     this.group.add(halos);
     this._halos = halos;
+
+    // downward light cones — the lamp's beam scattering in the fog. Soft-edged
+    // via a facing-based alpha so it reads as volume, not a solid cone.
+    const H = 5.15;
+    this._coneMat = new THREE.ShaderMaterial({
+      uniforms: { uColor: { value: new THREE.Color(0xcfe3ff) }, uOpacity: { value: 0 } },
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      vertexShader: `
+        varying vec3 vN; varying vec3 vV; varying float vH;
+        void main(){
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vN = normalize(mat3(modelMatrix) * normal);
+          vV = normalize(cameraPosition - wp.xyz);
+          vH = uv.y;                      // 1 at apex (source), 0 at ground
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`,
+      fragmentShader: `
+        uniform vec3 uColor; uniform float uOpacity; varying vec3 vN; varying vec3 vV; varying float vH;
+        void main(){
+          float facing = abs(dot(vN, vV));       // ~1 centre, ~0 at the silhouette
+          float a = facing * facing;
+          a *= smoothstep(0.0, 0.35, vH);        // fade out at the ground
+          a *= mix(0.35, 1.0, vH);               // brighter near the source
+          gl_FragColor = vec4(uColor, a * uOpacity);
+        }`,
+    });
+    const coneGeo = new THREE.ConeGeometry(2.9, H, 20, 1, true);
+    const cones = new THREE.Group();
+    for (const [hx, hy, hz] of heads) {
+      const m = new THREE.Mesh(coneGeo, this._coneMat);
+      m.position.set(hx, hy - H / 2, hz);   // apex at the head, base on the ground
+      cones.add(m);
+    }
+    cones.frustumCulled = false;
+    this.group.add(cones);
+    this._cones = cones;
   }
 
   // soft radial glow sprite; `core` sets how tight the bright centre is
@@ -344,6 +380,7 @@ export class ProceduralWorld {
     if (this._lampMat) this._lampMat.emissiveIntensity = 4.5 * n;
     if (this._lampPools) this._lampPools.material.opacity = 0.8 * n;
     if (this._haloMat) this._haloMat.opacity = 0.95 * n;
+    if (this._coneMat) this._coneMat.uniforms.uOpacity.value = 0.6 * n;
   }
 
   update() { /* static world; nothing per-frame */ }
