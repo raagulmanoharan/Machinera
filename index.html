@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Machinera Drive</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+
+      <!-- Loading overlay -->
+      <div id="loader" class="overlay">
+        <div class="loader-inner">
+          <div class="mark">MACHINERA<span>DRIVE</span></div>
+          <div class="bar"><i></i></div>
+          <div class="hint">Preparing the road…</div>
+        </div>
+      </div>
+
+      <!-- HUD -->
+      <div id="hud" class="hidden">
+        <div class="gauge">
+          <div class="speed"><span id="speed">0</span><em>km/h</em></div>
+          <div class="gear" id="gear">D</div>
+        </div>
+        <div class="help">
+          <b>W / ↑</b> accelerate&nbsp;&nbsp;<b>S / ↓</b> brake / reverse&nbsp;&nbsp;<b>A D / ← →</b> steer<br />
+          <b>Space</b> handbrake&nbsp;&nbsp;<b>C</b> camera&nbsp;&nbsp;<b>R</b> reset&nbsp;&nbsp;<b>Esc</b> settings
+        </div>
+      </div>
+
+      <!-- Settings panel -->
+      <div id="settings" class="overlay hidden">
+        <div class="panel">
+          <h1>Where do you want to drive?</h1>
+
+          <section>
+            <h2>World</h2>
+            <label class="row">
+              <span>Drive</span>
+              <select id="source">
+                <option value="procedural">Scenic route — a soothing cruise</option>
+                <option value="osm">Real place — OpenStreetMap</option>
+              </select>
+            </label>
+          </section>
+
+          <section id="osm-section">
+            <p class="muted">
+              Drive a real place, built live from <b>OpenStreetMap</b> + open elevation
+              data — no account or API key. Great for picturesque spots; the scenic route
+              is smoother to cruise.
+            </p>
+            <label class="row">
+              <span>Location</span>
+              <select id="preset">
+                <option value="46.5197,6.6323">Lake Geneva — Lausanne</option>
+                <option value="46.6863,7.8632">Interlaken — Swiss Alps</option>
+                <option value="36.0544,-112.1401">Grand Canyon rim</option>
+                <option value="36.5786,-121.9018">Big Sur — Pacific coast</option>
+                <option value="44.2619,-71.3020">White Mountains, NH</option>
+                <option value="46.4102,10.0106">Stelvio Pass, Dolomites</option>
+                <option value="64.1466,-21.9426">Reykjavík, Iceland</option>
+                <option value="custom">Custom lat, lng…</option>
+              </select>
+            </label>
+            <label class="row" id="customRow" style="display:none">
+              <span>Lat, Lng</span>
+              <input id="latlng" type="text" placeholder="34.0100, -118.4960" autocomplete="off" />
+            </label>
+            <label class="row">
+              <span>Area size</span>
+              <select id="radius">
+                <option value="500">Small — loads fast</option>
+                <option value="750" selected>Medium</option>
+                <option value="1100">Large — more to explore</option>
+              </select>
+            </label>
+          </section>
+
+          <div class="actions">
+            <button id="apply" class="primary">Drive</button>
+            <button id="close">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
