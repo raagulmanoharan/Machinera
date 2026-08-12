@@ -8,9 +8,9 @@ const BASE = import.meta.env.BASE_URL || './';
 export const MODELS = {
   tree: `${BASE}models/kenney/tree.glb`,
   car: `${BASE}models/kenney/car.glb`,
+  ferrari: `${BASE}models/ferrari/ferrari.glb`,
 };
 export const TEXTURES = {
-  sky: `${BASE}textures/sky.hdr`,
   grassDiff: `${BASE}textures/grass_diff.jpg`,
   grassNor: `${BASE}textures/grass_nor.jpg`,
   grassArm: `${BASE}textures/grass_arm.jpg`,

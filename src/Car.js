@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+
+// The Ferrari model is DRACO-compressed; decoder is bundled under /draco.
+const DRACO_PATH = (import.meta.env.BASE_URL || './') + 'draco/';
 
 // Signed arcade + bicycle-model vehicle. Units are metres / seconds.
 const CFG = {
@@ -130,12 +134,106 @@ export class Car {
       if (front) this.frontWheels.push(pivot);
     }
 
-    // headlight beams (real lights, subtle)
-    const hlA = new THREE.SpotLight(0xfff0d0, 0.0, 60, 0.5, 0.4, 1.2);
-    hlA.position.set(0, 0.7, 2.0);
-    hlA.target.position.set(0, 0, 20);
-    g.add(hlA); g.add(hlA.target);
-    this.headlight = hlA;
+    // headlight beams — real spotlights lighting the road ahead at night; the
+    // in-air glow through the fog is done volumetrically in the post pipeline
+    this.headlights = [];
+    this._headMats = [lightF, lightR]; // front/rear emissive, boosted at night
+    for (const sx of [-0.6, 0.6]) {
+      const hl = new THREE.SpotLight(0xffeecb, 0, 120, 0.9, 1.0, 1.1);
+      hl.position.set(sx, 0.62, 2.0);
+      hl.target.position.set(sx * 2.0, -0.4, 30);
+      g.add(hl); g.add(hl.target);
+      this.headlights.push(hl);
+    }
+    // a real red spotlight so the tail-lights spill red onto the road behind
+    this._tailLight = new THREE.SpotLight(0xff1a10, 0, 22, 1.0, 1.0, 1.4);
+    this._tailLight.position.set(0, 0.7, -1.9);
+    this._tailLight.target.position.set(0, 0, -8);
+    g.add(this._tailLight); g.add(this._tailLight.target);
+
+    // local emitter positions for the volumetric pass (transformed to world
+    // each frame in getVolumetricEmitters)
+    this._headEmit = [new THREE.Vector3(-0.6, 0.62, 2.0), new THREE.Vector3(0.6, 0.62, 2.0)];
+    this._tailEmit = [new THREE.Vector3(-0.6, 0.6, -2.0), new THREE.Vector3(0.6, 0.6, -2.0)];
+    this._fwd = new THREE.Vector3(); this._back = new THREE.Vector3();
+
+    // soft contact shadow that grounds the car (independent of the sun)
+    const cs = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.2, 5.0),
+      new THREE.MeshBasicMaterial({ map: this._contactTex(), transparent: true, depthWrite: false, opacity: 0.55 })
+    );
+    cs.rotation.x = -Math.PI / 2; cs.position.y = 0.03; cs.renderOrder = 2;
+    g.add(cs); this._contact = cs;
+  }
+
+  // World-space emitters for the volumetric fog pass: two forward-beaming
+  // headlights and two red tail-lights, plus the current night level. Returns
+  // null when the lights are off.
+  getVolumetricEmitters() {
+    const lvl = this._headLevel || 0;
+    if (lvl <= 0) return null;
+    this.group.updateMatrixWorld();
+    const m = this.group.matrixWorld;
+    this._fwd.set(0, 0, 1).transformDirection(m).normalize();
+    this._back.copy(this._fwd).multiplyScalar(-1);
+    return {
+      level: lvl,
+      fwd: this._fwd, back: this._back,
+      head: this._headEmit.map((p) => p.clone().applyMatrix4(m)),
+      tail: this._tailEmit.map((p) => p.clone().applyMatrix4(m)),
+    };
+  }
+
+  _contactTex() {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(64, 64, 6, 64, 64, 62);
+    grd.addColorStop(0, 'rgba(0,0,0,0.85)');
+    grd.addColorStop(0.6, 'rgba(0,0,0,0.35)');
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grd; g.beginPath(); g.ellipse(64, 64, 60, 62, 0, 0, 7); g.fill();
+    const t = new THREE.CanvasTexture(c); return t;
+  }
+
+  // Retarget the Kenney model's flat (roughness=1, metalness=1) materials to
+  // proper PBR: glossy clearcoat paint, dark glass, matte rubber, alloy rims,
+  // emissive lamps — all reflecting the scene's sky environment map.
+  _upgradeCarMaterials(root) {
+    const cache = new Map();
+    const build = (name) => {
+      switch (name) {
+        case 'paintRed': return new THREE.MeshPhysicalMaterial({ color: 0xc11a2b, roughness: 0.32, metalness: 0.4, clearcoat: 1.0, clearcoatRoughness: 0.08, envMapIntensity: 1.35 });
+        case 'window': return new THREE.MeshPhysicalMaterial({ color: 0x090f16, roughness: 0.05, metalness: 0.1, clearcoat: 1.0, clearcoatRoughness: 0.04, envMapIntensity: 1.7 });
+        case 'carTire': return new THREE.MeshStandardMaterial({ color: 0x0e0f11, roughness: 0.85, metalness: 0.0 });
+        case 'wheelInside': return new THREE.MeshStandardMaterial({ color: 0xc8ccd4, roughness: 0.25, metalness: 0.95, envMapIntensity: 1.5 });
+        case 'lightFront': { const m = new THREE.MeshStandardMaterial({ color: 0xfff4d6, emissive: 0xfff2c0, emissiveIntensity: 0.55, roughness: 0.25, metalness: 0.0 }); this._modelHead = m; return m; }
+        case 'lightBack': { const m = new THREE.MeshStandardMaterial({ color: 0x3a0a0a, emissive: 0xff2020, emissiveIntensity: 0.7, roughness: 0.3, metalness: 0.0 }); this._modelTail = m; return m; }
+        case 'plastic': return new THREE.MeshStandardMaterial({ color: 0x24272c, roughness: 0.55, metalness: 0.25, envMapIntensity: 0.8 });
+        default: return new THREE.MeshStandardMaterial({ color: 0xcfd2d8, roughness: 0.5, metalness: 0.4, envMapIntensity: 1.0 });
+      }
+    };
+    root.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const key = o.material.name || '_';
+      if (!cache.has(key)) cache.set(key, build(key));
+      o.material = cache.get(key);
+      o.castShadow = true; o.receiveShadow = true;
+    });
+  }
+
+  // Fade headlights up as night falls (n: 0 day → 1 night). Also lifts the
+  // emissive glow on the head/tail-light lenses so the car reads as "lit".
+  setHeadlights(n) {
+    const on = THREE.MathUtils.clamp(n, 0, 1);
+    this._headLevel = on;                        // read by getVolumetricEmitters()
+    for (const hl of this.headlights) hl.intensity = 140 * on;
+    if (this._tailLight) this._tailLight.intensity = 30 * on;
+    if (this._headMats) {
+      this._headMats[0].emissiveIntensity = 0.55 + 1.7 * on;
+      this._headMats[1].emissiveIntensity = 0.9 + 2.6 * on;   // brighter -> blooms
+    }
+    if (this._modelHead) this._modelHead.emissiveIntensity = 0.55 + 1.7 * on;
+    if (this._modelTail) this._modelTail.emissiveIntensity = 0.9 + 2.6 * on;
   }
 
   _rounded(w, h, d, r) {
@@ -174,14 +272,72 @@ export class Car {
     const b2 = new THREE.Box3().setFromObject(wrap);
     wrap.position.set(-(b2.min.x + b2.max.x) / 2, -b2.min.y, -(b2.min.z + b2.max.z) / 2);
 
-    root.traverse((o) => {
-      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (o.material) o.material.envMapIntensity = 0.9; }
-    });
+    this._upgradeCarMaterials(root);
     for (const w of [...wf, ...wb]) w.rotation.order = 'YXZ';
     this._modelWheels = [...wf, ...wb];
     this._modelFrontWheels = wf;
 
     // remove the procedural visuals
+    for (const c of [...this.body.children]) this.body.remove(c);
+    for (const p of this._wheelPivots) this.group.remove(p);
+    this.wheels = []; this.frontWheels = [];
+    this.body.add(wrap);
+    return true;
+  }
+
+  // Load the three.js "Ferrari" showroom model and dress it with the same kind
+  // of materials that demo uses — glossy clearcoat paint, reflective glass and
+  // chrome — all picking up the scene's sky environment map. Falls back (return
+  // false) so the caller can try the Kenney car, then the procedural one.
+  async loadFerrari(url) {
+    let gltf;
+    try {
+      const draco = new DRACOLoader().setDecoderPath(DRACO_PATH);
+      const loader = new GLTFLoader().setDRACOLoader(draco);
+      gltf = await new Promise((res, rej) => loader.load(url, res, undefined, rej));
+      draco.dispose();
+    } catch { return false; }
+    const root = gltf.scene;
+    const body = root.getObjectByName('body');
+    const wf = [root.getObjectByName('wheel_fl'), root.getObjectByName('wheel_fr')];
+    const wb = [root.getObjectByName('wheel_rl'), root.getObjectByName('wheel_rr')];
+    if (!body || wf.includes(null) || wb.includes(null)) return false;
+
+    // Reflective automotive paint (three.js car-demo setup) — looks right now
+    // that a rich HDR sky provides the reflections.
+    const paint = new THREE.MeshPhysicalMaterial({ color: 0xb0121f, metalness: 1.0, roughness: 0.5, clearcoat: 1.0, clearcoatRoughness: 0.03, envMapIntensity: 1.0 });
+    const glass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.25, roughness: 0.0, transmission: 1.0, transparent: true, envMapIntensity: 1.0 });
+    const chrome = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1.0, roughness: 0.5, envMapIntensity: 1.0 });
+    root.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      o.castShadow = true; o.receiveShadow = true;
+      const nm = o.material.name;
+      if (nm === 'Body_Color') o.material = paint;
+      else if (nm === 'Glass_Gray') o.material = glass;
+      else if (nm === 'metal_chrome') o.material = chrome;
+      else if (nm === 'Taillight_Glass') { o.material = o.material.clone(); o.material.emissive = new THREE.Color(0xff1414); o.material.emissiveIntensity = 0.7; this._modelTail = o.material; }
+      else if (nm === 'Projector_Glass') { o.material = o.material.clone(); o.material.emissive = new THREE.Color(0xfff2c0); o.material.emissiveIntensity = 0.5; this._modelHead = o.material; }
+      else { o.material.envMapIntensity = 1.0; }
+    });
+
+    // fit to ~4.4 m and orient the front to +Z (our forward)
+    root.updateMatrixWorld(true);
+    const size = new THREE.Vector3(); new THREE.Box3().setFromObject(root).getSize(size);
+    const sc = 4.4 / Math.max(size.x, size.z, 0.001);
+    const fz = (wf[0].getWorldPosition(new THREE.Vector3()).z + wf[1].getWorldPosition(new THREE.Vector3()).z) / 2;
+    const bz = (wb[0].getWorldPosition(new THREE.Vector3()).z + wb[1].getWorldPosition(new THREE.Vector3()).z) / 2;
+    const wrap = new THREE.Group();
+    wrap.add(root); wrap.scale.setScalar(sc);
+    if (fz < bz) wrap.rotation.y = Math.PI;
+    wrap.updateMatrixWorld(true);
+    const b2 = new THREE.Box3().setFromObject(wrap);
+    wrap.position.set(-(b2.min.x + b2.max.x) / 2, -b2.min.y, -(b2.min.z + b2.max.z) / 2);
+
+    for (const w of [...wf, ...wb]) w.rotation.order = 'YXZ';
+    this._modelWheels = [...wf, ...wb];
+    this._modelFrontWheels = wf;
+
+    // remove the procedural visuals, keep the soft contact shadow
     for (const c of [...this.body.children]) this.body.remove(c);
     for (const p of this._wheelPivots) this.group.remove(p);
     this.wheels = []; this.frontWheels = [];

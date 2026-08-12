@@ -10,58 +10,145 @@ function setVColor(geo, color) {
   return geo;
 }
 
-// ---------- streetlamp: metal pole + arm + emissive head ----------
-// Returns { geo, materials } for a two-group InstancedMesh (0 = metal, 1 = lamp).
+// ---------- cobra-head highway streetlamp ----------
+// Tapered pole, a smooth curved arm and an angled head with an emissive lens on
+// the underside (pointing at the road). Returns { geo, materials } for a
+// two-group InstancedMesh (0 = metal, 1 = lens).
 export function makeStreetlamp() {
-  const H = 5.2;
-  const pole = new THREE.CylinderGeometry(0.09, 0.13, H, 8); pole.translate(0, H / 2, 0);
-  const base = new THREE.CylinderGeometry(0.2, 0.24, 0.5, 8); base.translate(0, 0.25, 0);
-  const arm = new THREE.BoxGeometry(1.4, 0.1, 0.1); arm.translate(0.6, H - 0.1, 0);
-  const metal = mergeGeometries([pole, base, arm]); // group 0
+  const H = 5.6;
+  const base = new THREE.CylinderGeometry(0.24, 0.3, 0.6, 10); base.translate(0, 0.3, 0);
+  const pole = new THREE.CylinderGeometry(0.08, 0.15, H, 10); pole.translate(0, H / 2, 0);
+  const curve = new THREE.QuadraticBezierCurve3(
+    new THREE.Vector3(0, H - 0.1, 0),
+    new THREE.Vector3(0.5, H + 0.55, 0),
+    new THREE.Vector3(1.85, H + 0.12, 0),
+  );
+  const arm = new THREE.TubeGeometry(curve, 16, 0.06, 6, false);
+  const housing = new THREE.BoxGeometry(0.66, 0.2, 0.32); housing.translate(1.8, H + 0.02, 0);
+  const metal = mergeGeometries([base, pole, arm, housing]);
 
-  const head = new THREE.BoxGeometry(0.55, 0.22, 0.34); head.translate(1.25, H - 0.22, 0);
-  // two groups -> two materials
-  const geo = mergeGeometries([metal, head], true);
+  const lens = new THREE.BoxGeometry(0.52, 0.06, 0.24); lens.translate(1.8, H - 0.09, 0);
+  const geo = mergeGeometries([metal, lens], true);
 
   const materials = [
-    new THREE.MeshStandardMaterial({ color: 0x3c4149, roughness: 0.5, metalness: 0.85, envMapIntensity: 1.0 }),
-    new THREE.MeshStandardMaterial({ color: 0xfff2c8, emissive: 0xffd98a, emissiveIntensity: 2.4, roughness: 0.4 }),
+    new THREE.MeshStandardMaterial({ color: 0x2f333a, roughness: 0.55, metalness: 0.8, envMapIntensity: 1.0 }),
+    new THREE.MeshStandardMaterial({ color: 0xfff4d8, emissive: 0xdfe6ff, emissiveIntensity: 0, roughness: 0.35 }),
   ];
   return { geo, materials };
 }
 
-// ---------- richer tree: trunk + layered foliage ----------
-export function makeTree(seed = 0) {
-  const trunk = new THREE.CylinderGeometry(0.16, 0.26, 2.4, 6); trunk.translate(0, 1.2, 0);
-  setVColor(trunk, 0x5a3f28);
-  const blobs = [];
-  const layers = [
-    [0, 3.0, 1.9], [0.3, 4.1, 1.5], [-0.2, 5.0, 1.05],
-  ];
-  for (const [dx, y, r] of layers) {
-    const b = new THREE.SphereGeometry(r, 7, 6); // indexed, matches the trunk
-    b.translate(dx, y, 0);
-    // slight green variation per layer
-    setVColor(b, new THREE.Color(0x2f5d2a).offsetHSL(0, 0, (y - 4) * 0.02));
-    blobs.push(b);
+// ---------- stylized 3D tree (douges.dev-style faceted foliage) ----------
+// Faceted low-poly canopy with a light/height gradient baked into vertex
+// colours: brighter up and on top-facing facets, darker and cooler toward the
+// shaded underside — reads with real depth, unlike a flat billboard. Unit
+// height (base at y=0), so it instances and takes the shared wind sway.
+function gradientFoliage(geo, { base, lit, shade, cx = 0, cyMin, cyMax, seed = 1 }) {
+  geo.computeVertexNormals();
+  const pos = geo.attributes.position, nor = geo.attributes.normal;
+  const n = pos.count;
+  const col = new Float32Array(n * 3);
+  const cBase = new THREE.Color(base), cLit = new THREE.Color(lit), cShade = new THREE.Color(shade);
+  let s = (seed * 131 + 7) >>> 0;
+  const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+  const tmp = new THREE.Color();
+  for (let i = 0; i < n; i++) {
+    const y = pos.getY(i), ny = nor.getY(i);
+    const hGrad = THREE.MathUtils.clamp((y - cyMin) / Math.max(0.001, cyMax - cyMin), 0, 1);
+    const top = THREE.MathUtils.clamp(ny * 0.5 + 0.5, 0, 1);      // top-facing facets catch light
+    const l = 0.35 * top + 0.65 * hGrad;
+    tmp.copy(cShade).lerp(cBase, THREE.MathUtils.clamp(hGrad * 1.4, 0, 1)).lerp(cLit, l * 0.7);
+    const j = 0.94 + rnd() * 0.12;                                 // subtle per-facet variation
+    col[i * 3] = tmp.r * j; col[i * 3 + 1] = tmp.g * j; col[i * 3 + 2] = tmp.b * j;
   }
-  return mergeGeometries([trunk, ...blobs]);
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return geo;
 }
 
-// ---------- pine (for the procedural highlands) ----------
-export function makePine() {
-  const trunk = new THREE.CylinderGeometry(0.14, 0.2, 1.6, 6); trunk.translate(0, 0.8, 0);
-  setVColor(trunk, 0x4b3620);
-  const cones = [
-    [1.9, 1.6, 2.4], [1.5, 3.0, 2.0], [1.05, 4.2, 1.6],
-  ];
-  const parts = [trunk];
-  for (const [r, y, h] of cones) {
-    const c = new THREE.ConeGeometry(r, h, 8); c.translate(0, y, 0);
-    setVColor(c, 0x2c5327);
-    parts.push(c);
+// Flat-shaded facets need non-indexed geometry; merging also requires every
+// part to agree on index-ness. Expand any indexed part to non-indexed.
+const toFlat = (geo) => (geo.index ? geo.toNonIndexed() : geo);
+
+// kind: 'round' (broadleaf) or 'pine'. Returns a merged, unit-height geometry.
+export function makeStylizedTree(kind = 'round', seed = 1) {
+  const parts = [];
+  if (kind === 'pine') {
+    const trunk = toFlat(new THREE.CylinderGeometry(0.12, 0.22, 2.0, 6).translate(0, 1.0, 0));
+    setVColor(trunk, 0x43301d); parts.push(trunk);
+    const cones = [[1.7, 1.7, 2.2], [1.3, 3.0, 1.9], [0.85, 4.2, 1.5]];
+    let i = 0;
+    for (const [r, y, h] of cones) {
+      const c = toFlat(new THREE.ConeGeometry(r, h, 7).translate(0, y, 0));
+      gradientFoliage(c, { base: 0x2c5327, lit: 0x6fae4a, shade: 0x14301a, cyMin: y - h / 2, cyMax: y + h / 2, seed: seed + i });
+      parts.push(c); i++;
+    }
+    return normalizeUnit(mergeGeometries(parts));
   }
-  return mergeGeometries(parts);
+  const trunk = toFlat(new THREE.CylinderGeometry(0.15, 0.26, 2.6, 6).translate(0, 1.3, 0));
+  setVColor(trunk, 0x5a3f28); parts.push(trunk);
+  // a clustered, organic crown: a few big lobes plus smaller clumps around them
+  let rs = (seed * 2654435761) >>> 0;
+  const rr = () => { rs = (rs * 1103515245 + 12345) & 0x7fffffff; return rs / 0x7fffffff; };
+  const lobes = [[0, 3.1, 1.7], [0.5, 3.8, 1.35], [-0.45, 4.0, 1.25], [0.1, 4.7, 1.05], [-0.1, 5.3, 0.72]];
+  const blobs = [];
+  for (const [dx, y, r] of lobes) blobs.push([dx, y, 0, r]);
+  for (let k = 0; k < 7; k++) {           // small clumps for a fuller silhouette
+    const a = rr() * Math.PI * 2, rad = 0.9 + rr() * 0.9;
+    blobs.push([Math.cos(a) * rad, 3.2 + rr() * 2.0, Math.sin(a) * rad, 0.5 + rr() * 0.45]);
+  }
+  let i = 0;
+  for (const [dx, y, dz, r] of blobs) {
+    const b = new THREE.IcosahedronGeometry(r, 1);
+    b.scale(1.05, 0.92, 1.05).translate(dx, y, dz);
+    const flat = toFlat(b);
+    gradientFoliage(flat, { base: 0x357a34, lit: 0x8fca57, shade: 0x1c3f22, cyMin: 2.6, cyMax: 6.2, seed: seed + i });
+    parts.push(flat); i++;
+  }
+  return normalizeUnit(mergeGeometries(parts));
+}
+
+// ---------- bare winter tree (dark silhouette) ----------
+// A recursively-branched leafless tree, merged to one unit-height geometry so it
+// instances cheaply. Rendered near-black, it reads as a fog silhouette.
+export function makeBareTree(seed = 1) {
+  let s = (seed * 2654435761) >>> 0;
+  const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+  const parts = [];
+  const up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3();
+  const grow = (x, y, z, dx, dy, dz, len, rad, depth) => {
+    dir.set(dx, dy, dz).normalize();
+    const g = new THREE.CylinderGeometry(rad * 0.6, rad, len, 5);
+    g.translate(0, len / 2, 0);
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, dir));
+    g.translate(x, y, z);
+    parts.push(g);
+    const ex = x + dir.x * len, ey = y + dir.y * len, ez = z + dir.z * len;
+    if (depth <= 0 || len < 0.55) return;
+    const n = 2 + ((rnd() * 2) | 0);
+    for (let i = 0; i < n; i++) {
+      const spread = 0.7 + rnd() * 0.8;
+      grow(ex, ey, ez,
+        dir.x + (rnd() - 0.5) * spread, dir.y * 0.7 + 0.35 + rnd() * 0.3, dir.z + (rnd() - 0.5) * spread,
+        len * (0.62 + rnd() * 0.18), rad * 0.66, depth - 1);
+    }
+  };
+  grow(0, 0, 0, 0, 1, 0, 3.0 + rnd() * 0.8, 0.2, 4);
+  return normalizeUnit(mergeGeometries(parts));
+}
+
+function normalizeUnit(geo) {
+  geo.computeBoundingBox();
+  const h = geo.boundingBox.max.y - geo.boundingBox.min.y || 1;
+  geo.translate(0, -geo.boundingBox.min.y, 0);
+  geo.scale(1 / h, 1 / h, 1 / h);
+  return geo;
+}
+
+// Material for the stylized trees: faceted (flat) shading picks up the baked
+// gradient; wind sway is added by the caller.
+export function stylizedTreeMaterial() {
+  return new THREE.MeshStandardMaterial({
+    vertexColors: true, flatShading: true, roughness: 0.92, metalness: 0.0, envMapIntensity: 0.45,
+  });
 }
 
 // ---------- simple traffic/parked car (vertex-coloured; paint tinted per instance) ----------
@@ -81,92 +168,6 @@ export function makeCarProp() {
     setVColor(w, 0x0b0c0e); parts.push(w);
   }
   return mergeGeometries(parts);
-}
-
-// ---------- billboard trees: stippled foliage cutout on crossed planes ----------
-function foliageTexture(kind, seed) {
-  const W = 256, H = 384;
-  const c = document.createElement('canvas'); c.width = W; c.height = H;
-  const g = c.getContext('2d');
-  let s = (seed * 99 + 1) >>> 0;
-  const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
-
-  // trunk
-  const trunkTop = kind === 'pine' ? H * 0.9 : H * 0.72;
-  g.fillStyle = '#5b4028';
-  g.beginPath();
-  g.moveTo(W / 2 - 9, H); g.lineTo(W / 2 - 4, trunkTop);
-  g.lineTo(W / 2 + 4, trunkTop); g.lineTo(W / 2 + 9, H); g.closePath(); g.fill();
-  g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(W / 2 + 1, trunkTop, 8, H - trunkTop);
-
-  // canopy stipple
-  const cx = W / 2;
-  const cy = kind === 'pine' ? H * 0.44 : H * 0.36;
-  const crownH = kind === 'pine' ? H * 0.82 : H * 0.66;
-  const crownW = kind === 'pine' ? W * 0.5 : W * 0.9;
-  const base = kind === 'pine' ? [40, 78, 40] : [64, 104, 46];
-  const shade = (x, y, a) => {
-    const light = Math.max(0.35, 1 - (y / H) * 0.72 + (1 - x / W) * 0.2);
-    return `rgba(${base[0] * light | 0},${base[1] * light | 0},${base[2] * light * 0.85 | 0},${a})`;
-  };
-  // solid base canopy so the tree reads as a full crown (not sparse specks at distance)
-  if (kind === 'pine') {
-    const layers = 8;
-    for (let l = 0; l < layers; l++) {
-      const ny = l / (layers - 1);
-      const ly = (cy - crownH / 2) + ny * crownH;
-      const lw = ny * (crownW / 2) * 1.06 + 5;
-      g.fillStyle = shade(cx, ly, 0.97);
-      g.beginPath(); g.ellipse(cx, ly, lw, crownH / layers * 0.8, 0, 0, 7); g.fill();
-    }
-  } else {
-    for (let i = 0; i < 16; i++) {
-      const a = rnd() * Math.PI * 2, rr = Math.pow(rnd(), 0.5);
-      const bx = cx + Math.cos(a) * rr * (crownW * 0.4);
-      const by = cy + Math.sin(a) * rr * (crownH * 0.4);
-      const rad = crownW * 0.22 * (0.7 + rnd() * 0.5);
-      g.fillStyle = shade(bx, by, 0.96);
-      g.beginPath(); g.ellipse(bx, by, rad, rad * 0.92, 0, 0, 7); g.fill();
-    }
-  }
-  const marks = kind === 'pine' ? 2600 : 3200;
-  for (let i = 0; i < marks; i++) {
-    let px, py;
-    if (kind === 'pine') {
-      const ny = Math.pow(rnd(), 0.8); // 0 = top (narrow)
-      const halfw = ny * (crownW / 2) * (0.85 + 0.3 * Math.sin(ny * 12));
-      px = cx + (rnd() * 2 - 1) * halfw;
-      py = (cy - crownH / 2) + ny * crownH;
-    } else {
-      const a = rnd() * Math.PI * 2, rr = Math.pow(rnd(), 0.62);
-      px = cx + Math.cos(a) * rr * (crownW / 2);
-      py = cy + Math.sin(a) * rr * (crownH / 2) - (1 - rr) * 8;
-    }
-    const light = Math.max(0.25, 1 - (py / H) * 0.75 + (1 - px / W) * 0.28);
-    const v = (rnd() - 0.5) * 34;
-    const r = Math.max(0, Math.min(255, base[0] * light + v));
-    const gg = Math.max(0, Math.min(255, base[1] * light + v));
-    const b = Math.max(0, Math.min(255, base[2] * light * 0.85 + v * 0.5));
-    g.fillStyle = `rgba(${r | 0},${gg | 0},${b | 0},${0.5 + rnd() * 0.45})`;
-    const rad = 1.4 + rnd() * 3.2;
-    g.beginPath(); g.ellipse(px, py, rad, rad * 0.7, rnd() * Math.PI, 0, 7); g.fill();
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  return tex;
-}
-
-// Returns { geo, material } — two crossed quads (unit height, base at y=0).
-export function makeTreeBillboard(kind = 'round', seed = 1) {
-  const w = kind === 'pine' ? 0.62 : 0.82;
-  const p1 = new THREE.PlaneGeometry(w, 1); p1.translate(0, 0.5, 0);
-  const p2 = p1.clone(); p2.rotateY(Math.PI / 2);
-  const geo = mergeGeometries([p1, p2]);
-  const material = new THREE.MeshStandardMaterial({
-    map: foliageTexture(kind, seed), alphaTest: 0.35, side: THREE.DoubleSide,
-    roughness: 0.95, metalness: 0.0, envMapIntensity: 0.5,
-  });
-  return { geo, material };
 }
 
 // palette of believable car paints

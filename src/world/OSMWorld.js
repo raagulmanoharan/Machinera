@@ -4,7 +4,7 @@ import { Water } from 'three/examples/jsm/objects/Water.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { loadElevation } from './Elevation.js';
 import { assets, MODELS } from '../render/AssetLibrary.js';
-import { makeStreetlamp, makeCarProp, makeTreeBillboard, CAR_COLORS } from './props.js';
+import { makeStreetlamp, makeCarProp, makeStylizedTree, stylizedTreeMaterial, CAR_COLORS } from './props.js';
 import { applyWind } from '../render/wind.js';
 import { Colliders } from './Colliders.js';
 
@@ -567,17 +567,17 @@ export class OSMWorld {
         this.colliders.add(px, pz, 0.9);
       }
     }
-    // billboard trees (crossed planes with a foliage cutout)
-    const add = (bb, arr) => {
+    // stylized 3D trees (faceted foliage with a baked light/height gradient)
+    const add = (geo, arr, amp) => {
       if (!arr.length) return;
-      const inst = new THREE.InstancedMesh(bb.geo, applyWind(bb.material, 0.05), arr.length);
-      inst.castShadow = false; inst.receiveShadow = false;
+      const inst = new THREE.InstancedMesh(geo, applyWind(stylizedTreeMaterial(), amp), arr.length);
+      inst.castShadow = true; inst.receiveShadow = true;
       arr.forEach((m, i) => inst.setMatrixAt(i, m));
       inst.instanceMatrix.needsUpdate = true;
       this.group.add(inst);
     };
-    add(makeTreeBillboard('round', 5), leafy);
-    add(makeTreeBillboard('pine', 9), pine);
+    add(makeStylizedTree('round', 5), leafy, 0.05);
+    add(makeStylizedTree('pine', 9), pine, 0.04);
   }
 
   _unit(geo) {
