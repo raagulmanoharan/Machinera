@@ -22,6 +22,20 @@ export class Environment {
     u.mieCoefficient.value = 0.005;
     u.mieDirectionalG.value = 0.8;
 
+    // Fade the lower sky into the fog colour so the sky dome and the fogged
+    // terrain meet seamlessly at the horizon — no "composite" seam. uHorizonFog
+    // tracks the live fog colour (see setFog).
+    const sm = this.sky.material;
+    sm.uniforms.uHorizonFog = { value: new THREE.Color(0x9aa7b4) };
+    sm.fragmentShader = sm.fragmentShader
+      .replace('uniform float mieDirectionalG;', 'uniform float mieDirectionalG;\nuniform vec3 uHorizonFog;')
+      .replace(
+        'gl_FragColor = vec4( retColor, 1.0 );',
+        `float _hz = smoothstep(-0.03, 0.26, direction.y);
+         retColor = mix( uHorizonFog, retColor, _hz );
+         gl_FragColor = vec4( retColor, 1.0 );`);
+    sm.needsUpdate = true;
+
     this.sun = new THREE.DirectionalLight(0xcfe0ff, 1.2);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
@@ -85,6 +99,9 @@ export class Environment {
     if (!this.scene.fog) return;
     this.scene.fog.color.set(color);
     this.scene.fog.density = density;
+    // keep the sky's horizon band matched to the fog so they read as one scene
+    const hf = this.sky.material.uniforms.uHorizonFog;
+    if (hf) hf.value.copy(this.scene.fog.color);
   }
   setExposure(e) { this.renderer.toneMappingExposure = e; }
   setLight(sunColor, sunI, hemiColor, hemiI) {

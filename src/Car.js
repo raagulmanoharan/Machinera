@@ -138,9 +138,11 @@ export class Car {
     this.headlights = [];
     this._headMats = [lightF, lightR]; // front/rear emissive, boosted at night
     for (const sx of [-0.6, 0.6]) {
-      const hl = new THREE.SpotLight(0xfff1cf, 0, 95, 0.62, 0.55, 1.3);
+      // wide, high-penumbra spotlight: a soft pool of light on the road, not a
+      // hard narrow cone
+      const hl = new THREE.SpotLight(0xffeecb, 0, 120, 0.95, 1.0, 1.1);
       hl.position.set(sx, 0.62, 2.0);
-      hl.target.position.set(sx * 1.6, -0.35, 26);
+      hl.target.position.set(sx * 2.0, -0.4, 30);
       g.add(hl); g.add(hl.target);
       this.headlights.push(hl);
     }
@@ -162,12 +164,12 @@ export class Car {
   // it reads as headlight scatter in the fog rather than a hard cone. Bloom then
   // makes it glow. Shared material so both beams fade together with the night.
   _addBeams(g) {
-    const L = 26, R = 4.2;
-    const geo = new THREE.ConeGeometry(R, L, 30, 1, true);
+    const L = 34, R = 7.5;             // long + wide so it's a soft diffuse haze
+    const geo = new THREE.ConeGeometry(R, L, 32, 1, true);
     geo.translate(0, -L / 2, 0);        // tip at origin
     geo.rotateX(-Math.PI / 2);          // widen forward: base -> +z, tip at lamp
     const mat = new THREE.ShaderMaterial({
-      uniforms: { uColor: { value: new THREE.Color(0xfff0c8) }, uIntensity: { value: 0 } },
+      uniforms: { uColor: { value: new THREE.Color(0xffeac2) }, uIntensity: { value: 0 } },
       transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
       vertexShader: `
         varying float vT; varying vec3 vN; varying vec3 vV;
@@ -183,9 +185,11 @@ export class Car {
         varying float vT; varying vec3 vN; varying vec3 vV;
         void main(){
           float t = clamp(vT, 0.0, 1.0);
-          float lenFade = smoothstep(0.0, 0.10, t) * (1.0 - t) * (1.0 - t);
+          // soft start at the lamp, long gentle reach that carries through the fog
+          float lenFade = smoothstep(0.0, 0.30, t) * pow(1.0 - t, 1.1);
+          // very soft, low-contrast silhouette — no hard cone edge
           float facing = 1.0 - abs(dot(normalize(vN), normalize(vV)));
-          float shape = 0.35 + 0.65 * pow(facing, 1.6);   // filled body + soft edges
+          float shape = 0.25 + 0.75 * pow(facing, 0.7);
           float a = uIntensity * lenFade * shape;
           gl_FragColor = vec4(uColor * a, a);
         }`,
@@ -193,13 +197,42 @@ export class Car {
     this._beamMat = mat;
     for (const sx of [-0.6, 0.6]) {
       const beam = new THREE.Mesh(geo, mat);
-      beam.position.set(sx, 0.6, 1.9);
+      beam.position.set(sx, 0.62, 1.9);
       beam.quaternion.setFromUnitVectors(
-        new THREE.Vector3(0, 0, 1), new THREE.Vector3(sx * 0.4, -0.24, 24).normalize());
+        new THREE.Vector3(0, 0, 1), new THREE.Vector3(sx * 0.5, -0.22, 24).normalize());
       beam.renderOrder = 3;
       beam.frustumCulled = false;
       g.add(beam);
     }
+    this._addTailGlow(g);
+  }
+
+  // A soft radial gradient sprite (white; tinted by the material colour).
+  _softGlowTex() {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const x = c.getContext('2d');
+    const grd = x.createRadialGradient(64, 64, 2, 64, 64, 64);
+    grd.addColorStop(0, 'rgba(255,255,255,0.95)');
+    grd.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = grd; x.fillRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
+
+  // A red glow spilled on the road behind the car — the tail-lights reflecting
+  // on the tarmac. Additive so it blooms; fades up with the night level.
+  _addTailGlow(g) {
+    const tex = this._softGlowTex();
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex, color: 0xff1810, transparent: true, opacity: 0, depthWrite: false,
+      blending: THREE.AdditiveBlending, toneMapped: false,
+    });
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 8), mat);
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.set(0, 0.05, -4.0);   // flat on the road, just behind the car
+    pool.renderOrder = 2; pool.frustumCulled = false;
+    g.add(pool);
+    this._tailGlowMat = mat;
   }
 
   _contactTex() {
@@ -243,14 +276,15 @@ export class Car {
   // emissive glow on the head/tail-light lenses so the car reads as "lit".
   setHeadlights(n) {
     const on = THREE.MathUtils.clamp(n, 0, 1);
-    for (const hl of this.headlights) hl.intensity = 220 * on;
-    if (this._beamMat) this._beamMat.uniforms.uIntensity.value = 0.55 * on;
+    for (const hl of this.headlights) hl.intensity = 140 * on;
+    if (this._beamMat) this._beamMat.uniforms.uIntensity.value = 0.42 * on;
+    if (this._tailGlowMat) this._tailGlowMat.opacity = 0.6 * on;
     if (this._headMats) {
       this._headMats[0].emissiveIntensity = 0.55 + 1.7 * on;
-      this._headMats[1].emissiveIntensity = 0.7 + 1.3 * on;
+      this._headMats[1].emissiveIntensity = 0.9 + 2.6 * on;   // brighter -> blooms
     }
     if (this._modelHead) this._modelHead.emissiveIntensity = 0.55 + 1.7 * on;
-    if (this._modelTail) this._modelTail.emissiveIntensity = 0.7 + 1.3 * on;
+    if (this._modelTail) this._modelTail.emissiveIntensity = 0.9 + 2.6 * on;
   }
 
   _rounded(w, h, d, r) {
