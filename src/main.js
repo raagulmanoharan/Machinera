@@ -31,6 +31,7 @@ const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.5, 12
 
 const env = new Environment(scene, renderer);
 const pipeline = new Pipeline(renderer, scene, camera);
+window.__pipeline = pipeline; // debug handle
 const dust = new Dust(scene);
 pipeline.depthExcludes = [env.sky, dust.points];     // don't let these write depth
 // volumetric light scatter colours (as RGB vectors) + shared emission dirs
@@ -126,6 +127,21 @@ async function loadWorld() {
   }
 }
 let hintShown = false;
+
+// If tilt steering never activates after the first touch (common in in-app
+// browsers, which block motion sensors), point the player to real Safari.
+let gyroChecked = false;
+window.addEventListener('touchstart', () => {
+  if (gyroChecked) return;
+  gyroChecked = true;
+  setTimeout(() => {
+    if (!input.gyroActive) {
+      toast(input.gyroBlocked
+        ? 'Tilt steering is blocked here — tap ⃝ to open in Safari, then allow Motion access'
+        : 'For tilt steering, open in Safari (compass icon) and allow Motion access');
+    }
+  }, 3200);
+}, { passive: true });
 
 function parseLatLng(s) {
   if (!s) return null;
@@ -238,12 +254,22 @@ window.addEventListener('keydown', (e) => {
   if (k === 'r' && world) { car.reset(world.carStart.pos, world.carStart.heading); chase.snap(); }
 });
 
-window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
+function resizeView() {
+  const w = innerWidth, h = innerHeight;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-  pipeline.setSize(innerWidth, innerHeight);
+  renderer.setSize(w, h);
+  pipeline.setSize(w, h);
+}
+window.addEventListener('resize', resizeView);
+// iOS reports stale dimensions right at orientationchange (portrait <-> landscape),
+// so re-fit again after the rotation settles.
+window.addEventListener('orientationchange', () => {
+  resizeView();
+  setTimeout(resizeView, 250);
+  setTimeout(resizeView, 600);
 });
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeView);
 
 // ---------- boot ----------
 initSettings();

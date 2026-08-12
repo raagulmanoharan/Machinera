@@ -27,11 +27,16 @@ export class Environment {
     // tracks the live fog colour (see setFog).
     const sm = this.sky.material;
     sm.uniforms.uHorizonFog = { value: new THREE.Color(0x9aa7b4) };
+    // The band over which the sky fades into fog colour. Reaching well up the
+    // sky (uFogBandHi) means distant mountain ridges sit inside a haze-coloured
+    // sky, so their silhouettes dissolve softly instead of cutting a hard edge.
+    sm.uniforms.uFogBandLo = { value: -0.05 };
+    sm.uniforms.uFogBandHi = { value: 0.62 };
     sm.fragmentShader = sm.fragmentShader
-      .replace('uniform float mieDirectionalG;', 'uniform float mieDirectionalG;\nuniform vec3 uHorizonFog;')
+      .replace('uniform float mieDirectionalG;', 'uniform float mieDirectionalG;\nuniform vec3 uHorizonFog;\nuniform float uFogBandLo;\nuniform float uFogBandHi;')
       .replace(
         'gl_FragColor = vec4( retColor, 1.0 );',
-        `float _hz = smoothstep(-0.03, 0.26, direction.y);
+        `float _hz = smoothstep(uFogBandLo, uFogBandHi, direction.y);
          retColor = mix( uHorizonFog, retColor, _hz );
          gl_FragColor = vec4( retColor, 1.0 );`);
     sm.needsUpdate = true;
