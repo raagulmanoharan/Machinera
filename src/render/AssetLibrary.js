@@ -7,6 +7,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 const BASE = import.meta.env.BASE_URL || './';
 export const MODELS = {
   tree: `${BASE}models/kenney/tree.glb`,
+  car: `${BASE}models/kenney/car.glb`,
 };
 
 class AssetLibrary {

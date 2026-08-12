@@ -7,6 +7,7 @@ import { ProceduralWorld } from './world/ProceduralWorld.js';
 import { Environment } from './render/Environment.js';
 import { Pipeline } from './render/Pipeline.js';
 import { advanceWind } from './render/wind.js';
+import { MODELS } from './render/AssetLibrary.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('scene');
@@ -29,6 +30,7 @@ const pipeline = new Pipeline(renderer, scene, camera);
 
 const input = new Input(canvas);
 const car = new Car(scene);
+car.loadModel(MODELS.car); // swap in the real CC0 car when it loads
 const chase = new ChaseCamera(camera);
 window.__car = car; // debug handle
 
