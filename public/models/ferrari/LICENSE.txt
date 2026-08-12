@@ -1,0 +1,13 @@
+ferrari.glb
+  Sourced from the three.js repository examples:
+  https://github.com/mrdoob/three.js/tree/master/examples/models/gltf
+  three.js is licensed MIT (https://github.com/mrdoob/three.js/blob/master/LICENSE).
+  Used here as the player car, dressed with clearcoat-paint / glass / chrome
+  materials in the spirit of the three.js "webgl_materials_car" demo.
+  "Ferrari" and the car's design are trademarks of their owner; this asset is
+  used only for a non-commercial hobby driving demo.
+
+DRACO decoder (public/draco/):
+  Google Draco, Apache License 2.0.
+  https://github.com/google/draco  — bundled from the three.js distribution
+  so the DRACO-compressed model can be decoded in the browser.

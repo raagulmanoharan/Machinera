@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
 import { assets, MODELS, TEXTURES, loadTexture, deTile } from '../render/AssetLibrary.js';
-import { makeStreetlamp, makeTreeBillboard } from './props.js';
+import { makeStreetlamp, makeStylizedTree, stylizedTreeMaterial } from './props.js';
 import { applyWind } from '../render/wind.js';
 import { Colliders } from './Colliders.js';
 
@@ -131,11 +131,10 @@ export class ProceduralWorld {
       this.colliders.add(x, z, 0.9);
       placed++;
     }
-    // billboard trees (crossed planes with a foliage cutout) — realistic at distance, cheap
-    const rb = makeTreeBillboard('round', 3), pb = makeTreeBillboard('pine', 7);
-    const m1 = this._addInstanced(rb.geo, applyWind(rb.material, 0.05), round);
-    const m2 = this._addInstanced(pb.geo, applyWind(pb.material, 0.04), pine);
-    for (const m of [m1, m2]) if (m) { m.castShadow = false; m.receiveShadow = false; }
+    // stylized 3D trees (faceted foliage with a baked light/height gradient)
+    const m1 = this._addInstanced(makeStylizedTree('round', 3), applyWind(stylizedTreeMaterial(), 0.05), round);
+    const m2 = this._addInstanced(makeStylizedTree('pine', 7), applyWind(stylizedTreeMaterial(), 0.04), pine);
+    for (const m of [m1, m2]) if (m) { m.castShadow = true; m.receiveShadow = true; }
   }
 
   // procedural fallback trees are ~unit-height already-scaled meshes; normalize to 1 unit

@@ -31,7 +31,8 @@ const pipeline = new Pipeline(renderer, scene, camera);
 
 const input = new Input(canvas);
 const car = new Car(scene);
-car.loadModel(MODELS.car); // swap in the real CC0 car when it loads
+// prefer the detailed showroom car; fall back to the CC0 low-poly, then procedural
+car.loadFerrari(MODELS.ferrari).then((ok) => { if (!ok) car.loadModel(MODELS.car); });
 const chase = new ChaseCamera(camera);
 window.__car = car; // debug handle
 window.__env = env; // debug handle
