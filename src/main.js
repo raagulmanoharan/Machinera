@@ -8,7 +8,6 @@ import { Environment } from './render/Environment.js';
 import { Pipeline } from './render/Pipeline.js';
 import { advanceWind } from './render/wind.js';
 import { MODELS } from './render/AssetLibrary.js';
-import { fetchWeather } from './render/weather.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('scene');
@@ -59,11 +58,9 @@ async function loadWorld() {
   if (world) { world.dispose(); world = null; }
 
   const source = prefs.source || 'procedural';
-  let sunLat = 46.55, sunLng = 8.0; // scenic default: the Alps
   try {
     if (source === 'osm') {
       const [lat, lng] = parseLatLng(prefs.location) || [46.5197, 6.6323];
-      sunLat = lat; sunLng = lng;
       const w = new OSMWorld(scene);
       await w.load({ lat, lng, radius: prefs.radius || 750, sunDir: env.sunDir, onProgress: (m) => setLoader(m) });
       world = w;
@@ -83,12 +80,6 @@ async function loadWorld() {
   car.reset(world.carStart.pos, world.carStart.heading);
   window.__world = world; // debug handle
   chase.snap();
-
-  // contextual sky: sun for this place + right now, then live weather
-  env.setSun(sunLat, sunLng, new Date());
-  fetchWeather(sunLat, sunLng).then((w) => {
-    if (w) { env.applyWeather(w); if (w.isDay === false) toast('Night drive — it is currently dark at this location.'); }
-  });
 
   showLoader(false);
   $('hud').classList.remove('hidden');

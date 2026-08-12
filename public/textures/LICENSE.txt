@@ -6,5 +6,6 @@ All licensed CC0 1.0 Universal (public domain):
 https://creativecommons.org/publicdomain/zero/1.0/
 No rights reserved; attribution appreciated but not required.
 
-The sky is rendered procedurally (atmospheric scattering) from the real sun
-position and live weather — no HDRI is bundled.
+venice_sunset_1k.hdr — HDR sky used for image-based lighting, reflections and
+the sky itself. Bundled from the three.js repository (examples/textures/
+equirectangular), MIT-licensed distribution; the HDRI itself is CC0.
