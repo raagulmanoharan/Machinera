@@ -1,3 +1,5 @@
-tree.glb — from Kenney (https://kenney.nl), "Starter Kit: Basic Scene".
+Models from Kenney (https://kenney.nl):
+  tree.glb — "Starter Kit: Basic Scene"
+  car.glb  — "Car Kit" (sedan)
 Licensed CC0 1.0 Universal (public domain): https://creativecommons.org/publicdomain/zero/1.0/
 No rights reserved; attribution appreciated but not required.

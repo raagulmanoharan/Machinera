@@ -7,7 +7,25 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 const BASE = import.meta.env.BASE_URL || './';
 export const MODELS = {
   tree: `${BASE}models/kenney/tree.glb`,
+  car: `${BASE}models/kenney/car.glb`,
 };
+export const TEXTURES = {
+  sky: `${BASE}textures/sky.hdr`,
+  grassDiff: `${BASE}textures/grass_diff.jpg`,
+  grassNor: `${BASE}textures/grass_nor.jpg`,
+  asphaltDiff: `${BASE}textures/asphalt_diff.jpg`,
+  asphaltNor: `${BASE}textures/asphalt_nor.jpg`,
+};
+
+// Load a tiling texture (returns immediately, fills in when decoded).
+export function loadTexture(url, { srgb = false, repeat = 1, anisotropy = 8 } = {}) {
+  const t = new THREE.TextureLoader().load(url);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeat, repeat);
+  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  t.anisotropy = anisotropy;
+  return t;
+}
 
 class AssetLibrary {
   constructor() {

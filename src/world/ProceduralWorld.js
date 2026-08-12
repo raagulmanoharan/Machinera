@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
-import { assets, MODELS } from '../render/AssetLibrary.js';
+import { assets, MODELS, TEXTURES, loadTexture } from '../render/AssetLibrary.js';
 import { makePine, makeTree, makeStreetlamp } from './props.js';
 import { applyWind } from '../render/wind.js';
 import { Colliders } from './Colliders.js';
@@ -211,10 +211,11 @@ export class ProceduralWorld {
     const colors = new Float32Array(pos.count * 3);
     const uv = geo.attributes.uv;
 
-    const cGrass = new THREE.Color(0x3f6b2e);
-    const cGrass2 = new THREE.Color(0x2c5423);
-    const cRock = new THREE.Color(0x6b6157);
-    const cSnow = new THREE.Color(0xf3f6fb);
+    // vertex colours act as MULTIPLIERS over the grass texture: ~white on grass,
+    // darker rock mid-slope, bright to fake snow on the peaks.
+    const cGrass = new THREE.Color(0.72, 1.02, 0.55); // tint the dry texture toward lush green
+    const cRock = new THREE.Color(0.52, 0.46, 0.40);
+    const cSnow = new THREE.Color(2.6, 2.6, 2.9);
     const tmp = new THREE.Color();
     const zMid = (zStart + zEnd) / 2;
 
@@ -224,27 +225,23 @@ export class ProceduralWorld {
       pos.setZ(i, z);
       const h = heightAt(x, z);
       pos.setY(i, h - 0.05); // sit just below the road plane to avoid z-fighting
-      const g = vnoise(x * 0.05, z * 0.05);
-      tmp.copy(cGrass).lerp(cGrass2, g);
-      if (h > 8) tmp.lerp(cRock, smoothstep(8, 40, h));
-      if (h > 70) tmp.lerp(cSnow, smoothstep(70, 110, h));
+      const g = 0.85 + vnoise(x * 0.05, z * 0.05) * 0.3;
+      tmp.copy(cGrass).multiplyScalar(g);
+      if (h > 8) tmp.lerp(cRock, smoothstep(8, 42, h));
+      if (h > 68) tmp.lerp(cSnow, smoothstep(68, 115, h));
       colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b;
-      // scale uv for tiled detail normal
-      uv.setXY(i, x * 0.02, z * 0.02);
+      uv.setXY(i, x * 0.02, z * 0.02); // 50 m per uv unit; texture.repeat tiles it
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
 
-    const normalMap = makeNormalMap(512, { freq: 0.05, strength: 1.4, z: 1 });
-    normalMap.repeat.set(6, 6);
-    const roughMap = makeRoughnessMap(512, { base: 0.92, range: 0.08 });
-    roughMap.repeat.set(6, 6);
-
+    const grass = loadTexture(TEXTURES.grassDiff, { srgb: true, repeat: 20 });
+    const grassNor = loadTexture(TEXTURES.grassNor, { repeat: 20 });
     const mat = new THREE.MeshStandardMaterial({
-      vertexColors: true, roughness: 1.0, metalness: 0.0,
-      normalMap, roughnessMap: roughMap,
-      normalScale: new THREE.Vector2(0.6, 0.6),
-      envMapIntensity: 0.5,
+      vertexColors: true, roughness: 0.95, metalness: 0.0,
+      map: grass, normalMap: grassNor,
+      normalScale: new THREE.Vector2(0.8, 0.8),
+      envMapIntensity: 0.85,
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;

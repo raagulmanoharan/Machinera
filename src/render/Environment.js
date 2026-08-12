@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { Lensflare, LensflareElement } from 'three/examples/jsm/objects/Lensflare.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 
 // Atmospheric sky (Preetham scattering) + sun light + image-based lighting.
 // The environment map is rendered from the sky itself, so reflections and
@@ -52,6 +53,31 @@ export class Environment {
 
     this._sunGlare();
     this._clouds();
+  }
+
+  // Load a real photographic sky (HDRI) as the background + image-based lighting,
+  // replacing the procedural sky/clouds. Keeps the directional sun for shadows.
+  async loadHDRI(url) {
+    let tex;
+    try {
+      tex = await new Promise((res, rej) => new RGBELoader().load(url, res, undefined, rej));
+    } catch { return false; }
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    this.scene.background = tex;
+    this.scene.backgroundIntensity = 1.0;
+    const env = this.pmrem.fromEquirectangular(tex).texture;
+    if (this._envRT) this._envRT.dispose();
+    this.scene.environment = env;
+    this.scene.environmentIntensity = 1.0;
+    this._hdr = tex;
+    // remove the procedural sky, clouds and lens flare — the HDRI has real sky, clouds and sun
+    if (this.sky) { this.scene.remove(this.sky); this.sky = null; }
+    if (this._clouds_) { this.scene.remove(this._clouds_); this._clouds_ = null; }
+    if (this._flareAnchor) { this.scene.remove(this._flareAnchor); this._flareAnchor = null; }
+    // lift the sun to roughly match the HDRI, soften the fill
+    this.hemi.intensity = 0.35;
+    this.sun.intensity = 2.4;
+    return true;
   }
 
   // ---- sun glare / lens flare ----
@@ -142,10 +168,12 @@ export class Environment {
   update(target, dt = 0.016) {
     this.sun.position.copy(target).addScaledVector(this.sunDir, 200);
     this.sun.target.position.copy(target);
-    this.sky.position.copy(target);
+    if (this.sky) this.sky.position.copy(target);
     if (this._flareAnchor) this._flareAnchor.position.copy(target).addScaledVector(this.sunDir, 6000);
-    if (this._clouds_) { this._clouds_.position.x = target.x; this._clouds_.position.z = target.z; }
-    if (this._cloudTex) { this._cloudTex.offset.x += dt * 0.0045; this._cloudTex.offset.y += dt * 0.0012; } // wind
+    if (this._clouds_) {
+      this._clouds_.position.x = target.x; this._clouds_.position.z = target.z;
+      if (this._cloudTex) { this._cloudTex.offset.x += dt * 0.0045; this._cloudTex.offset.y += dt * 0.0012; } // wind
+    }
   }
 
   dispose() {

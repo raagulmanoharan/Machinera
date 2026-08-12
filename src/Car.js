@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // Signed arcade + bicycle-model vehicle. Units are metres / seconds.
 const CFG = {
@@ -104,6 +105,7 @@ export class Car {
     // wheels
     this.wheels = [];
     this.frontWheels = [];
+    this._wheelPivots = [];
     const wheelGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.26, 18);
     wheelGeo.rotateZ(Math.PI / 2);
     const rimGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.28, 8);
@@ -123,6 +125,7 @@ export class Car {
       spin.add(w); spin.add(r);
       pivot.add(spin);
       g.add(pivot);
+      this._wheelPivots.push(pivot);
       this.wheels.push(spin);
       if (front) this.frontWheels.push(pivot);
     }
@@ -138,6 +141,52 @@ export class Car {
   _rounded(w, h, d, r) {
     // cheap rounded box via BoxGeometry (kept simple for perf/portability)
     return new THREE.BoxGeometry(w, h, d, 1, 1, 1);
+  }
+
+  // Swap the procedural mesh for a real CC0 glTF car (Kenney). Keeps physics;
+  // wires the model's named wheels so they still spin and steer. Falls back to
+  // the procedural car if the model can't be loaded.
+  async loadModel(url) {
+    let gltf;
+    try {
+      gltf = await new Promise((res, rej) => new GLTFLoader().load(url, res, undefined, rej));
+    } catch { return false; }
+    const root = gltf.scene;
+    const body = root.getObjectByName('body');
+    const wf = [root.getObjectByName('wheel_frontLeft'), root.getObjectByName('wheel_frontRight')];
+    const wb = [root.getObjectByName('wheel_backLeft'), root.getObjectByName('wheel_backRight')];
+    if (!body || wf.includes(null) || wb.includes(null)) return false;
+
+    root.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(root);
+    const size = new THREE.Vector3(); box.getSize(size);
+    const sc = 4.3 / Math.max(size.x, size.z, 0.001); // scale to ~4.3 m long
+
+    // does the model face -Z? (front wheels behind rear along z) -> turn it around
+    const fz = (wf[0].getWorldPosition(new THREE.Vector3()).z + wf[1].getWorldPosition(new THREE.Vector3()).z) / 2;
+    const bz = (wb[0].getWorldPosition(new THREE.Vector3()).z + wb[1].getWorldPosition(new THREE.Vector3()).z) / 2;
+
+    const wrap = new THREE.Group();
+    wrap.add(root);
+    wrap.scale.setScalar(sc);
+    if (fz < bz) wrap.rotation.y = Math.PI; // make the front face +Z (our forward)
+    wrap.updateMatrixWorld(true);
+    const b2 = new THREE.Box3().setFromObject(wrap);
+    wrap.position.set(-(b2.min.x + b2.max.x) / 2, -b2.min.y, -(b2.min.z + b2.max.z) / 2);
+
+    root.traverse((o) => {
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (o.material) o.material.envMapIntensity = 0.9; }
+    });
+    for (const w of [...wf, ...wb]) w.rotation.order = 'YXZ';
+    this._modelWheels = [...wf, ...wb];
+    this._modelFrontWheels = wf;
+
+    // remove the procedural visuals
+    for (const c of [...this.body.children]) this.body.remove(c);
+    for (const p of this._wheelPivots) this.group.remove(p);
+    this.wheels = []; this.frontWheels = [];
+    this.body.add(wrap);
+    return true;
   }
 
   reset(pos, heading = 0) {
@@ -247,7 +296,12 @@ export class Car {
 
     // wheel visuals
     this._wheelSpin += (vLong / 0.36) * dt;
-    for (const w of this.wheels) w.rotation.x = this._wheelSpin;
-    for (const p of this.frontWheels) p.rotation.y = this._steerVis;
+    if (this._modelWheels) {
+      for (const w of this._modelWheels) w.rotation.x = this._wheelSpin;
+      for (const w of this._modelFrontWheels) w.rotation.y = this._steerVis;
+    } else {
+      for (const w of this.wheels) w.rotation.x = this._wheelSpin;
+      for (const p of this.frontWheels) p.rotation.y = this._steerVis;
+    }
   }
 }
