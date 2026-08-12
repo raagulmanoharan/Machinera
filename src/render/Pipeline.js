@@ -7,27 +7,50 @@ import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
-// Nostalgic film grade: warm tint, lifted blacks, gentle desaturation,
-// vignette and animated grain. Runs last, on the tonemapped sRGB image.
-const NostalgiaShader = {
-  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amount: { value: 1.0 } },
+// Cinematic grade: filmic S-curve contrast, teal-orange split-tone (cool
+// shadows, warm highlights), gentle saturation lift, vignette and fine grain.
+// A `night` uniform cools and deepens the image for mood after dark. Runs last,
+// on the tonemapped sRGB image.
+const CinematicShader = {
+  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amount: { value: 1.0 }, night: { value: 0.0 } },
   vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
   fragmentShader: /* glsl */`
-    uniform sampler2D tDiffuse; uniform float time; uniform float amount; varying vec2 vUv;
+    uniform sampler2D tDiffuse; uniform float time; uniform float amount; uniform float night; varying vec2 vUv;
     float rand(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233)))*43758.5453); }
     void main(){
       vec3 col = texture2D(tDiffuse, vUv).rgb;
-      vec3 graded = col;
-      graded.r *= 1.06; graded.b *= 0.95;                 // warmth
-      graded = mix(vec3(0.055,0.05,0.042), graded, 0.93);  // lift blacks -> faded film
-      float l = dot(graded, vec3(0.299,0.587,0.114));
-      graded = mix(vec3(l), graded, 0.86);                 // slight desaturation
-      graded += vec3(0.03,0.018,0.0)*smoothstep(0.55,1.0,l); // warm highlights
-      vec2 d = vUv-0.5; float vig = smoothstep(0.9,0.32,length(d));
-      graded *= mix(0.80,1.0,vig);                         // vignette
-      float g = rand(vUv + fract(time))-0.5;
-      graded += g*0.04;                                    // grain
-      gl_FragColor = vec4(mix(col, graded, amount), 1.0);
+      vec3 g = col;
+
+      // filmic S-curve contrast around mid-grey (richer blacks, controlled highs)
+      g = clamp((g - 0.5) * 1.14 + 0.5, 0.0, 1.0);
+      g = mix(g, g*g*(3.0-2.0*g), 0.22);
+
+      float l = dot(g, vec3(0.2126,0.7152,0.0722));
+      // teal-orange split-tone: push shadows cool, highlights warm
+      vec3 shadowTint = vec3(0.90, 1.00, 1.10);
+      vec3 highTint   = vec3(1.10, 1.02, 0.90);
+      g *= mix(shadowTint, highTint, smoothstep(0.15, 0.85, l));
+
+      // saturation lift (a touch more colourful, cinematic)
+      g = mix(vec3(l), g, 1.12);
+
+      // warm glow in the brights (sun, lamps)
+      g += vec3(0.035,0.022,0.0) * smoothstep(0.7, 1.0, l);
+
+      // night mood: cool the image and drain a little colour (no heavy crush —
+      // the world is already dark; headlights and street lamps carry it)
+      vec3 nightG = mix(vec3(dot(g, vec3(0.299,0.587,0.114))), g, 0.85) * vec3(0.86,0.94,1.12);
+      nightG = clamp((nightG - 0.5) * 1.02 + 0.5, 0.0, 1.0);
+      g = mix(g, nightG, night);
+
+      // vignette
+      vec2 d = vUv - 0.5; float vig = smoothstep(0.95, 0.30, length(d));
+      g *= mix(mix(0.86, 1.0, vig), mix(0.80, 1.0, vig), night);
+
+      // fine film grain
+      g += (rand(vUv + fract(time)) - 0.5) * 0.022;
+
+      gl_FragColor = vec4(mix(col, g, amount), 1.0);
     }`,
 };
 
@@ -51,19 +74,20 @@ export class Pipeline {
     } catch (e) { /* keep defaults across minor version diffs */ }
     this.composer.addPass(this.gtao);
 
-    // gentle bloom only on the brightest highlights (sun glints, headlights)
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.12, 0.5, 0.95);
+    // bloom on the brightest highlights (sun glints, headlights, street lamps)
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.28, 0.6, 0.82);
     this.composer.addPass(this.bloom);
 
     this.composer.addPass(new SMAAPass(size.x, size.y));
     this.composer.addPass(new OutputPass());
 
-    this.grade = new ShaderPass(NostalgiaShader);
+    this.grade = new ShaderPass(CinematicShader);
     this.composer.addPass(this.grade);
     this._t = 0;
   }
 
   setGrade(amount) { this.grade.uniforms.amount.value = amount; }
+  setNight(n) { this.grade.uniforms.night.value = n; }
 
   setCamera(camera) {
     for (const p of this.composer.passes) {

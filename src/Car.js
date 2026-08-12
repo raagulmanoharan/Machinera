@@ -271,9 +271,12 @@ export class Car {
     const wb = [root.getObjectByName('wheel_rl'), root.getObjectByName('wheel_rr')];
     if (!body || wf.includes(null) || wb.includes(null)) return false;
 
-    const paint = new THREE.MeshPhysicalMaterial({ color: 0xc10812, metalness: 0.5, roughness: 0.28, clearcoat: 1.0, clearcoatRoughness: 0.03, envMapIntensity: 1.4 });
-    const glass = new THREE.MeshPhysicalMaterial({ color: 0x0d1116, metalness: 0.25, roughness: 0.03, transparent: true, opacity: 0.6, envMapIntensity: 1.7, clearcoat: 1.0, clearcoatRoughness: 0.03 });
-    const chrome = new THREE.MeshStandardMaterial({ color: 0xdfe3e8, metalness: 1.0, roughness: 0.24, envMapIntensity: 1.6 });
+    // Our environment is a smooth procedural sky, so a near-mirror finish reads
+    // as glass. Use satin automotive paint (soft clearcoat, modest reflection),
+    // darker matte-ish glass, and brushed — not chrome-mirror — metal.
+    const paint = new THREE.MeshPhysicalMaterial({ color: 0x9c1622, metalness: 0.0, roughness: 0.5, clearcoat: 0.55, clearcoatRoughness: 0.18, envMapIntensity: 0.6, sheen: 0.2, sheenColor: new THREE.Color(0xff6b6b) });
+    const glass = new THREE.MeshPhysicalMaterial({ color: 0x07090d, metalness: 0.0, roughness: 0.12, transparent: true, opacity: 0.86, envMapIntensity: 0.8, clearcoat: 0.6, clearcoatRoughness: 0.1 });
+    const chrome = new THREE.MeshStandardMaterial({ color: 0xb9bdc4, metalness: 0.9, roughness: 0.38, envMapIntensity: 0.85 });
     root.traverse((o) => {
       if (!o.isMesh || !o.material) return;
       o.castShadow = true; o.receiveShadow = true;

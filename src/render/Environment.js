@@ -72,7 +72,7 @@ export class Environment {
     this.nightFactor = 1 - THREE.MathUtils.smoothstep(eDeg, -6, 3); // headlights on
 
     // moonlight fills in as the sun sets
-    this.moon.intensity = 0.55 * this.nightFactor;
+    this.moon.intensity = 0.8 * this.nightFactor;
 
     // sky scattering: hazier/greyer with cloud
     const u = this.sky.material.uniforms;
@@ -97,7 +97,7 @@ export class Environment {
     this.scene.fog.far = (3400 - (cloud + rain) * 2100) * (0.35 + 0.65 * day);
 
     // exposure: dim at night / overcast
-    this.renderer.toneMappingExposure = (0.18 + 0.82 * day) * (1 - cloud * 0.3);
+    this.renderer.toneMappingExposure = (0.24 + 0.76 * day) * (1 - cloud * 0.3);
 
     // clouds + glare
     if (this._clouds_) {

@@ -177,9 +177,12 @@ export class ProceduralWorld {
 
   async _lamps() {
     const mats = [];
+    const pools = [];
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
+    const poolQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+    const poolS = new THREE.Vector3(1, 1, 1);
     let side = 1;
-    for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += 68) {
+    for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += 46) {
       side *= -1;
       const cx = roadX(z), dx = roadSlope(z);
       const len = Math.hypot(1, dx);
@@ -192,9 +195,44 @@ export class ProceduralWorld {
       s.set(5.4, 5.4, 5.4);
       mats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, heightAt(px, pz), pz), q, s));
       this.colliders.add(px, pz, 0.4);
+      // a pool of light on the road, under the lamp head (shifted toward the road)
+      const lx = px - side * ox * 2.4, lz = pz - side * oz * 2.4;
+      pools.push(new THREE.Matrix4().compose(new THREE.Vector3(lx, 0.06, lz), poolQ, poolS));
     }
     const lamp = makeStreetlamp();
     this._addInstanced(this._fallbackGeo(lamp.geo), lamp.materials, mats);
+    this._lampMat = lamp.materials[1];   // emissive head — driven by night in update()
+    this._lampMat.emissiveIntensity = 0; // off by day
+
+    // additive warm light-pools cast on the road, faded in at night
+    const poolMesh = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(14, 14),
+      new THREE.MeshBasicMaterial({ map: this._lightPoolTex(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xffcf8a, toneMapped: false }),
+      pools.length
+    );
+    poolMesh.frustumCulled = false;
+    pools.forEach((m, i) => poolMesh.setMatrixAt(i, m));
+    poolMesh.instanceMatrix.needsUpdate = true;
+    this.group.add(poolMesh);
+    this._lampPools = poolMesh;
+  }
+
+  _lightPoolTex() {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(64, 64, 2, 64, 64, 64);
+    grd.addColorStop(0, 'rgba(255,240,210,0.95)');
+    grd.addColorStop(0.45, 'rgba(255,220,160,0.35)');
+    grd.addColorStop(1, 'rgba(255,210,150,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
+
+  update(dt, target, night = 0) {
+    const n = THREE.MathUtils.clamp(night, 0, 1);
+    if (this._lampMat) this._lampMat.emissiveIntensity = 3.8 * n;
+    if (this._lampPools) this._lampPools.material.opacity = 0.85 * n;
+    if (this.grass && target) this.grass.update(target);
   }
 
   // ---------- terrain ----------

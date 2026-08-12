@@ -111,9 +111,10 @@ function frame() {
     advanceWind(dt);
     input.update(dt);
     car.update(dt, input, world);
-    if (world.update) world.update(dt);
+    if (world.update) world.update(dt, car.pos, env.nightFactor);
     env.update(car.pos, dt);
     car.setHeadlights(env.nightFactor);
+    pipeline.setNight(env.nightFactor);
     chase.update(dt, car);
     updateHud();
   }
