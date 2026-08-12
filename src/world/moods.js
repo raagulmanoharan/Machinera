@@ -1,9 +1,9 @@
-// Bright, dense-smog liminal moods. Thick haze swallows the distance so the
-// road dissolves into a glowing wall of smog — unsettling and nostalgic. The
-// scene is lifted bright (hazy daylight/dusk, not night): the sun sits above
-// the horizon behind high turbidity for a flat luminous sky, a strong
-// hemisphere fill lights the ground, and the fog colour is a bright,
-// desaturated smog tint that varies per mood (cool, ashen, sickly, dusty).
+// Dark, foggy liminal moods with dense haze. The scene stays DARK — the sun
+// sits below the horizon so the sky is a dim dusk, exposure is low and lifted
+// only a little so the smog is just perceptible (not a bright wash). The fog is
+// dense but DARK-tinted, so the terrain loses visibility into gloomy haze
+// rather than bright white "snow caps". A cool moonlight + hemisphere fill keep
+// the road and near ground subtly readable.
 //
 // fog:  [colorHex, density]        grade: [r,g,b] cast + night 0..1
 // sun:  [colorHex, intensity]      hemi:  [colorHex, intensity]
@@ -14,44 +14,44 @@
 export const MOODS = [
   {
     name: 'Winter Dusk',
-    fog: [0xbcc6d2, 0.019], exposure: 0.92, env: 0.6,
-    skyElev: 5, skyTurb: 9, skyRayl: 1.4,
-    sun: [0xccd6e2, 0.7], hemi: [0xb2bcc8, 2.6], moon: [0xaebfd8, 0.3],
-    grade: [0.96, 0.98, 1.04], night: 0.12, lamps: 0.0, headlights: 0.4,
+    fog: [0x3b4552, 0.016], exposure: 0.62, env: 0.34,
+    skyElev: -3, skyTurb: 6, skyRayl: 1.6,
+    sun: [0x5a6675, 0.4], hemi: [0x8f99a8, 2.8], moon: [0x9fb4d8, 0.85],
+    grade: [0.93, 0.96, 1.03], night: 0.42, lamps: 0.0, headlights: 0.6,
   },
   {
     name: 'Deep Night',
-    fog: [0x818994, 0.024], exposure: 0.8, env: 0.44,
-    skyElev: 1, skyTurb: 8, skyRayl: 1.2,
-    sun: [0x9aa4b6, 0.44], hemi: [0x8b95a6, 2.7], moon: [0x9fb2d4, 0.6],
-    grade: [0.9, 0.96, 1.1], night: 0.4, lamps: 0.0, headlights: 0.75,
+    fog: [0x262f3d, 0.019], exposure: 0.54, env: 0.26,
+    skyElev: -8, skyTurb: 4, skyRayl: 1.0,
+    sun: [0x28374d, 0.2], hemi: [0x6f7a8e, 2.6], moon: [0x9ab2dc, 1.15],
+    grade: [0.9, 0.96, 1.12], night: 0.7, lamps: 0.0, headlights: 1.0,
   },
   {
     name: 'Blue Dusk',
-    fog: [0xabb7c9, 0.020], exposure: 0.9, env: 0.56,
-    skyElev: 3, skyTurb: 8, skyRayl: 2.0,
-    sun: [0xb9c7df, 0.62], hemi: [0xa4b1c6, 2.7], moon: [0x9fb4d8, 0.35],
-    grade: [0.9, 0.95, 1.1], night: 0.2, lamps: 0.0, headlights: 0.5,
+    fog: [0x334056, 0.017], exposure: 0.6, env: 0.32,
+    skyElev: -5, skyTurb: 5, skyRayl: 2.0,
+    sun: [0x3a4d6c, 0.36], hemi: [0x8493a8, 2.7], moon: [0x93abd4, 0.95],
+    grade: [0.85, 0.94, 1.13], night: 0.56, lamps: 0.0, headlights: 0.9,
   },
   {
     name: 'Ashen Overcast',
-    fog: [0xc4c6c8, 0.021], exposure: 0.96, env: 0.6,
-    skyElev: 7, skyTurb: 10, skyRayl: 1.0,
-    sun: [0xd0d3d6, 0.66], hemi: [0xc2c6ca, 2.9], moon: [0xc6cace, 0.25],
-    grade: [0.99, 0.99, 1.0], night: 0.08, lamps: 0.0, headlights: 0.4,
+    fog: [0x484d53, 0.017], exposure: 0.64, env: 0.36,
+    skyElev: -1, skyTurb: 7, skyRayl: 1.4,
+    sun: [0x777b7f, 0.5], hemi: [0x9aa1ab, 2.9], moon: [0xb2b8c4, 0.6],
+    grade: [0.96, 0.97, 0.98], night: 0.28, lamps: 0.0, headlights: 0.6,
   },
   {
     name: 'Dead Fields',
-    fog: [0xb4b9a4, 0.020], exposure: 0.9, env: 0.52,
-    skyElev: 4, skyTurb: 9, skyRayl: 1.3,
-    sun: [0xc6c8ae, 0.64], hemi: [0xb0b59c, 2.7], moon: [0xb2bcae, 0.3],
-    grade: [0.98, 1.0, 0.92], night: 0.12, lamps: 0.0, headlights: 0.5,
+    fog: [0x3b3e2c, 0.017], exposure: 0.6, env: 0.32,
+    skyElev: -2, skyTurb: 5, skyRayl: 1.6,
+    sun: [0x5f6252, 0.5], hemi: [0x8d9479, 2.7], moon: [0xa6b2b8, 0.8],
+    grade: [0.97, 1.0, 0.9], night: 0.4, lamps: 0.0, headlights: 0.7,
   },
   {
     name: 'Barren Dust',
-    fog: [0xc2b59c, 0.020], exposure: 0.9, env: 0.5,
-    skyElev: 4, skyTurb: 11, skyRayl: 1.2,
-    sun: [0xd8cbaa, 0.64], hemi: [0xc2b49a, 2.7], moon: [0xccc4b0, 0.3],
-    grade: [1.05, 1.0, 0.88], night: 0.12, lamps: 0.0, headlights: 0.5,
+    fog: [0x443a2a, 0.017], exposure: 0.6, env: 0.32,
+    skyElev: -2, skyTurb: 8, skyRayl: 1.4,
+    sun: [0x7a6a44, 0.5], hemi: [0xa2977e, 2.7], moon: [0xc0bba8, 0.8],
+    grade: [1.04, 1.0, 0.86], night: 0.38, lamps: 0.0, headlights: 0.65,
   },
 ];

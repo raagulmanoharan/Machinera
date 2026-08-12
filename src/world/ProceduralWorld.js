@@ -42,6 +42,31 @@ function mulberry32(seed) {
 const FLAT_TO = ROAD.halfWidth + ROAD.shoulder + 1.8;
 const CORRIDOR_Y = 0.0; // road surface level — car rests here, no clipping
 
+// De-tile a dirt material (break the obvious repeat) and, when greenKill > 0,
+// suppress the green weeds baked into the dirt albedo so the ground reads as
+// barren red dirt with only faint dead growth instead of a fake grass carpet.
+function dirtShade(material, { scale = 0.08, amount = 0.4, greenKill = 0.0 } = {}) {
+  const s1 = scale.toFixed(3), s2 = (scale * 3.1).toFixed(3), a = amount.toFixed(3);
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader =
+      `float _h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+       float _vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+         return mix(mix(_h(i),_h(i+vec2(1,0)),f.x),mix(_h(i+vec2(0,1)),_h(i+vec2(1,1)),f.x),f.y);}
+      ` + shader.fragmentShader.replace(
+        '#include <map_fragment>',
+        `#include <map_fragment>
+         float _m = _vn(vMapUv*${s1})*0.65 + _vn(vMapUv*${s2})*0.35;
+         diffuseColor.rgb *= (1.0 - ${a}) + ${a} * (0.6 + 0.9*_m);
+         ${greenKill > 0 ? `
+         float _g = clamp(diffuseColor.g - max(diffuseColor.r, diffuseColor.b), 0.0, 1.0);
+         vec3 _dirt = vec3(dot(diffuseColor.rgb, vec3(0.5,0.4,0.32))) * vec3(1.28, 0.92, 0.70);
+         diffuseColor.rgb = mix(diffuseColor.rgb, _dirt, clamp(_g * 5.0, 0.0, ${greenKill.toFixed(3)}));` : ''}`
+      );
+  };
+  material.customProgramCacheKey = () => 'dirtshade' + scale + amount + greenKill;
+  return material;
+}
+
 export function heightAt(x, z) {
   const c = distToRoad(x, z);
   if (c <= FLAT_TO) return CORRIDOR_Y;
@@ -202,6 +227,7 @@ export class ProceduralWorld {
     const cDust = new THREE.Color(0.82, 0.74, 0.6);   // pale dust
     const cRock = new THREE.Color(0.5, 0.46, 0.42);
     const cScree = new THREE.Color(0.62, 0.6, 0.6);
+    const cPacked = new THREE.Color(0.46, 0.35, 0.26); // compact bare dirt at the verge
     const tmp = new THREE.Color();
     const zMid = (zStart + zEnd) / 2;
 
@@ -218,6 +244,12 @@ export class ProceduralWorld {
       tmp.multiplyScalar(g);
       if (h > 6) tmp.lerp(cRock, smoothstep(6, 40, h));
       if (h > 60) tmp.lerp(cScree, smoothstep(60, 110, h));
+      // gradual dirt apron along the road: packed bare earth at the verge that
+      // fades (with a wobble so the edge isn't a hard line) into the terrain
+      const dr = distToRoad(x, z);
+      const wob = (vnoise(x * 0.06, z * 0.06) - 0.5) * 10;
+      const edge = smoothstep(FLAT_TO - 2, FLAT_TO + 30 + wob, dr);
+      tmp.lerp(cPacked, (1 - edge) * 0.9);
       colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b;
       uv.setXY(i, x * 0.02, z * 0.02); // 50 m per uv unit; texture.repeat tiles it
     }
@@ -226,12 +258,12 @@ export class ProceduralWorld {
 
     const dirt = loadTexture(TEXTURES.dirtDiff, { srgb: true, repeat: 13 });
     const dirtNor = loadTexture(TEXTURES.dirtNor, { repeat: 13 });
-    const mat = deTile(new THREE.MeshStandardMaterial({
+    const mat = dirtShade(new THREE.MeshStandardMaterial({
       vertexColors: true, roughness: 1.0, metalness: 0.0,
       map: dirt, normalMap: dirtNor,
       normalScale: new THREE.Vector2(1.6, 1.6),   // roughened surface
       envMapIntensity: 0.35,                        // gloomy — little sky sheen
-    }), { scale: 0.03, amount: 0.8 });              // strong de-tile to kill the repeat
+    }), { scale: 0.03, amount: 0.8, greenKill: 0.9 });  // de-tile + kill fake green
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
     mesh.castShadow = false;
@@ -274,13 +306,15 @@ export class ProceduralWorld {
 
   _roadMesh() {
     const W = ROAD.halfWidth;
-    // dirt shoulder — extends past the asphalt into the grass for a soft verge
+    // dirt shoulder — bare packed earth beside the asphalt (green weeds killed
+    // so it matches the terrain apron and reads as dirt, not grass)
     const SW = W + 3.6;
     const dDiff = loadTexture(TEXTURES.dirtDiff, { srgb: true }); dDiff.repeat.set(SW * 2 / 4, 1 / 4);
     const dNor = loadTexture(TEXTURES.dirtNor); dNor.repeat.copy(dDiff.repeat);
-    const dirt = new THREE.Mesh(this._ribbonGeo(SW), deTile(new THREE.MeshStandardMaterial({
-      map: dDiff, normalMap: dNor, normalScale: new THREE.Vector2(1, 1), roughness: 1, envMapIntensity: 0.7,
-    }), { scale: 0.12, amount: 0.4 }));
+    const dirt = new THREE.Mesh(this._ribbonGeo(SW), dirtShade(new THREE.MeshStandardMaterial({
+      map: dDiff, normalMap: dNor, normalScale: new THREE.Vector2(1, 1), roughness: 1, envMapIntensity: 0.4,
+      color: 0xb69a7c,   // warm packed-dirt tint
+    }), { scale: 0.12, amount: 0.4, greenKill: 0.9 }));
     dirt.position.y = -0.035; dirt.receiveShadow = true; this.group.add(dirt);
 
     // asphalt surface
