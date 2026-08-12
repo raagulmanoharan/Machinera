@@ -8,35 +8,39 @@ import { applyWind } from '../render/wind.js';
 // base→tip colour gradient and per-blade tint variation for a lush, hazy look.
 export class GrassField {
   constructor(scene, {
-    heightAt, skip, count = 150, spacing = 0.28, seed = 7,
-    hMin = 0.6, hMax = 1.5, windAmp = 0.17,
-    base = 0x2c521f, tip = 0x9ec85a,
+    heightAt, skip, count = 180, spacing = 0.3, seed = 7,
+    hMin = 0.45, hMax = 1.4, windAmp = 0.17,
+    base = 0x33471d, tip = 0x7ba43e,
   } = {}) {
     this.heightAt = heightAt || (() => 0);
     this.skip = skip || (() => false);
     this.spacing = spacing;
     this.total = count * count;
     this.radius = (count * spacing) / 2;
+    this._fadeAt = this.radius * 0.72;   // blades shrink to nothing past here
     this._center = new THREE.Vector3(1e9, 0, 1e9);
 
     let s = seed >>> 0;
     const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
     this._off = new Float32Array(this.total * 2);
     this._yaw = new Float32Array(this.total);
-    this._scl = new Float32Array(this.total * 2); // height, width
+    this._lean = new Float32Array(this.total * 2); // lean angle, lean direction
+    this._scl = new Float32Array(this.total * 2);  // height, width
     const half = this.radius;
     for (let i = 0; i < this.total; i++) {
       const gx = (i % count), gz = (i / count) | 0;
-      this._off[i * 2] = gx * spacing - half + (rnd() - 0.5) * spacing * 1.4;
-      this._off[i * 2 + 1] = gz * spacing - half + (rnd() - 0.5) * spacing * 1.4;
+      this._off[i * 2] = gx * spacing - half + (rnd() - 0.5) * spacing * 1.6;
+      this._off[i * 2 + 1] = gz * spacing - half + (rnd() - 0.5) * spacing * 1.6;
       this._yaw[i] = rnd() * Math.PI;
-      this._scl[i * 2] = hMin + rnd() * (hMax - hMin);   // blade height (m)
-      this._scl[i * 2 + 1] = 0.8 + rnd() * 0.5;          // width factor
+      this._lean[i * 2] = (0.08 + rnd() * 0.32);         // natural tilt off vertical
+      this._lean[i * 2 + 1] = rnd() * Math.PI * 2;
+      this._scl[i * 2] = hMin + Math.pow(rnd(), 1.5) * (hMax - hMin); // mostly short, some tall
+      this._scl[i * 2 + 1] = 0.8 + rnd() * 0.6;          // width factor
     }
 
     const geo = this._blade(base, tip);
     this.material = applyWind(new THREE.MeshStandardMaterial({
-      vertexColors: true, roughness: 0.9, metalness: 0.0, envMapIntensity: 0.45,
+      vertexColors: true, roughness: 0.95, metalness: 0.0, envMapIntensity: 0.28,
       side: THREE.DoubleSide,
     }), windAmp);
     this.mesh = new THREE.InstancedMesh(geo, this.material, this.total);
@@ -47,6 +51,8 @@ export class GrassField {
 
     this._m = new THREE.Matrix4();
     this._q = new THREE.Quaternion();
+    this._qt = new THREE.Quaternion();
+    this._axis = new THREE.Vector3();
     this._p = new THREE.Vector3();
     this._sv = new THREE.Vector3();
     this._up = new THREE.Vector3(0, 1, 0);
@@ -91,12 +97,20 @@ export class GrassField {
     this._center.set(target.x, 0, target.z);
     const hs = this._heightScale || 1;
     for (let i = 0; i < this.total; i++) {
-      const x = this._center.x + this._off[i * 2];
-      const z = this._center.z + this._off[i * 2 + 1];
+      const ox = this._off[i * 2], oz = this._off[i * 2 + 1];
+      const x = this._center.x + ox, z = this._center.z + oz;
       const h = this.heightAt(x, z);
-      if (this.skip(x, z) || h > 40) { this._m.makeScale(0, 0, 0); this.mesh.setMatrixAt(i, this._m); continue; }
-      const hgt = this._scl[i * 2] * hs, wid = this._scl[i * 2 + 1];
+      // fade blade height to nothing toward the field edge — no hard "patch" line
+      const d = Math.hypot(ox, oz);
+      const fade = d < this._fadeAt ? 1 : Math.max(0, 1 - (d - this._fadeAt) / (this.radius - this._fadeAt));
+      if (this.skip(x, z) || h > 40 || fade <= 0.02) { this._m.makeScale(0, 0, 0); this.mesh.setMatrixAt(i, this._m); continue; }
+      const hgt = this._scl[i * 2] * hs * fade, wid = this._scl[i * 2 + 1];
+      // yaw to face a random way, then lean off vertical for a natural, un-stiff look
       this._q.setFromAxisAngle(this._up, this._yaw[i]);
+      const ld = this._lean[i * 2 + 1];
+      this._axis.set(Math.cos(ld), 0, Math.sin(ld));
+      this._qt.setFromAxisAngle(this._axis, this._lean[i * 2]);
+      this._q.multiply(this._qt);
       this._p.set(x, h - 0.02, z);
       this._sv.set(wid, hgt, wid);
       this._m.compose(this._p, this._q, this._sv);

@@ -88,8 +88,8 @@ export class ProceduralWorld {
     this.grass = new GrassField(this.group, {
       heightAt,
       skip: (x, z) => distToRoad(x, z) < edge,
-      count: 168, spacing: 0.26,   // dense overgrown meadow around the car
-      hMin: 0.6, hMax: 1.55, windAmp: 0.18,
+      count: 190, spacing: 0.3,     // dense meadow, larger radius with a soft edge
+      hMin: 0.45, hMax: 1.45, windAmp: 0.18,
     });
   }
 

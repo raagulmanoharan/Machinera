@@ -31,8 +31,14 @@ const pipeline = new Pipeline(renderer, scene, camera);
 
 const input = new Input(canvas);
 const car = new Car(scene);
-// prefer the detailed showroom car; fall back to the CC0 low-poly, then procedural
-car.loadFerrari(MODELS.ferrari).then((ok) => { if (!ok) car.loadModel(MODELS.car); });
+// ?nocar skips the heavy car load while iterating on the atmosphere/scenes
+const NOCAR = new URLSearchParams(location.search).has('nocar');
+if (NOCAR) {
+  car.group.visible = false;
+} else {
+  // prefer the detailed showroom car; fall back to the CC0 low-poly, then procedural
+  car.loadFerrari(MODELS.ferrari).then((ok) => { if (!ok) car.loadModel(MODELS.car); });
+}
 const chase = new ChaseCamera(camera);
 // liminal moods: the world drifts between atmospheres as you drive
 const mood = new MoodDirector(env, pipeline, car, { onChange: (name) => toast('· ' + name + ' ·') });
@@ -111,9 +117,20 @@ function frame() {
     env.update(car.pos, dt);
     mood.update(dt);
     chase.update(dt, car);
+    updateSunScreen();
     updateHud();
   }
   pipeline.render(dt);
+}
+
+// project the (directional) sun onto the screen so god rays emanate from it
+const _sunW = new THREE.Vector3();
+const _camDir = new THREE.Vector3();
+function updateSunScreen() {
+  camera.getWorldDirection(_camDir);
+  const front = _camDir.dot(env.sunDir);           // >0 when the sun is ahead
+  _sunW.copy(camera.position).addScaledVector(env.sunDir, 5000).project(camera);
+  pipeline.setSunScreen(_sunW.x * 0.5 + 0.5, _sunW.y * 0.5 + 0.5, front > 0.05 ? 1 : 0);
 }
 
 function updateHud() {
