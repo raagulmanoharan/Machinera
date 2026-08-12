@@ -18,11 +18,11 @@ export const MOODS = [
     grass: { tint: 0xffffff, h: 1.0 },
   },
   {
-    name: 'Sodium Fog',
-    fog: [0x291d10, 12, 200], exposure: 0.72, env: 0.25, rays: 0.55,
-    sun: [0xffa040, 0.2], hemi: [0x2c1e10, 0.18],
-    grade: [1.16, 0.9, 0.66], night: 0.75, lamps: 1.0, headlights: 0.9,
-    grass: { tint: 0xb79a5e, h: 0.85 },
+    name: 'Fog Night',
+    fog: [0x0d141d, 8, 120], exposure: 0.6, env: 0.12, rays: 0,
+    sun: [0x2b3b52, 0.12], hemi: [0x18202e, 0.22],
+    grade: [0.9, 0.97, 1.12], night: 0.9, lamps: 1.0, headlights: 1.0,
+    grass: { tint: 0x4a5a68, h: 0.5 },
   },
   {
     name: 'Blue Hour',

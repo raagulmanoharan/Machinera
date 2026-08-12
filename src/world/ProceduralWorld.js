@@ -202,6 +202,7 @@ export class ProceduralWorld {
   async _lamps() {
     const mats = [];
     const pools = [];
+    const heads = [];
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3();
     const poolQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
     const poolS = new THREE.Vector3(1, 1, 1);
@@ -217,21 +218,26 @@ export class ProceduralWorld {
       const yaw = Math.atan2(-side * ox, -side * -oz);
       q.setFromAxisAngle(up, yaw);
       s.set(5.4, 5.4, 5.4);
-      mats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, heightAt(px, pz), pz), q, s));
+      const groundY = heightAt(px, pz);
+      mats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, groundY, pz), q, s));
       this.colliders.add(px, pz, 0.4);
       // a pool of light on the road, under the lamp head (shifted toward the road)
       const lx = px - side * ox * 2.4, lz = pz - side * oz * 2.4;
-      pools.push(new THREE.Matrix4().compose(new THREE.Vector3(lx, 0.06, lz), poolQ, poolS));
+      pools.push(new THREE.Matrix4().compose(new THREE.Vector3(lx, groundY + 0.06, lz), poolQ, poolS));
+      // the glowing head itself (up the pole, out along the arm toward the road)
+      heads.push([px - side * ox * 1.3, groundY + 5.15, pz - side * oz * 1.3]);
     }
     const lamp = makeStreetlamp();
     this._addInstanced(this._fallbackGeo(lamp.geo), lamp.materials, mats);
-    this._lampMat = lamp.materials[1];   // emissive head — driven by night in update()
-    this._lampMat.emissiveIntensity = 0; // off by day
+    this._lampMat = lamp.materials[1];    // emissive head — cool white, driven by night
+    this._lampMat.color.set(0xeaf3ff);
+    this._lampMat.emissive.set(0xcfe3ff);
+    this._lampMat.emissiveIntensity = 0;  // off by day
 
-    // additive warm light-pools cast on the road, faded in at night
+    // additive cool light-pools cast on the (wet) road
     const poolMesh = new THREE.InstancedMesh(
-      new THREE.PlaneGeometry(14, 14),
-      new THREE.MeshBasicMaterial({ map: this._lightPoolTex(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xffcf8a, toneMapped: false }),
+      new THREE.PlaneGeometry(14, 16),
+      new THREE.MeshBasicMaterial({ map: this._glowTex(0.55), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xbcd4ff, toneMapped: false }),
       pools.length
     );
     poolMesh.frustumCulled = false;
@@ -239,15 +245,29 @@ export class ProceduralWorld {
     poolMesh.instanceMatrix.needsUpdate = true;
     this.group.add(poolMesh);
     this._lampPools = poolMesh;
+
+    // big soft glow halos at each head — these bloom into orbs through the fog
+    this._haloMat = new THREE.SpriteMaterial({ map: this._glowTex(0.32), color: 0xdcebff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+    const halos = new THREE.Group();
+    for (const [hx, hy, hz] of heads) {
+      const sp = new THREE.Sprite(this._haloMat);
+      sp.position.set(hx, hy, hz);
+      sp.scale.set(7, 7, 1);
+      halos.add(sp);
+    }
+    halos.frustumCulled = false;
+    this.group.add(halos);
+    this._halos = halos;
   }
 
-  _lightPoolTex() {
+  // soft radial glow sprite; `core` sets how tight the bright centre is
+  _glowTex(core = 0.45) {
     const c = document.createElement('canvas'); c.width = c.height = 128;
     const g = c.getContext('2d');
-    const grd = g.createRadialGradient(64, 64, 2, 64, 64, 64);
-    grd.addColorStop(0, 'rgba(255,240,210,0.95)');
-    grd.addColorStop(0.45, 'rgba(255,220,160,0.35)');
-    grd.addColorStop(1, 'rgba(255,210,150,0)');
+    const grd = g.createRadialGradient(64, 64, 1, 64, 64, 64);
+    grd.addColorStop(0, 'rgba(255,255,255,0.95)');
+    grd.addColorStop(core, 'rgba(255,255,255,0.35)');
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   }
@@ -255,8 +275,9 @@ export class ProceduralWorld {
   // street-lamp glow level (0 off → 1 full), driven by the mood director
   setLamps(level) {
     const n = THREE.MathUtils.clamp(level, 0, 1);
-    if (this._lampMat) this._lampMat.emissiveIntensity = 3.8 * n;
-    if (this._lampPools) this._lampPools.material.opacity = 0.85 * n;
+    if (this._lampMat) this._lampMat.emissiveIntensity = 4.5 * n;
+    if (this._lampPools) this._lampPools.material.opacity = 0.8 * n;
+    if (this._haloMat) this._haloMat.opacity = 0.95 * n;
   }
 
   update(dt, target) {
@@ -369,7 +390,7 @@ export class ProceduralWorld {
     const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.5, 1 / 3.5);
     const aNor = loadTexture(TEXTURES.asphaltNor); aNor.repeat.copy(aDiff.repeat);
     const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshStandardMaterial({
-      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(0.8, 0.8), roughness: 0.9, envMapIntensity: 0.45,
+      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(0.5, 0.5), roughness: 0.55, metalness: 0.0, envMapIntensity: 1.0,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
     }), { scale: 0.15, amount: 0.28 }));
     road.position.y = 0.0; road.receiveShadow = true; this.group.add(road);

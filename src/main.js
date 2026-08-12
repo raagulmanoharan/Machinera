@@ -117,20 +117,9 @@ function frame() {
     env.update(car.pos, dt);
     mood.update(dt);
     chase.update(dt, car);
-    updateSunScreen();
     updateHud();
   }
   pipeline.render(dt);
-}
-
-// project the (directional) sun onto the screen so god rays emanate from it
-const _sunW = new THREE.Vector3();
-const _camDir = new THREE.Vector3();
-function updateSunScreen() {
-  camera.getWorldDirection(_camDir);
-  const front = _camDir.dot(env.sunDir);           // >0 when the sun is ahead
-  _sunW.copy(camera.position).addScaledVector(env.sunDir, 5000).project(camera);
-  pipeline.setSunScreen(_sunW.x * 0.5 + 0.5, _sunW.y * 0.5 + 0.5, front > 0.05 ? 1 : 0);
 }
 
 function updateHud() {

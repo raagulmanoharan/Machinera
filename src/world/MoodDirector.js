@@ -68,7 +68,6 @@ export class MoodDirector {
     );
     pl.setTint(this._l(a.grade[0], b.grade[0], k), this._l(a.grade[1], b.grade[1], k), this._l(a.grade[2], b.grade[2], k));
     pl.setNight(this._l(a.night, b.night, k));
-    pl.setRays(this._l(a.rays || 0, b.rays || 0, k));
     if (this.car) this.car.setHeadlights(this._l(a.headlights, b.headlights, k));
     if (this.world && this.world.setLamps) this.world.setLamps(this._l(a.lamps, b.lamps, k));
   }
