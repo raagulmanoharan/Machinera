@@ -37,10 +37,10 @@ const CinematicShader = {
       col /= float(TAPS);
       vec3 g = col;
 
-      // filmic S-curve: stronger contrast + a lower lift for richer blacks, so
-      // the image has real tonal range (depth) instead of a flat mid-grey wash
-      g = clamp((g - 0.5) * 1.26 + 0.46, 0.0, 1.0);
-      g = mix(g, g*g*(3.0-2.0*g), 0.35);
+      // filmic S-curve: strong contrast so the image has real tonal range —
+      // lit surfaces read against the haze instead of dissolving into it
+      g = clamp((g - 0.5) * 1.5 + 0.44, 0.0, 1.0);
+      g = mix(g, g*g*(3.0-2.0*g), 0.5);
 
       float l = dot(g, vec3(0.2126,0.7152,0.0722));
       // teal-orange split-tone: push shadows cool, highlights warm
@@ -62,7 +62,7 @@ const CinematicShader = {
 
       // vignette
       vec2 d = vUv - 0.5; float vig = smoothstep(0.95, 0.30, length(d));
-      g *= mix(mix(0.86, 1.0, vig), mix(0.80, 1.0, vig), night);
+      g *= mix(mix(0.93, 1.0, vig), mix(0.90, 1.0, vig), night);
 
       // per-mood colour cast (liminal grade)
       g *= tint;
@@ -70,10 +70,9 @@ const CinematicShader = {
       // film grain — a touch heavier for the gritty analog look
       g += (rand(vUv + fract(time)) - 0.5) * 0.032;
 
-      // lift the black point into a faint warm haze — no absolute blacks, so the
-      // far end of the tunnel and deep shadows stay faintly visible in amber
-      // rather than crushing to a hard black silhouette
-      vec3 haze = vec3(0.05, 0.031, 0.017);
+      // A whisper of warm lift so nothing crushes to pure black — kept tiny, a
+      // heavier lift washes the whole frame out and kills contrast.
+      vec3 haze = vec3(0.018, 0.011, 0.006);
       g = haze + g * (1.0 - haze);
 
       gl_FragColor = vec4(mix(col, g, amount), 1.0);
@@ -162,13 +161,17 @@ export class Pipeline {
     this.composer.addPass(new RenderPass(scene, camera));
 
     // ground-truth ambient occlusion — visible contact shadows + terrain crevices
+    // Ground-truth AO. Disabled in the fog tunnel: screen-space AO draws dark
+    // outlines at every depth discontinuity, which in dense haze read as hard
+    // ink lines tracing the road edge and the distant fixtures. The car carries
+    // its own soft contact shadow, so there's nothing to miss here. Kept wired
+    // so an open-air mood can switch it back on.
     this.gtao = new GTAOPass(scene, camera, size.x, size.y);
-    // keep AO subtle: a tighter radius + low blend so it adds soft contact
-    // shadow without drawing hard dark halos around silhouettes in the fog
     this.gtao.blendIntensity = 0.3;
     try {
       this.gtao.updateGtaoMaterial({ radius: 0.9, distanceExponent: 1.0, thickness: 1.0, scale: 1.0, samples: 16, screenSpaceRadius: false });
     } catch (e) { /* keep defaults across minor version diffs */ }
+    this.gtao.enabled = false;
     this.composer.addPass(this.gtao);
 
     // volumetric street-lamp light scattering through the fog (true 3D)
@@ -179,7 +182,9 @@ export class Pipeline {
     // bloom — glows the headlight beams and their scatter through the smog, and
     // the dusk horizon. Lower threshold + more strength so the diffused beams
     // read as light blooming in the fog.
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.6, 0.8, 0.85);
+    // A tighter radius keeps the halo round — a wide radius pulls from coarse
+    // mips and gives small bright sources a boxy glow.
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.62, 0.55, 0.72);
     this.composer.addPass(this.bloom);
 
     this.composer.addPass(new SMAAPass(size.x, size.y));

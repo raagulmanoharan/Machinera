@@ -319,6 +319,7 @@ export class ProceduralWorld {
   setLamps(level) {
     this.lampLevel = THREE.MathUtils.clamp(level, 0, 1);   // read by update() + the volumetric pass
     if (this._lensMat) this._lensMat.emissiveIntensity = 7.0 * this.lampLevel;
+    if (this._glowMat) this._glowMat.opacity = 0.4 * this.lampLevel;
   }
 
   // re-home the real spotlights onto the nearest lamps so their light pools
@@ -348,7 +349,10 @@ export class ProceduralWorld {
         // ceiling lights aim straight down the road crown (onto the car);
         // wall lights pool between the wall and the centre line
         sl.target.position.set(overhead ? roadX(h.z) : h.x * 0.6 + roadX(h.z) * 0.4, 0.0, h.z);
-        sl.intensity = (overhead ? 260 : 170) * level;
+        // Tuned against the wider cone and longer reach above — those already
+        // spread far more light than the old narrow, short-range spot, so the
+        // raw intensity has to come down or anything under a lamp blows out.
+        sl.intensity = (overhead ? 165 : 120) * level;
       } else { sl.visible = false; }
     }
   }
@@ -476,15 +480,16 @@ export class ProceduralWorld {
 
   _roadMesh() {
     const W = ROAD.halfWidth;
-    // concrete tunnel floor — runs a little past the walls (tucked behind the
-    // wall base) so the floor/wall seam is hidden instead of reading as a bright
-    // grazing edge-line down the tunnel
-    const FW = TUNNEL.Wt + 1.2;
+    // concrete tunnel floor — runs a little into the walls so its outer edge is
+    // buried in solid geometry rather than leaving a visible sliver at the verge
+    const FW = TUNNEL.Wt + 0.4;
     const cDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); cDiff.repeat.set(FW * 2 / 3.5, 1 / 3.5);
     const floor = new THREE.Mesh(this._ribbonGeo(FW), deTile(new THREE.MeshStandardMaterial({
       map: cDiff, roughness: 0.96, metalness: 0.0, envMapIntensity: 0.0, color: 0x3a3833,
     }), { scale: 0.1, amount: 0.4 }));
-    floor.position.y = -0.02; floor.receiveShadow = true; this.group.add(floor);
+    // coplanar with the asphalt — the road's polygonOffset keeps it in front, so
+    // there's no raised lip along the asphalt's edge to catch the light
+    floor.position.y = 0.0; floor.receiveShadow = true; this.group.add(floor);
 
     // asphalt driving surface — rough, worn, dark
     const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.2, 1 / 3.2);
@@ -511,9 +516,13 @@ export class ProceduralWorld {
   _tunnel() {
     const { Wt, Hw, Ha } = TUNNEL;
     const A = 12;                       // arch segments
-    const sec = [[-Wt, 0], [-Wt, Hw]];
+    // Walls run below the road plane so the floor slab ends *inside* solid wall.
+    // Stopping them at y=0 leaves a sliver at the verge that you see straight
+    // through, which draws a bright hairline down both sides of the tunnel.
+    const YB = -1.2;
+    const sec = [[-Wt, YB], [-Wt, Hw]];
     for (let k = 1; k < A; k++) { const p = Math.PI * (1 - k / A); sec.push([Wt * Math.cos(p), Hw + Ha * Math.sin(p)]); }
-    sec.push([Wt, Hw], [Wt, 0]);
+    sec.push([Wt, Hw], [Wt, YB]);
     const M = sec.length;
     const verts = [], uvs = [], idx = [];
     let rows = 0;
@@ -535,13 +544,59 @@ export class ProceduralWorld {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     g.setIndex(idx); g.computeVertexNormals();
     const cDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true, repeat: 4 });
+    // pale-ish concrete that actually catches the sodium light + a little IBL,
+    // so the walls read as surfaces instead of vanishing into the haze
     const mat = deTile(new THREE.MeshStandardMaterial({
-      map: cDiff, color: 0x4a463f, roughness: 0.97, metalness: 0.0, envMapIntensity: 0.0,
+      map: cDiff, color: 0x8a8074, roughness: 0.92, metalness: 0.0, envMapIntensity: 0.5,
       side: THREE.DoubleSide,
     }), { scale: 0.06, amount: 0.5 });
     const mesh = new THREE.Mesh(g, mat);
     mesh.receiveShadow = true;
     this.group.add(mesh);
+    this._tunnelRibs(mat);
+  }
+
+  // Concrete ring ribs protruding slightly into the bore every few metres.
+  // They're the strongest cue for reading the tunnel: regular spacing gives it
+  // measurable length, and the ribs sweeping around a bend show the curve.
+  _tunnelRibs(mat) {
+    const { Wt, Hw, Ha } = TUNNEL;
+    // Shallow on purpose: past some distance the ribs overlap into a continuous
+    // inner tube, and the boundary where that tube hides the wall behind it
+    // draws an arc down the bore. The deeper they stand, the harder that arc.
+    const inset = 0.13;
+    const W = Wt - inset, H = Hw, A = Ha - inset;
+    const AS = 12, L = 0.6;                          // arch segments, rib length along z
+    // Ribs start well above the floor. Carried all the way down they'd meet the
+    // road and their lit lower edges would march off as a bright dotted line
+    // along both verges — exactly the road-edge line we're trying to be rid of.
+    const Y0 = 1.6;
+    const sec = [[-W, Y0], [-W, H]];
+    for (let k = 1; k < AS; k++) { const p = Math.PI * (1 - k / AS); sec.push([W * Math.cos(p), H + A * Math.sin(p)]); }
+    sec.push([W, H], [W, Y0]);
+    const M = sec.length;
+    const verts = [], uvs = [], idx = [];
+    for (let r = 0; r < 2; r++) {
+      for (let m = 0; m < M; m++) { verts.push(sec[m][0], sec[m][1], r * L); uvs.push(m / (M - 1) * 3, r * 0.3); }
+    }
+    for (let m = 0; m < M - 1; m++) { const a = m, b = m + 1, c = M + m, d = M + m + 1; idx.push(a, c, b, b, c, d); }
+    const rg = new THREE.BufferGeometry();
+    rg.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    rg.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    rg.setIndex(idx); rg.computeVertexNormals();
+
+    const spacing = 9;
+    const mats = [];
+    const up = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
+    for (let z = ROAD.lengthStart; z < ROAD.lengthEnd; z += spacing) {
+      q.setFromAxisAngle(up, Math.atan2(roadSlope(z), 1));   // follow the bend
+      mats.push(new THREE.Matrix4().compose(new THREE.Vector3(roadX(z), 0, z), q, one));
+    }
+    const inst = new THREE.InstancedMesh(rg, mat, mats.length);
+    for (let i = 0; i < mats.length; i++) inst.setMatrixAt(i, mats[i]);
+    inst.instanceMatrix.needsUpdate = true;
+    inst.frustumCulled = false;
+    this.group.add(inst);
   }
 
   // warm sodium lights lining both tunnel walls, staggered, glowing in the fog.
@@ -552,7 +607,7 @@ export class ProceduralWorld {
     const ceilHeads = [];           // ceiling-only positions (aim spotlights down onto the car)
     const ceilMats = [];
     const yc = Hw + Ha - 0.35;      // ceiling fixtures hung just below the arch apex
-    const spacing = 15;
+    const spacing = 30;             // sparse — long dark stretches between lamps
     for (let z = ROAD.lengthStart + 10; z < ROAD.lengthEnd; z += spacing) {
       // a row of ceiling fixtures running down the crown of the arch
       const cx = roadX(z);
@@ -564,12 +619,42 @@ export class ProceduralWorld {
       color: 0xffca82, emissive: 0xff8a2a, emissiveIntensity: 0, roughness: 0.5, metalness: 0.1, toneMapped: true,
     });
     this._lensMat = lens;
-    // ceiling fixtures: a small flush-mounted disc so it reads as an overhead light
-    const ceilGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.16, 14);
+    // Ceiling fixtures. A round core rather than a flat disc — a disc seen at
+    // the shallow angle you get looking down the tunnel foreshortens into a
+    // hard-edged rectangle, while a sphere stays soft and round from anywhere.
+    // Big enough to cover real pixels: a tiny emitter is only a few pixels wide,
+    // and bloom's mip chain smears something that small into a blocky square
+    // rather than a round halo.
+    const ceilGeo = new THREE.SphereGeometry(0.55, 16, 12);
     const ceilInst = new THREE.InstancedMesh(ceilGeo, lens, ceilMats.length);
     for (let i = 0; i < ceilMats.length; i++) ceilInst.setMatrixAt(i, ceilMats[i]);
     ceilInst.instanceMatrix.needsUpdate = true; ceilInst.frustumCulled = false;
     this.group.add(ceilInst);
+
+    // The halo: a camera-facing quad carrying a gaussian falloff, added over the
+    // scene. Unlike a shell mesh it has no silhouette of its own, and unlike
+    // relying on bloom alone it can't go blocky — bloom builds its glow from
+    // coarse mips, which squares off around a small bright source. Billboarded
+    // in the vertex shader so one instanced draw covers every fixture.
+    this._glowMat = new THREE.MeshBasicMaterial({
+      map: this._glowTex(), color: 0xff9a3c, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+    });
+    this._glowMat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace(
+        '#include <project_vertex>',
+        `vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+         mvPosition.xy += transformed.xy;
+         gl_Position = projectionMatrix * mvPosition;`,
+      );
+    };
+    this._glowMat.customProgramCacheKey = () => 'billboardglow';
+    const glowInst = new THREE.InstancedMesh(new THREE.PlaneGeometry(5.2, 5.2), this._glowMat, ceilMats.length);
+    for (let i = 0; i < ceilMats.length; i++) glowInst.setMatrixAt(i, ceilMats[i]);
+    glowInst.instanceMatrix.needsUpdate = true;
+    glowInst.frustumCulled = false;
+    glowInst.renderOrder = 3;
+    this.group.add(glowInst);
     this.lampHeads = heads;
     this.ceilHeads = ceilHeads;
 
@@ -577,7 +662,10 @@ export class ProceduralWorld {
     // frame, casting warm pools on the road/walls + lighting the car from above
     this._lampLights = [];
     for (let i = 0; i < 4; i++) {
-      const sl = new THREE.SpotLight(0xffb267, 0, 46, 1.0, 1.0, 1.4);
+      // Wide cone, full penumbra, gentle decay and a reach well past the pool it
+      // casts — a narrow cone with a short range stamps a hard-edged circle of
+      // light on the road where the cone and the distance cutoff bite.
+      const sl = new THREE.SpotLight(0xffb267, 0, 90, 1.32, 1.0, 1.15);
       sl.visible = false; sl.castShadow = false;
       this.group.add(sl); this.group.add(sl.target);
       this._lampLights.push(sl);

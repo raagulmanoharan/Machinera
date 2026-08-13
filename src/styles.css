@@ -210,67 +210,252 @@ button.primary:hover { filter: brightness(1.06); }
 .tbtn.accel:active { background: rgba(255, 209, 102, 0.24); transform: scale(0.94); }
 .tbtn.brake:active { background: rgba(255, 130, 130, 0.24); transform: scale(0.94); }
 
-/* Radio — a slim vintage FM tuner, warm amber dial on the dark panel */
+/* Radio — an indulgent vintage FM tuner: bakelite case with brushed grain and
+   corner screws, a deep backlit dial with a real frequency scale and glowing
+   needle, a signal meter, and a perforated speaker grille. Dark and dormant
+   until powered on, when the whole dial warms up. */
 #radio {
   position: absolute;
   left: max(18px, env(safe-area-inset-left));
   bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 15;
-  width: 150px;
-  max-width: 52vw;
-  padding: 6px 7px 7px;
-  background: linear-gradient(180deg, rgba(20, 17, 14, 0.9), rgba(11, 10, 9, 0.94));
-  border: 1px solid rgba(255, 209, 102, 0.14);
-  border-radius: 10px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  width: 228px;
+  max-width: 76vw;
+  padding: 10px 11px 11px;
+  background:
+    linear-gradient(180deg, rgba(41, 33, 25, 0.94), rgba(13, 11, 10, 0.96)),
+    repeating-linear-gradient(90deg, rgba(255, 240, 214, 0.016) 0 1px, transparent 1px 3px);
+  border: 1px solid rgba(255, 209, 102, 0.18);
+  border-radius: 13px;
+  backdrop-filter: blur(12px);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 236, 198, 0.10),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.55);
   user-select: none;
   --amber: #ffcf7a;
 }
+/* case screws, one at each opposing corner */
+#radio::before, #radio::after {
+  content: '';
+  position: absolute;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #6d6456, #221d18 72%);
+  box-shadow: 0 0.5px 0 rgba(255, 255, 255, 0.06);
+}
+#radio::before { left: 6px; top: 6px; }
+#radio::after { right: 6px; bottom: 6px; }
+
+/* maker's plate: power key, brand, and the collapse toggle */
+.vr-hd {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 2px 7px;
+}
+.vr-brand {
+  flex: 1 1 auto;
+  font-size: 8px;
+  letter-spacing: 0.24em;
+  color: #9d8256;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.vr-model {
+  flex: 0 0 auto;
+  font-size: 6.5px;
+  letter-spacing: 0.16em;
+  color: #6a5a3f;
+}
+/* power key — the classic broken-ring glyph, lit when on air */
+.vr-pwr {
+  flex: 0 0 auto;
+  width: 16px; height: 16px;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 209, 102, 0.25);
+  background: linear-gradient(180deg, rgba(255, 240, 214, 0.08), rgba(0, 0, 0, 0.26));
+  box-shadow: inset 0 1px 0 rgba(255, 240, 214, 0.09), 0 1px 2px rgba(0, 0, 0, 0.45);
+  display: flex; align-items: center; justify-content: center;
+}
+.vr-pwr span {
+  position: relative;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid #6a5a3f;
+  border-top-color: transparent;
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+.vr-pwr span::after {
+  content: '';
+  position: absolute;
+  top: -2px; left: 50%;
+  width: 1.5px; height: 5px;
+  margin-left: -0.75px;
+  background: #6a5a3f;
+  transition: background 0.4s, box-shadow 0.4s;
+}
+.vr-pwr:hover { background: rgba(255, 209, 102, 0.12); }
+.vr-pwr:active { transform: translateY(1px); }
+#radio.is-on .vr-pwr span {
+  border-color: var(--amber);
+  border-top-color: transparent;
+  box-shadow: 0 0 6px rgba(255, 207, 122, 0.65);
+}
+#radio.is-on .vr-pwr span::after { background: var(--amber); box-shadow: 0 0 5px rgba(255, 207, 122, 0.8); }
+
+/* collapse toggle */
+.vr-min {
+  flex: 0 0 auto;
+  width: 16px; height: 16px;
+  padding: 0;
+  cursor: pointer;
+  border: 1px solid rgba(255, 209, 102, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  color: #8d7750;
+  border-radius: 4px;
+  font-size: 9px;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.vr-min:hover { background: rgba(255, 209, 102, 0.12); color: var(--amber); }
+.vr-min:active { transform: translateY(1px); }
+
+/* what's playing, shown only while collapsed */
+.vr-mini {
+  display: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  color: #4e4a3f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.5s;
+}
+#radio.is-on .vr-mini { color: #caa96f; }
+
+/* collapsed: just the header strip */
+#radio.is-min { width: 186px; padding-bottom: 8px; }
+#radio.is-min::after { display: none; }
+#radio.is-min .vr-hd { padding-bottom: 0; }
+#radio.is-min .vr-brand,
+#radio.is-min .vr-model,
+#radio.is-min .vr-face,
+#radio.is-min .vr-read,
+#radio.is-min .vr-ctrl,
+#radio.is-min .vr-foot,
+#radio.is-min .vr-grille { display: none; }
+#radio.is-min .vr-mini { display: block; }
+
 /* the backlit dial face */
 .vr-face {
   position: relative;
-  height: 22px;
-  border-radius: 5px;
-  background: linear-gradient(180deg, #0b0c0e, #131417);
-  border: 1px solid rgba(0, 0, 0, 0.6);
-  box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.7);
+  height: 50px;
+  border-radius: 6px;
+  background:
+    radial-gradient(120% 90% at 50% 118%, rgba(255, 176, 74, 0.10), transparent 70%),
+    linear-gradient(180deg, #0a0b0d, #14151a);
+  border: 1px solid rgba(0, 0, 0, 0.65);
+  box-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.75);
   overflow: hidden;
+  transition: background 0.6s ease;
 }
-/* tick marks along the tuning scale */
+#radio.is-on .vr-face {
+  background:
+    radial-gradient(120% 90% at 50% 118%, rgba(255, 176, 74, 0.30), transparent 72%),
+    linear-gradient(180deg, #100c09, #1b160f);
+}
+/* band legend */
+.vr-band {
+  position: absolute;
+  bottom: 5px; right: 8px;   /* below the ticks — up top it collides with "108" */
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #5e5138;
+  transition: color 0.5s, text-shadow 0.5s;
+}
+.vr-band em { font-style: normal; margin-left: 3px; opacity: 0.75; }
+#radio.is-on .vr-band { color: #d8b273; text-shadow: 0 0 6px rgba(255, 190, 110, 0.4); }
+
+/* frequency numerals along the scale */
+.vr-nums {
+  position: absolute;
+  left: 8%; right: 8%; top: 6px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 6.5px;
+  font-variant-numeric: tabular-nums;
+  color: #574b34;
+  transition: color 0.5s, text-shadow 0.5s;
+}
+#radio.is-on .vr-nums { color: #d0ab6d; text-shadow: 0 0 5px rgba(255, 190, 110, 0.35); }
+
+/* major + minor tick marks */
 .vr-scale {
   position: absolute;
-  left: 6%; right: 6%; top: 3px;
-  height: 5px;
+  left: 8%; right: 8%; top: 18px;
+  height: 9px;
   background:
-    repeating-linear-gradient(90deg,
-      rgba(255, 209, 102, 0.3) 0 1px,
-      transparent 1px 8px),
-    repeating-linear-gradient(90deg,
-      rgba(255, 209, 102, 0.15) 0 1px,
-      transparent 1px 4px);
-  opacity: 0.4;
-  transition: opacity 0.5s ease;
+    repeating-linear-gradient(90deg, rgba(255, 209, 102, 0.55) 0 1px, transparent 1px 17.6px),
+    repeating-linear-gradient(90deg, rgba(255, 209, 102, 0.22) 0 1px, transparent 1px 4.4px);
+  background-size: 100% 100%, 100% 55%;
+  background-repeat: repeat, repeat-x;
+  background-position: 0 0, 0 0;
+  opacity: 0.34;
+  transition: opacity 0.6s ease;
 }
+#radio.is-on .vr-scale { opacity: 0.95; }
+
+/* the tuning needle — a red pointer riding the scale */
 .vr-needle {
   position: absolute;
-  top: 2px; bottom: 2px;
+  top: 4px; bottom: 13px;
   width: 1.5px;
   margin-left: -0.75px;
-  background: #6a5a3a;
-  box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+  background: #6a4030;
   transition: left 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.5s, box-shadow 0.5s;
 }
-.vr-read {
+.vr-needle b {
   position: absolute;
-  left: 6px; right: 14px; bottom: 2px;
+  top: -1px; left: 50%;
+  width: 5px; height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: #6a4030;
+  transition: background 0.5s, box-shadow 0.5s;
+}
+#radio.is-on .vr-needle {
+  background: #ff6a4a;
+  box-shadow: 0 0 7px rgba(255, 106, 74, 0.85);
+}
+#radio.is-on .vr-needle b {
+  background: #ff8b5e;
+  box-shadow: 0 0 8px rgba(255, 122, 74, 0.95);
+}
+/* curved glass reflection over the whole dial */
+.vr-glass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.075) 0 32%, transparent 52%);
+}
+
+/* readout under the dial */
+.vr-read {
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 7px;
+  padding: 7px 2px 0;
   font-variant-numeric: tabular-nums;
 }
 .vr-freq {
-  font-size: 9.5px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.01em;
   color: #5f5540;
@@ -278,61 +463,116 @@ button.primary:hover { filter: brightness(1.06); }
   transition: color 0.5s, text-shadow 0.5s;
 }
 .vr-name {
-  font-size: 8px;
-  letter-spacing: 0.03em;
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
   color: #4e4a3f;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   transition: color 0.5s;
 }
-.vr-on {
-  position: absolute;
-  top: 4px; right: 5px;
-  width: 4px; height: 4px;
-  border-radius: 50%;
-  background: #3a2f1c;
-  transition: background 0.5s, box-shadow 0.5s;
-}
-/* powered-on: the dial glows warm */
-#radio.is-on .vr-scale { opacity: 0.85; }
-#radio.is-on .vr-needle { background: var(--amber); box-shadow: 0 0 5px rgba(255, 207, 122, 0.8); }
-#radio.is-on .vr-freq { color: var(--amber); text-shadow: 0 0 7px rgba(255, 207, 122, 0.45); }
+#radio.is-on .vr-freq { color: var(--amber); text-shadow: 0 0 10px rgba(255, 207, 122, 0.5); }
 #radio.is-on .vr-name { color: #caa96f; }
-#radio.is-on .vr-on {
-  background: var(--amber);
-  box-shadow: 0 0 6px rgba(255, 207, 122, 0.9);
-  animation: onair 2.4s ease-in-out infinite;
-}
-@keyframes onair { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
+/* tuning buttons flanking a live signal meter */
 .vr-ctrl {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 8px;
+  margin-top: 8px;
 }
 .vr-tune {
   cursor: pointer;
-  width: 20px; height: 18px;
+  width: 26px; height: 22px;
   flex: 0 0 auto;
   padding: 0;
-  border: 1px solid rgba(255, 209, 102, 0.18);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 209, 102, 0.2);
+  background: linear-gradient(180deg, rgba(255, 240, 214, 0.06), rgba(0, 0, 0, 0.18));
   color: #b89a63;
-  border-radius: 5px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 14px;
   line-height: 1;
   display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 214, 0.07), 0 1px 2px rgba(0, 0, 0, 0.4);
+  transition: background 0.2s, color 0.2s;
 }
-.vr-tune:hover { background: rgba(255, 209, 102, 0.1); color: var(--amber); }
-.vr-tune:active { transform: translateY(1px); }
+.vr-tune:hover { background: rgba(255, 209, 102, 0.13); color: var(--amber); }
+.vr-tune:active { transform: translateY(1px); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5); }
+
+.vr-meter {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  height: 14px;
+}
+.vr-meter i {
+  width: 3px;
+  height: 30%;
+  border-radius: 1px;
+  background: #3d3527;
+  transition: background 0.5s;
+}
+#radio.is-on .vr-meter i {
+  background: var(--amber);
+  box-shadow: 0 0 5px rgba(255, 207, 122, 0.5);
+  animation: vu 1.15s ease-in-out infinite;
+}
+#radio.is-on .vr-meter i:nth-child(1) { animation-delay: 0s; }
+#radio.is-on .vr-meter i:nth-child(2) { animation-delay: 0.16s; }
+#radio.is-on .vr-meter i:nth-child(3) { animation-delay: 0.33s; }
+#radio.is-on .vr-meter i:nth-child(4) { animation-delay: 0.11s; }
+#radio.is-on .vr-meter i:nth-child(5) { animation-delay: 0.26s; }
+@keyframes vu {
+  0%, 100% { height: 25%; opacity: 0.75; }
+  50%      { height: 100%; opacity: 1; }
+}
+
+/* volume rail + on-air lamp */
+.vr-foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+}
+.vr-vol-l {
+  font-size: 6.5px;
+  letter-spacing: 0.16em;
+  color: #6a5a3f;
+  flex: 0 0 auto;
+}
 .vr-vol {
   flex: 1 1 auto;
   min-width: 0;
   height: 2px;
   accent-color: var(--amber);
   cursor: pointer;
+}
+.vr-on {
+  position: relative;
+  flex: 0 0 auto;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #3a2f1c;
+  transition: background 0.5s, box-shadow 0.5s;
+}
+#radio.is-on .vr-on {
+  background: var(--amber);
+  box-shadow: 0 0 7px rgba(255, 207, 122, 0.9);
+  animation: onair 2.4s ease-in-out infinite;
+}
+@keyframes onair { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* perforated speaker grille across the bottom of the case */
+.vr-grille {
+  margin: 9px 2px 0;
+  height: 15px;
+  border-radius: 4px;
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.62) 1px, transparent 1.4px);
+  background-size: 5px 5px;
+  background-color: rgba(255, 226, 178, 0.045);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 /* the audio-only player: rendered but effectively invisible */
 #yt-audio {
