@@ -162,6 +162,25 @@ button.primary {
 }
 button.primary:hover { filter: brightness(1.06); }
 
+/* link to the photoreal city mode */
+#cityLink {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 15;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  background: rgba(14, 18, 24, 0.5);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 6px 11px;
+  backdrop-filter: blur(8px);
+}
+#cityLink:hover { color: var(--accent); }
+
 /* Touch driving controls — floating accelerate + small brake, shown only on
    touch devices. Steering is by tilt (gyro). */
 #touch {
