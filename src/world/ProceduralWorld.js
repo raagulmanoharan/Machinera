@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Water } from 'three/examples/jsm/objects/Water.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo, makeConcrete } from '../render/textures.js';
@@ -43,6 +44,7 @@ const FLAT_TO = ROAD.halfWidth + ROAD.shoulder + 1.8;
 const CORRIDOR_Y = 0.0; // road surface level — car rests here, no clipping
 // enclosing tunnel cross-section: interior half-width, wall height, arch rise
 const TUNNEL = { Wt: ROAD.halfWidth + 2.2, Hw: 4.8, Ha: 3.2 };
+const OCEAN_Y = -17;   // sea level; the causeway deck rides at y = 0
 
 // De-tile a dirt material (break the obvious repeat) and, when greenKill > 0,
 // suppress the green weeds baked into the dirt albedo so the ground reads as
@@ -116,9 +118,33 @@ export class ProceduralWorld {
   }
 
   _build() {
-    this._terrain();      // ground seen through the gallery's open bays
+    this._ocean();        // three.js Water — the sea the causeway crosses
     this._roadMesh();     // concrete floor + asphalt lanes + subtle centre line
-    this._tunnel();       // roof on pillars, open to the sky between them
+    this._tunnel();       // roof on piers, open to the sky between them
+  }
+
+  // The ocean example's own Water shader, with its parameters unchanged. This
+  // is what stops the scene reading flat: a diffuse surface under an
+  // environment map can only ever be flat, whereas Water renders a real planar
+  // reflection of the sky plus a sun specular, so the light actually moves as
+  // you drive. Sits below the causeway, which crosses it as a viaduct.
+  _ocean() {
+    const waterNormals = loadTexture(TEXTURES.waterNormals, { repeat: 1 });
+    waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
+    const water = new Water(new THREE.PlaneGeometry(20000, 20000), {
+      textureWidth: 512,
+      textureHeight: 512,
+      waterNormals,
+      sunDirection: new THREE.Vector3(),
+      sunColor: 0xffffff,
+      waterColor: 0x001e0f,
+      distortionScale: 3.7,
+      fog: this.scene.fog !== undefined,
+    });
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = OCEAN_Y;
+    this.water = water;                 // update() advances its `time` uniform
+    this.group.add(water);
   }
 
   // Nothing to place: the scene carries no lights at all, so there are no
@@ -322,9 +348,14 @@ export class ProceduralWorld {
     if (this._glowMat) this._glowMat.opacity = 0.4 * this.lampLevel;
   }
 
-  // re-home the real spotlights onto the nearest lamps so their light pools
-  // follow the drive; the volumetric glow is driven from main
   update(dt, pos, camera) {
+    // advance the swell, and keep the ocean centred on the car so its 20 km
+    // plane always reaches the horizon however far down the road we are
+    if (this.water) {
+      this.water.material.uniforms.time.value += (dt || 1 / 60);
+      const ref = pos || (camera && camera.position);
+      if (ref) this.water.position.set(ref.x, OCEAN_Y, ref.z);
+    }
     if (!this._lampLights || !this.lampHeads) return;
     const ref = pos || (camera && camera.position);
     if (!ref) return;
@@ -485,19 +516,25 @@ export class ProceduralWorld {
     const FW = TUNNEL.Wt + 0.4;
     const cDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); cDiff.repeat.set(FW * 2 / 3.5, 1 / 3.5);
     const floor = new THREE.Mesh(this._ribbonGeo(FW), deTile(new THREE.MeshStandardMaterial({
-      map: cDiff, roughness: 0.96, metalness: 0.0, envMapIntensity: 1.0, color: 0x3a3833,
+      // untinted: `color` multiplies the map, and the asphalt scan is already
+      // dark, so any grey tint drives the deck to black under a dim dawn sky
+      map: cDiff, roughness: 0.96, metalness: 0.0, envMapIntensity: 1.8, color: 0xffffff,
     }), { scale: 0.1, amount: 0.4 }));
     // coplanar with the asphalt — the road's polygonOffset keeps it in front, so
     // there's no raised lip along the asphalt's edge to catch the light
     floor.position.y = 0.0; floor.receiveShadow = true; this.group.add(floor);
 
-    // asphalt driving surface — rough, worn, dark
+    // Rain-slick asphalt. Wet, it mirrors the sky the way the sea does, and at
+    // grazing angles down the road Fresnel makes that reflection strong — which
+    // is what lets the exposure sit down near the example's, instead of being
+    // propped up to keep a dull matte deck out of the black.
     const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.2, 1 / 3.2);
     const aNor = loadTexture(TEXTURES.asphaltNor); aNor.repeat.copy(aDiff.repeat);
-    const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshStandardMaterial({
-      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(1.8, 1.8),
-      roughness: 0.93, metalness: 0.0, envMapIntensity: 1.0,
-      color: 0x35383c,
+    const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshPhysicalMaterial({
+      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(0.35, 0.35),
+      roughness: 0.14, metalness: 0.0, envMapIntensity: 2.4,
+      clearcoat: 1.0, clearcoatRoughness: 0.06,
+      color: 0xffffff,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
     }), { scale: 0.14, amount: 0.45 }));
     road.position.y = 0.0; road.receiveShadow = true; this.group.add(road);
@@ -505,7 +542,7 @@ export class ProceduralWorld {
     // subtle worn centre + lane lines
     const mTex = this._markingTex(); mTex.repeat.set(1, 1 / 26);
     const marks = new THREE.Mesh(this._ribbonGeo(W), new THREE.MeshStandardMaterial({
-      map: mTex, color: 0x6a675e, alphaTest: 0.4, roughness: 0.9, envMapIntensity: 1.0,
+      map: mTex, color: 0xc9c4b6, alphaTest: 0.4, roughness: 0.9, envMapIntensity: 1.0,
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     }));
     marks.position.y = 0.012; this.group.add(marks);
@@ -567,7 +604,7 @@ export class ProceduralWorld {
   // sets the rhythm of light and shadow you drive past.
   _tunnelPillars(mat) {
     const { Wt, Hw } = TUNNEL;
-    const YB = -1.2;                                  // foot buried below the road
+    const YB = OCEAN_Y - 1.5;                         // carried down into the water
     const h = Hw - YB;
     const geo = new THREE.BoxGeometry(0.85, h, 1.15);
     geo.translate(0, YB + h / 2, 0);

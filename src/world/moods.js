@@ -14,11 +14,12 @@ export const MOODS = [
     // used as the only light in the scene. No fog, no discrete lights, no colour
     // grade — exposure 0.1 under ACES, exactly as the example runs it.
     name: 'Ocean Sky',
-    // The example runs exposure 0.1, but its frame is almost entirely sky and
-    // specular water — both enormously bright. Ours is mostly diffuse concrete
-    // and asphalt under a 2° sun, which at 0.1 tone-maps to black. Same rig and
-    // same sky, opened up until the scene actually reads.
-    fog: [0x000000, 0.0], exposure: 2.4, env: 1.0,
+    // Near the example's 0.1, which its bright specular sea is calibrated for —
+    // we now have both that sea and a rain-slick deck mirroring the sky. Not all
+    // the way down to 0.1: the example's frame is wide-open sky, ours is a
+    // roofed gallery whose underside faces the dark lower hemisphere, and at 0.1
+    // the whole scene goes under.
+    fog: [0x000000, 0.0], exposure: 0.4, env: 1.0,
     skyElev: 2, skyAzi: 180, skyTurb: 10, skyRayl: 2,
     sun: [0x000000, 0], hemi: [0x000000, 0], moon: [0x000000, 0],
     grade: [1, 1, 1], night: 0, lamps: 0, headlights: 0,
