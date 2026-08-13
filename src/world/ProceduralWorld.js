@@ -44,7 +44,7 @@ const FLAT_TO = ROAD.halfWidth + ROAD.shoulder + 1.8;
 const CORRIDOR_Y = 0.0; // road surface level — car rests here, no clipping
 // enclosing tunnel cross-section: interior half-width, wall height, arch rise
 const TUNNEL = { Wt: ROAD.halfWidth + 2.2, Hw: 4.8, Ha: 3.2 };
-const OCEAN_Y = -17;   // sea level; the causeway deck rides at y = 0
+const OCEAN_Y = -0.85;  // sea level, just under the road surface
 
 // De-tile a dirt material (break the obvious repeat) and, when greenKill > 0,
 // suppress the green weeds baked into the dirt albedo so the ground reads as
@@ -76,22 +76,9 @@ function dirtShade(material, { scale = 0.08, amount = 0.4, greenKill = 0.0 } = {
   return material;
 }
 
-export function heightAt(x, z) {
-  const c = distToRoad(x, z);
-  if (c <= FLAT_TO) return CORRIDOR_Y;
-  const ramp = smoothstep(FLAT_TO, FLAT_TO + 26, c);
-  // The road runs along a causeway and the ground falls away from it. Terrain
-  // that rises instead walls the road into a bowl — and since the sky *is* the
-  // light source here, burying the horizon behind a hillside leaves the scene
-  // black no matter the exposure. Dropping it keeps the horizon in view through
-  // the gallery's open bays.
-  const drop = -(16 + fbm(x * 0.006, z * 0.006) * 26);
-  const relief = (fbm(x * 0.02, z * 0.02) - 0.5) * 9        // rolling ground
-    + (fbm(x * 0.09 + 5, z * 0.09 - 5) - 0.5) * 3.5;        // rocky detail
-  // distant ground stays below eye level so the horizon line reads
-  const far = smoothstep(140, 620, c) * (fbm(x * 0.0016 + 10, z * 0.0016 - 4) * 46 - 14);
-  return CORRIDOR_Y + ramp * (drop + relief + far);
-}
+// Flat: the road is the only surface there is to drive on, and the sea beneath
+// it is a plane. No terrain remains to follow.
+export function heightAt() { return CORRIDOR_Y; }
 
 export class ProceduralWorld {
   constructor(scene) {
@@ -117,10 +104,13 @@ export class ProceduralWorld {
     this.scene.remove(this.group);
   }
 
+  // webgl_shaders_ocean, plus a road and a car. That is the whole scene — the
+  // gallery, piers, parapet and terrain that had accumulated here are gone,
+  // because each of them put dark diffuse geometry in a frame whose exposure is
+  // calibrated for sky and sea.
   _build() {
-    this._ocean();        // three.js Water — the sea the causeway crosses
-    this._roadMesh();     // concrete floor + asphalt lanes + subtle centre line
-    this._tunnel();       // roof on piers, open to the sky between them
+    this._ocean();        // the example's Water, parameters unchanged
+    this._roadMesh();     // the road laid across it
   }
 
   // The ocean example's own Water shader, with its parameters unchanged. This
@@ -546,6 +536,16 @@ export class ProceduralWorld {
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     }));
     marks.position.y = 0.012; this.group.add(marks);
+
+    // The parapet used to carry collision; with it gone, the road edge itself
+    // has to stop the car, or you simply drive off into the sea. Stepped finely
+    // enough that the circles overlap into a continuous barrier.
+    for (let z = ROAD.lengthStart; z < ROAD.lengthEnd; z += 3) {
+      const cx = roadX(z), dx = roadSlope(z), len = Math.hypot(1, dx), ox = 1 / len, oz = -dx / len;
+      for (const side of [-1, 1]) {
+        this.colliders.add(cx + side * ox * (W + 2.0), z + side * oz * (W + 2.0), 2.2);
+      }
+    }
   }
 
   // An open causeway: deck, a low parapet along each edge, and piers carrying it
@@ -594,7 +594,7 @@ export class ProceduralWorld {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     g.setIndex(idx); g.computeVertexNormals();
     const mesh = new THREE.Mesh(g, mat);
-    mesh.receiveShadow = true;
+    mesh.castShadow = true; mesh.receiveShadow = true;
     this.group.add(mesh);
 
     // Collision follows the parapet, stepped finely enough that the circles
