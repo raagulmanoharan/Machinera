@@ -65,16 +65,32 @@ function fail(msg) {
   console.error('[city]', msg);
 }
 
+// on-screen diagnostics (readable on any device, incl. phones with no console)
+const diag = { webgl2: '?', floatRT: '?', floatLin: '?', atmosphere: '…', clouds: NO_CLOUDS ? 'off' : '…', tex: 0, tiles: 0, frames: 0, exp: EXPOSURE };
+function renderDiag() {
+  const el = document.getElementById('cityDiag'); if (!el) return;
+  el.textContent =
+    `webgl2:${diag.webgl2}  floatRT:${diag.floatRT}  floatLin:${diag.floatLin}\n` +
+    `atmosphere:${diag.atmosphere}  clouds:${diag.clouds}  cloudTex:${diag.tex}\n` +
+    `tiles:${diag.tiles}  frames:${diag.frames}  exp:${diag.exp}`;
+}
+
 // guarantee the loader never sticks (looks like a black screen) even if init stalls
 setTimeout(hideLoader, 5000);
-init().catch((e) => fail('City failed: ' + (e && e.message ? e.message : e)));
+renderDiag();
+init().catch((e) => { diag.atmosphere = 'init-error'; renderDiag(); fail('City failed: ' + (e && e.message ? e.message : e)); });
 
 async function init() {
   camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 10, 1e6);
   scene = new THREE.Scene();
 
   renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-  // the @takram atmosphere/clouds + pmndrs postprocessing require WebGL2
+  // capability report — the @takram atmosphere/clouds need WebGL2 + float render targets
+  const gl = renderer.getContext();
+  diag.webgl2 = renderer.capabilities.isWebGL2 ? 'yes' : 'NO';
+  diag.floatRT = gl.getExtension('EXT_color_buffer_float') ? 'yes' : 'NO';
+  diag.floatLin = (gl.getExtension('OES_texture_float_linear') || gl.getExtension('EXT_float_blend')) ? 'yes' : 'NO';
+  renderDiag();
   if (!renderer.capabilities.isWebGL2) { fail('This device/browser has no WebGL2 — the photoreal city needs it.'); return; }
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);
@@ -158,10 +174,17 @@ async function init() {
 
   // ---- precomputed atmosphere textures (generated on the GPU) ----
   status('Precomputing atmosphere…');
-  const generator = new PrecomputedTexturesGenerator(renderer);
-  const textures = await generator.update();
-  Object.assign(aerialPerspective, textures);
-  Object.assign(clouds, textures);
+  try {
+    const generator = new PrecomputedTexturesGenerator(renderer);
+    const textures = await generator.update();
+    Object.assign(aerialPerspective, textures);
+    Object.assign(clouds, textures);
+    diag.atmosphere = 'ok';
+  } catch (e) {
+    diag.atmosphere = 'FAILED';
+    fail('Atmosphere precompute failed (likely no float render support): ' + (e && e.message ? e.message : e));
+  }
+  renderDiag();
   status('Loading the city…');
 
   // ---- cloud noise / weather textures (streamed from the @takram CDN) ----
@@ -170,8 +193,8 @@ async function init() {
     const loadTex = (url, prop) => texLoader.load(url, (t) => {
       t.minFilter = THREE.LinearMipMapLinearFilter; t.magFilter = THREE.LinearFilter;
       t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.needsUpdate = true;
-      clouds[prop] = t;
-    }, undefined, () => console.warn('[city] cloud texture failed:', url));
+      clouds[prop] = t; diag.tex++; renderDiag();
+    }, undefined, () => { diag.clouds = 'tex-fail'; renderDiag(); console.warn('[city] cloud texture failed:', url); });
     loadTex(DEFAULT_LOCAL_WEATHER_URL, 'localWeatherTexture');
     loadTex(DEFAULT_TURBULENCE_URL, 'turbulenceTexture');
 
@@ -179,11 +202,11 @@ async function init() {
       const t = new THREE.Data3DTexture(new Uint8Array(buf), size, size, size);
       t.format = THREE.RedFormat; t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter;
       t.wrapS = t.wrapT = t.wrapR = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.needsUpdate = true;
-      clouds[prop] = t;
-    }).catch(() => console.warn('[city] cloud 3D texture failed:', url));
+      clouds[prop] = t; diag.tex++; renderDiag();
+    }).catch(() => { diag.clouds = 'tex-fail'; renderDiag(); console.warn('[city] cloud 3D texture failed:', url); });
     load3D(DEFAULT_SHAPE_URL, CLOUD_SHAPE_TEXTURE_SIZE, 'shapeTexture');
     load3D(DEFAULT_SHAPE_DETAIL_URL, CLOUD_SHAPE_DETAIL_TEXTURE_SIZE, 'shapeDetailTexture');
-    new STBNLoader().load(DEFAULT_STBN_URL, (t) => { clouds.stbnTexture = t; aerialPerspective.stbnTexture = t; });
+    new STBNLoader().load(DEFAULT_STBN_URL, (t) => { clouds.stbnTexture = t; aerialPerspective.stbnTexture = t; diag.tex++; renderDiag(); });
   }
 
   // ---- sun position (time of day) ----
@@ -229,4 +252,10 @@ function animate(time) {
   tiles.update();
   composer.render(deltaTime);
   if (!firstFrame) { firstFrame = true; hideLoader(); }   // rendering has begun
+  diag.frames++;
+  if (diag.frames % 30 === 0) {
+    let meshes = 0; tiles.group.traverse((o) => { if (o.isMesh) meshes++; });
+    diag.tiles = meshes;
+    renderDiag();
+  }
 }
