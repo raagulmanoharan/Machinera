@@ -7,14 +7,13 @@ import { MOODS } from './moods.js';
 const HOLD = 38;   // seconds a mood settles before drifting on
 const TRANS = 8;   // crossfade seconds
 
-// global brightness boosts so the terrain reads clearly: lift the sun toward
-// the horizon (a brighter sky = brighter HDRI/IBL that actually lights the
-// terrain), plus stronger IBL, exposure and ambient fill.
-const SKY_ELEV_BOOST = 11; // degrees added to each mood's sun elevation (golden hour)
-const ENV_BOOST = 2.0;     // sky/IBL (HDRI) intensity
-const EXPO_BOOST = 1.2;    // tone-map exposure
-const HEMI_BOOST = 1.35;   // hemisphere ambient
-const SUN_BOOST = 5.0;     // direct sunlight — lights the terrain faces so they read
+// neutral — the enclosed tunnel is lit by its wall lamps + a warm ambient, so
+// no open-world daylight boosts.
+const SKY_ELEV_BOOST = 0;
+const ENV_BOOST = 1.0;
+const EXPO_BOOST = 1.0;
+const HEMI_BOOST = 1.0;
+const SUN_BOOST = 1.0;
 
 export class MoodDirector {
   constructor(env, pipeline, car, { onChange } = {}) {
@@ -60,7 +59,7 @@ export class MoodDirector {
 
   update(dt) {
     this.timer += dt;
-    if (this.t >= 1 && this.timer > HOLD) { this.timer = 0; this._next(); }
+    if (MOODS.length > 1 && this.t >= 1 && this.timer > HOLD) { this.timer = 0; this._next(); }
     if (this.t < 1) this.t = Math.min(1, this.t + dt / TRANS);
     const k = this.t * this.t * (3 - 2 * this.t);   // smoothstep
     this._apply(this.from, this.to, k);
