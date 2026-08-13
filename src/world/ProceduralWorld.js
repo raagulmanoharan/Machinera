@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
 import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
-import { assets, MODELS, TEXTURES, loadTexture, deTile } from '../render/AssetLibrary.js';
+import { assets, MODELS, TEXTURES, loadTexture, deTile, roadShade } from '../render/AssetLibrary.js';
 import { makeStreetlamp, makeBareTree } from './props.js';
 import { Colliders } from './Colliders.js';
 
@@ -285,13 +285,12 @@ export class ProceduralWorld {
       heads.push(headLocal.clone().applyMatrix4(M));
       road.push({ x: roadX(zj), z: zj, slope: dx });
     };
-    let side = 1;
-    for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += 95 + rnd() * 55) {  // sparse
-      side *= -1;
-      place(z, side);
-      // sprinkle a few extra random lamps between the regular posts — usually on
-      // the opposite side and offset, so the run stays irregular, not a grid
-      if (rnd() < 0.4) place(z + 28 + rnd() * 46, rnd() < 0.75 ? -side : side);
+    // lamps on BOTH sides of the road, staggered: a left post, then a right post
+    // half a span later — an alternating rhythm down the highway
+    const span = 92;
+    for (let z = ROAD.lengthStart + 60; z < ROAD.lengthEnd; z += span) {
+      place(z, -1);                 // left side
+      place(z + span * 0.5, 1);     // right side, offset half a span (alternating)
     }
     // lamp posts — weathered metal with a warm sodium lens that lights at night
     const lamp = makeStreetlamp();
@@ -406,7 +405,7 @@ export class ProceduralWorld {
     const mat = dirtShade(new THREE.MeshStandardMaterial({
       vertexColors: true, roughness: 1.0, metalness: 0.0,
       map: dirt,                                     // no normal map — its grazing-angle glints were the sparkle
-      envMapIntensity: 0.0,                          // matte earth — no env specular (no fireflies)
+      envMapIntensity: 0.9,                          // receive sky (HDRI) IBL so the terrain reads; roughness 1 = diffuse only, no fireflies
     }), { scale: 0.03, amount: 0.8, greenKill: 0.9 });  // de-tile + kill fake green
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
@@ -436,41 +435,48 @@ export class ProceduralWorld {
   }
 
   _markingTex() {
-    const W = 64, H = 512;
+    // 6-lane layout across the full road width (canvas x maps 0..road width):
+    // solid white edges, a double-yellow centre, and dashed white lane dividers
+    // (2 lanes either side of centre). Paint is worn in smooth patches.
+    const W = 128, H = 512;
     const c = document.createElement('canvas'); c.width = W; c.height = H;
     const g = c.getContext('2d');
     g.clearRect(0, 0, W, H);
-    // smooth 1-D value noise — patchy wear ALONG the length (straight edges)
     const hash = (n) => { const s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); };
     const noise = (y, seed) => {
       const yy = y + seed, i = Math.floor(yy), f = yy - i, t = f * f * (3 - 2 * f);
       return hash(i * 1.7 + seed) * (1 - t) + hash((i + 1) * 1.7 + seed) * t;
     };
     const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-    // straight-edged line whose paint fades in smooth patches (some worn to
-    // nothing, some intact) — never a wavy/squiggly edge
-    const line = (x, w, rgb, seed) => {
+    // straight-edged worn line down the whole length
+    const solid = (x, w, rgb, seed) => {
       for (let y = 0; y < H; y++) {
         const wear = 0.58 * noise(y * 0.02, seed) + 0.42 * noise(y * 0.07, seed + 40);
         const a = ss(0.28, 0.62, wear) * 0.82;
         if (a <= 0.02) continue;
         g.fillStyle = `rgba(${rgb},${a.toFixed(3)})`;
-        g.fillRect(x, y, w, 1);                              // straight edge
+        g.fillRect(x, y, w, 1);
       }
     };
-    line(4, 4, '226,224,212', 3.1); line(56, 4, '226,224,212', 9.7);
-    // dashed yellow centre — proper dashes, each with its own overall condition
-    // plus smooth internal wear
-    const dash = 96, gap = 150;
-    for (let d = -30; d < H; d += dash + gap) {
-      const cond = 0.55 + 0.45 * hash(d * 0.31 + 5.0);       // this dash: faded..fresh
-      for (let y = Math.max(0, d); y < d + dash && y < H; y++) {
-        const wear = cond * (0.6 + 0.4 * noise(y * 0.05, 20 + d * 0.01));
-        const a = ss(0.24, 0.6, wear) * 0.82;
-        if (a <= 0.02) continue;
-        g.fillStyle = `rgba(222,190,68,${a.toFixed(3)})`;
-        g.fillRect(29, y, 6, 1);                             // straight edge
+    // dashed lane divider — proper dashes, each its own condition + internal wear
+    const dashed = (x, w, rgb, seed) => {
+      const dash = 90, gap = 150;
+      for (let d = -Math.floor(hash(seed) * (dash + gap)); d < H; d += dash + gap) {
+        const cond = 0.55 + 0.45 * hash(d * 0.31 + seed);
+        for (let y = Math.max(0, d); y < d + dash && y < H; y++) {
+          const wear = cond * (0.6 + 0.4 * noise(y * 0.05, 20 + d * 0.01 + seed));
+          const a = ss(0.24, 0.6, wear) * 0.82;
+          if (a <= 0.02) continue;
+          g.fillStyle = `rgba(${rgb},${a.toFixed(3)})`;
+          g.fillRect(x, y, w, 1);
+        }
       }
+    };
+    const white = '226,224,212', yellow = '222,190,68';
+    solid(3, 4, white, 3.1); solid(W - 7, 4, white, 9.7);      // edge lines
+    solid(W / 2 - 7, 4, yellow, 1.2); solid(W / 2 + 3, 4, yellow, 6.4);  // double-yellow centre
+    for (const [x, s] of [[W / 6, 2.4], [W / 3, 5.1], [2 * W / 3, 7.7], [5 * W / 6, 3.3]]) {
+      dashed(Math.round(x) - 2, 4, white, s);                 // dashed lane dividers
     }
     const t = new THREE.CanvasTexture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
@@ -490,24 +496,17 @@ export class ProceduralWorld {
     }), { scale: 0.12, amount: 0.4, greenKill: 0.9 }));
     dirt.position.y = -0.035; dirt.receiveShadow = true; this.group.add(dirt);
 
-    // asphalt surface
-    const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.5, 1 / 3.5);
+    // asphalt surface — rough, worn, no painted markings; crumbles into the dirt
+    // at the edges (roadShade) so there's no hard "snow"-like line
+    const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.2, 1 / 3.2);
     const aNor = loadTexture(TEXTURES.asphaltNor); aNor.repeat.copy(aDiff.repeat);
-    const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshStandardMaterial({
-      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(1.1, 1.1),  // surface relief/texture
-      roughness: 0.78, metalness: 0.0, envMapIntensity: 0.4,  // damp but even — soft diffuse pool, no hard specular streak
-      color: 0x4e5257,
+    const road = new THREE.Mesh(this._ribbonGeo(W), roadShade(new THREE.MeshStandardMaterial({
+      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(2.1, 2.1),  // strong relief — rough, pitted surface
+      roughness: 0.94, metalness: 0.0, envMapIntensity: 0.35,
+      color: 0x3c3f43,                                 // darker worn asphalt
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-    }), { scale: 0.15, amount: 0.35 }));
+    }), { scale: 0.14, amount: 0.5, edge: 0.12 }));
     road.position.y = 0.0; road.receiveShadow = true; this.group.add(road);
-
-    // painted markings overlay — faded and worn
-    const mTex = this._markingTex(); mTex.repeat.set(1, 1 / 28);  // ~28 m per tile — wear pattern rarely repeats
-    const marks = new THREE.Mesh(this._ribbonGeo(W), new THREE.MeshStandardMaterial({
-      map: mTex, color: 0x8c877a, alphaTest: 0.45, roughness: 0.85, envMapIntensity: 0.2,
-      polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
-    }));
-    marks.position.y = 0.015; this.group.add(marks);
   }
 
   // ---------- guardrails ----------

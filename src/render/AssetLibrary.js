@@ -39,6 +39,37 @@ export function deTile(material, { scale = 0.08, amount = 0.4 } = {}) {
   return material;
 }
 
+// Worn-asphalt shader: patchy surface wear (like deTile) plus a crumbling,
+// noisy edge that fades the asphalt into the dirt shoulder beneath it (via the
+// ribbon's across-width uv.x), so the road never has a hard painted edge.
+export function roadShade(material, { scale = 0.12, amount = 0.42, edge = 0.11 } = {}) {
+  const s1 = scale.toFixed(3), s2 = (scale * 3.1).toFixed(3), a = amount.toFixed(3), e = edge.toFixed(3);
+  material.alphaTest = 0.5;
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = 'varying float vRoadU;\n' + shader.vertexShader.replace(
+      '#include <uv_vertex>',
+      '#include <uv_vertex>\n\tvRoadU = uv.x;',
+    );
+    shader.fragmentShader =
+      `varying float vRoadU;
+       float _h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+       float _vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+         return mix(mix(_h(i),_h(i+vec2(1,0)),f.x),mix(_h(i+vec2(0,1)),_h(i+vec2(1,1)),f.x),f.y);}
+      ` + shader.fragmentShader.replace(
+        '#include <map_fragment>',
+        `#include <map_fragment>
+         float _m = _vn(vMapUv*${s1})*0.65 + _vn(vMapUv*${s2})*0.35;
+         diffuseColor.rgb *= (1.0 - ${a}) + ${a} * (0.5 + 1.0*_m);   // patchy worn asphalt
+         float _ed = min(vRoadU, 1.0 - vRoadU);                       // 0 at edges .. 0.5 centre
+         float _en = _vn(vMapUv*0.6 + 4.0)*0.55 + _vn(vMapUv*1.7)*0.45;
+         diffuseColor.a *= smoothstep(0.0, ${e}, _ed + (_en - 0.5) * ${e} * 1.9);  // crumble into dirt
+        `,
+      );
+  };
+  material.customProgramCacheKey = () => 'roadshade' + scale + amount + edge;
+  return material;
+}
+
 // Load a tiling texture (returns immediately, fills in when decoded).
 export function loadTexture(url, { srgb = false, repeat = 1, anisotropy = 8 } = {}) {
   const t = new THREE.TextureLoader().load(url);

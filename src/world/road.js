@@ -1,8 +1,8 @@
 // The highway centerline is a function of z, so it never doubles back —
 // an endless-feeling ribbon that gently winds through the terrain.
 export const ROAD = {
-  halfWidth: 5.0,     // half of drivable surface
-  shoulder: 2.2,      // extra flat ground beyond the lane
+  halfWidth: 10.5,    // half of drivable surface — 6 lanes (~3.5 m each)
+  shoulder: 2.4,      // extra flat ground beyond the lane
   lengthStart: -400,
   lengthEnd: 9000,
 };
