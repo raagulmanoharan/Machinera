@@ -10,7 +10,7 @@
 export const MOODS = [
   {
     name: 'Tunnel',
-    fog: [0x7a4a22, 0.048], exposure: 1.12, env: 0.12,
+    fog: [0x7a4a22, 0.048], exposure: 1.12, env: 0.5,
     skyElev: -8, skyTurb: 8, skyRayl: 1.0,
     sun: [0x1a1206, 0.1], hemi: [0xb0702e, 4.6], moon: [0x8a5a30, 0.7],
     grade: [1.08, 0.99, 0.85], night: 0.4, lamps: 1.0, headlights: 1.0,

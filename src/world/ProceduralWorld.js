@@ -328,20 +328,27 @@ export class ProceduralWorld {
     const ref = pos || (camera && camera.position);
     if (!ref) return;
     const level = this.lampLevel || 0;
-    const near = this.lampHeads
+    const n = this._lampLights.length;
+    // reserve the first two spotlights for the nearest ceiling fixtures so the
+    // car is always lit warmly from directly overhead; the rest track the
+    // nearest fixtures of any kind (wall pools + fill)
+    const nearest = (list, k) => list
       .map((h) => [h, h.distanceToSquared(ref)])
-      .sort((a, b) => a[1] - b[1])
-      .slice(0, this._lampLights.length);
-    for (let i = 0; i < this._lampLights.length; i++) {
+      .sort((a, b) => a[1] - b[1]).slice(0, k).map((e) => e[0]);
+    const ceil = this.ceilHeads ? nearest(this.ceilHeads, 2) : [];
+    const any = nearest(this.lampHeads, n);
+    const picks = ceil.concat(any).slice(0, n);
+    for (let i = 0; i < n; i++) {
       const sl = this._lampLights[i];
-      if (level > 0 && i < near.length) {
-        const h = near[i][0];
+      const h = picks[i];
+      if (level > 0 && h) {
+        const overhead = i < ceil.length;      // first slots are ceiling lights
         sl.visible = true;
         sl.position.copy(h);
-        // aim almost straight down so the pool lands on the ground right below
-        // the lamp (a soft scatter under it), like a real streetlight
-        sl.target.position.set(h.x * 0.6 + roadX(h.z) * 0.4, 0.0, h.z);
-        sl.intensity = 170 * level;
+        // ceiling lights aim straight down the road crown (onto the car);
+        // wall lights pool between the wall and the centre line
+        sl.target.position.set(overhead ? roadX(h.z) : h.x * 0.6 + roadX(h.z) * 0.4, 0.0, h.z);
+        sl.intensity = (overhead ? 260 : 170) * level;
       } else { sl.visible = false; }
     }
   }
@@ -536,35 +543,50 @@ export class ProceduralWorld {
   // warm sodium lights lining both tunnel walls, staggered, glowing in the fog.
   // Reuses the volumetric-glow (lampHeads) + spotlight-pool machinery.
   _tunnelLights() {
-    const { Wt, Hw } = TUNNEL;
-    const heads = [];
-    const mats = [];
-    const yl = Hw - 0.1;               // fixtures just under the wall top
+    const { Wt, Hw, Ha } = TUNNEL;
+    const heads = [];               // all fixture positions (feed the volumetric glow)
+    const ceilHeads = [];           // ceiling-only positions (aim spotlights down onto the car)
+    const wallMats = [], ceilMats = [];
+    const yl = Hw - 0.1;            // wall fixtures just under the wall top
+    const yc = Hw + Ha - 0.35;      // ceiling fixtures hung just below the arch apex
     const spacing = 15;
     for (let z = ROAD.lengthStart + 10; z < ROAD.lengthEnd; z += spacing) {
       for (const side of [-1, 1]) {
         const zz = z + (side > 0 ? spacing * 0.5 : 0);   // stagger the two sides
         const cx = roadX(zz), dx = roadSlope(zz), len = Math.hypot(1, dx), ox = 1 / len, oz = -dx / len;
         const px = cx + side * ox * (Wt - 0.35), pz = zz + side * oz * (Wt - 0.35);
-        mats.push(new THREE.Matrix4().makeTranslation(px, yl, pz));
+        wallMats.push(new THREE.Matrix4().makeTranslation(px, yl, pz));
         heads.push(new THREE.Vector3(px, yl, pz));
       }
+      // a row of ceiling fixtures running down the crown of the arch, offset
+      // half a span from the walls so the whole tunnel is evenly lit
+      const zc = z + spacing * 0.25;
+      const cx = roadX(zc);
+      ceilMats.push(new THREE.Matrix4().makeTranslation(cx, yc, zc));
+      const h = new THREE.Vector3(cx, yc, zc);
+      heads.push(h); ceilHeads.push(h);
     }
     const lens = new THREE.MeshStandardMaterial({
       color: 0xffca82, emissive: 0xff8a2a, emissiveIntensity: 0, roughness: 0.5, metalness: 0.1, toneMapped: true,
     });
     this._lensMat = lens;
-    const inst = new THREE.InstancedMesh(new THREE.SphereGeometry(0.32, 10, 8), lens, mats.length);
-    for (let i = 0; i < mats.length; i++) inst.setMatrixAt(i, mats[i]);
-    inst.instanceMatrix.needsUpdate = true;
-    inst.frustumCulled = false;
-    this.group.add(inst);
+    const wallInst = new THREE.InstancedMesh(new THREE.SphereGeometry(0.32, 10, 8), lens, wallMats.length);
+    for (let i = 0; i < wallMats.length; i++) wallInst.setMatrixAt(i, wallMats[i]);
+    wallInst.instanceMatrix.needsUpdate = true; wallInst.frustumCulled = false;
+    this.group.add(wallInst);
+    // ceiling fixtures: a small flush-mounted disc so it reads as an overhead light
+    const ceilGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.16, 14);
+    const ceilInst = new THREE.InstancedMesh(ceilGeo, lens, ceilMats.length);
+    for (let i = 0; i < ceilMats.length; i++) ceilInst.setMatrixAt(i, ceilMats[i]);
+    ceilInst.instanceMatrix.needsUpdate = true; ceilInst.frustumCulled = false;
+    this.group.add(ceilInst);
     this.lampHeads = heads;
+    this.ceilHeads = ceilHeads;
 
     // a small pool of real spotlights re-homed onto the nearest fixtures each
-    // frame, casting warm pools on the road/walls
+    // frame, casting warm pools on the road/walls + lighting the car from above
     this._lampLights = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       const sl = new THREE.SpotLight(0xffb267, 0, 46, 1.0, 1.0, 1.4);
       sl.visible = false; sl.castShadow = false;
       this.group.add(sl); this.group.add(sl.target);
