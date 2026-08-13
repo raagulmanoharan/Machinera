@@ -131,7 +131,7 @@ export class ProceduralWorld {
   _ocean() {
     const waterNormals = loadTexture(TEXTURES.waterNormals, { repeat: 1 });
     waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
-    const water = new Water(new THREE.PlaneGeometry(20000, 20000), {
+    const water = new Water(new THREE.PlaneGeometry(10000, 10000), {
       textureWidth: 512,
       textureHeight: 512,
       waterNormals,
@@ -593,9 +593,6 @@ export class ProceduralWorld {
       side: THREE.DoubleSide,
     }), { scale: 0.06, amount: 0.35 });
     const mesh = new THREE.Mesh(g, mat);
-    // casting matters more than receiving here: the roof is what blocks the low
-    // sun, so the open bays throw bright bars of light across the deck
-    mesh.castShadow = true;
     mesh.receiveShadow = true;
     this.group.add(mesh);
     this._tunnelPillars(mat);
