@@ -476,15 +476,16 @@ export class ProceduralWorld {
 
   _roadMesh() {
     const W = ROAD.halfWidth;
-    // concrete tunnel floor — stops just shy of the walls so the two never
-    // intersect (an overlapping floor slices through the wall and draws a hard
-    // seam line down the tunnel)
-    const FW = TUNNEL.Wt - 0.05;
+    // concrete tunnel floor — runs a little into the walls so its outer edge is
+    // buried in solid geometry rather than leaving a visible sliver at the verge
+    const FW = TUNNEL.Wt + 0.4;
     const cDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); cDiff.repeat.set(FW * 2 / 3.5, 1 / 3.5);
     const floor = new THREE.Mesh(this._ribbonGeo(FW), deTile(new THREE.MeshStandardMaterial({
       map: cDiff, roughness: 0.96, metalness: 0.0, envMapIntensity: 0.0, color: 0x3a3833,
     }), { scale: 0.1, amount: 0.4 }));
-    floor.position.y = -0.02; floor.receiveShadow = true; this.group.add(floor);
+    // coplanar with the asphalt — the road's polygonOffset keeps it in front, so
+    // there's no raised lip along the asphalt's edge to catch the light
+    floor.position.y = 0.0; floor.receiveShadow = true; this.group.add(floor);
 
     // asphalt driving surface — rough, worn, dark
     const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.2, 1 / 3.2);
@@ -511,9 +512,13 @@ export class ProceduralWorld {
   _tunnel() {
     const { Wt, Hw, Ha } = TUNNEL;
     const A = 12;                       // arch segments
-    const sec = [[-Wt, 0], [-Wt, Hw]];
+    // Walls run below the road plane so the floor slab ends *inside* solid wall.
+    // Stopping them at y=0 leaves a sliver at the verge that you see straight
+    // through, which draws a bright hairline down both sides of the tunnel.
+    const YB = -1.2;
+    const sec = [[-Wt, YB], [-Wt, Hw]];
     for (let k = 1; k < A; k++) { const p = Math.PI * (1 - k / A); sec.push([Wt * Math.cos(p), Hw + Ha * Math.sin(p)]); }
-    sec.push([Wt, Hw], [Wt, 0]);
+    sec.push([Wt, Hw], [Wt, YB]);
     const M = sec.length;
     const verts = [], uvs = [], idx = [];
     let rows = 0;
