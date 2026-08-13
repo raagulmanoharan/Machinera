@@ -29,11 +29,19 @@
         background: rgba(20, 12, 12, 0.9); border: 1px solid #ff6b6b; color: #ffd9d9;
         padding: 10px 16px; border-radius: 10px; font-size: 13px; display: none;
       }
+      #cityDiag {
+        position: fixed; left: max(10px, env(safe-area-inset-left)); top: max(10px, env(safe-area-inset-top));
+        z-index: 25; margin: 0; padding: 8px 10px; font-size: 11px; line-height: 1.5;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #bfe6d8;
+        background: rgba(8, 12, 16, 0.72); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+        white-space: pre; pointer-events: none; max-width: 90vw;
+      }
     </style>
   </head>
   <body>
     <div id="cityLoader">Loading the city…</div>
     <div id="cityErr"></div>
+    <pre id="cityDiag"></pre>
     <div id="cityUI">
       <label for="hour">Hour</label>
       <input id="hour" type="range" min="0" max="24" step="0.1" value="3" />
