@@ -161,12 +161,15 @@ function frame() {
       for (const p of ce.tail) _volLights.push({ pos: p, color: VCOL_TAIL.clone().multiplyScalar(0.45 * ce.level), dir: ce.back, cone: 0.2, att: 0.3 });
     }
     pipeline.updateVolumetric(camera, _volLights, {
-      strength: _volLights.length ? 0.07 : 0,
+      // thin fog means the raymarch's extinction decays slowly and in-scatter
+      // stacks up over a much longer distance — keep the strength low or the
+      // accumulated glow washes the tunnel back into a flat haze
+      strength: _volLights.length ? 0.03 : 0,
       fog: (scene.fog && scene.fog.density) || 0.02,
     });
     dust.update(camera.position, dt);
     chase.update(dt, car);
-    pipeline.setSpeed(Math.min(1, Math.abs(car.speed) / 50));   // speed → motion blur
+    pipeline.setSpeed(Math.min(1, Math.abs(car.speed) / 62));   // speed → motion blur
     engine.update(dt, { speed: car.speed, throttle: input.throttle });
   }
   pipeline.render(dt);

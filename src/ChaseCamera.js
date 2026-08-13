@@ -27,7 +27,7 @@ export class ChaseCamera {
     const cos = Math.cos(heading), sin = Math.sin(heading);
 
     // speed 0..1 — drives FOV, camera dolly and shake so velocity is felt
-    const spN = Math.min(1, Math.abs(car.speed) / 60);
+    const spN = Math.min(1, Math.abs(car.speed) / 78);
 
     // rotate local offset (x=right, z=forward) into world by heading. As speed
     // climbs the camera drops and pulls back a little — a grounded, fast read
@@ -64,7 +64,7 @@ export class ChaseCamera {
     this.camera.lookAt(this._look);
 
     // speed-reactive FOV — a strong widening so the tunnel rushes past at speed
-    const targetFov = v.fov + spN * 20;
+    const targetFov = v.fov + spN * 26;
     this.camera.fov += (targetFov - this.camera.fov) * Math.min(1, dt * 3);
     this.camera.updateProjectionMatrix();
   }

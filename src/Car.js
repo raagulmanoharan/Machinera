@@ -7,9 +7,9 @@ const DRACO_PATH = (import.meta.env.BASE_URL || './') + 'draco/';
 
 // Signed arcade + bicycle-model vehicle. Units are metres / seconds.
 const CFG = {
-  maxSpeed: 72,        // ~260 km/h forward
+  maxSpeed: 92,        // ~330 km/h forward
   maxReverse: 12,
-  enginePower: 17,     // m/s^2 at full throttle from standstill — punchy launch
+  enginePower: 23,     // m/s^2 at full throttle from standstill — punchy launch
   brakePower: 26,
   drag: 0.0016,        // quadratic air drag
   rollResist: 3.2,     // linear rolling resistance
@@ -363,7 +363,7 @@ export class Car {
     // longitudinal forces
     let a = 0;
     const speedFrac = Math.max(0, vLong) / CFG.maxSpeed;
-    a += input.throttle * CFG.enginePower * (1 - 0.72 * speedFrac);   // keeps pulling at speed
+    a += input.throttle * CFG.enginePower * (1 - 0.62 * speedFrac);   // keeps pulling at speed
     if (input.brake > 0) {
       if (vLong > 0.5) a -= input.brake * CFG.brakePower;
       else a -= input.brake * CFG.enginePower * 0.6; // reverse

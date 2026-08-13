@@ -10,16 +10,17 @@
 export const MOODS = [
   {
     name: 'Tunnel',
-    // A warm sodium-lit fog tunnel (the reference): a luminous amber haze with
-    // real depth — near is clear, the distance dissolves into glowing amber.
-    // Lit like three.js' ocean demo: a warm low-sun sky baked to a PMREM
-    // environment (soft IBL) under controlled ACES exposure, plus a moderate
-    // warm ambient and the sodium lamps as the glowing accents. Moderate fog
-    // density is what keeps the depth — dense fog flattens it into a wall.
-    fog: [0x4e2f18, 0.03], exposure: 0.95, env: 0.45,
+    // A warm sodium-lit tunnel. Fog density is the critical dial: thin enough
+    // that the walls, ribs and the receding lamp row stay legible for a long
+    // way (so the tunnel's length and curve read, and lit surfaces hold
+    // contrast against the haze), while still stacking into a warm amber glow
+    // in the far distance. Dense fog flattens all of that into a featureless
+    // wash. Lit like three.js' ocean demo — a warm low-sun sky baked to a PMREM
+    // environment under controlled ACES exposure, not an ambient flood.
+    fog: [0x3a2110, 0.011], exposure: 1.0, env: 0.5,
     skyElev: 2, skyTurb: 10, skyRayl: 2,
-    sun: [0x2a1c0c, 0.06], hemi: [0x9a5626, 2.0], moon: [0x7a4a24, 0.5],
-    grade: [1.07, 0.99, 0.86], night: 0.2, lamps: 1.0, headlights: 1.0,
+    sun: [0x2a1c0c, 0.06], hemi: [0x9a5626, 2.4], moon: [0x7a4a24, 0.55],
+    grade: [1.07, 0.99, 0.86], night: 0.12, lamps: 1.0, headlights: 1.0,
     sunset: [0xff7a2a, 0.85],
   },
 ];
