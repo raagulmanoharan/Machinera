@@ -548,31 +548,44 @@ export class ProceduralWorld {
     marks.position.y = 0.012; this.group.add(marks);
   }
 
-  // An open gallery rather than a sealed bore: a continuous concrete roof
-  // carried on regular pillars, with the bays between them open to the sky.
-  // Sealed, the only illumination (the sky baked to an environment map) never
-  // reaches the camera; opened up, the low sun rakes through the bays and lays
-  // light bars across the road. Camera sits inside, so render both sides.
+  // An open causeway: deck, a low parapet along each edge, and piers carrying it
+  // down into the sea. The roof is gone deliberately — it filled most of the
+  // frame with concrete facing the dark lower hemisphere, and no exposure can
+  // rescue that. Without it the frame is sky and water, which is the condition
+  // the example's exposure of 0.1 is actually calibrated for.
   _tunnel() {
-    const { Wt, Hw, Ha } = TUNNEL;
-    const A = 12;                       // arch segments
-    // roof only — from the top of one pillar line, over the crown, to the other
-    const sec = [[-Wt, Hw]];
-    for (let k = 1; k < A; k++) { const p = Math.PI * (1 - k / A); sec.push([Wt * Math.cos(p), Hw + Ha * Math.sin(p)]); }
-    sec.push([Wt, Hw]);
-    const M = sec.length;
+    const conc = makeConcrete(512);
+    for (const t of [conc.map, conc.normalMap, conc.roughnessMap]) t.repeat.set(3, 3);
+    const mat = deTile(new THREE.MeshStandardMaterial({
+      ...conc,
+      normalScale: new THREE.Vector2(1.1, 1.1),
+      color: 0xb4a894, metalness: 0.0, envMapIntensity: 0.9,
+      side: THREE.DoubleSide,
+    }), { scale: 0.06, amount: 0.35 });
+    this._parapet(mat);
+    this._tunnelPillars(mat);
+  }
+
+  // Low wall down both verges. Keeps the car on the deck, and gives the eye a
+  // line to read the causeway's curve against the open sea.
+  _parapet(mat) {
+    const { Wt } = TUNNEL;
+    const H = 0.95;
     const verts = [], uvs = [], idx = [];
     let rows = 0;
+    const sec = [[-Wt, 0], [-Wt, H], [Wt, H], [Wt, 0]];   // two edge strips
+    const M = sec.length;
     for (let z = ROAD.lengthStart - 20; z <= ROAD.lengthEnd + 20; z += 6) {
       const cx = roadX(z), dx = roadSlope(z), len = Math.hypot(1, dx), ox = 1 / len, oz = -dx / len;
       for (let m = 0; m < M; m++) {
         const lx = sec[m][0], ly = sec[m][1];
         verts.push(cx + lx * ox, ly, z + lx * oz);
-        uvs.push(m / (M - 1) * 3, z * 0.09);
+        uvs.push(m, z * 0.12);
       }
       if (rows > 0) {
         const base = (rows - 1) * M, cur = rows * M;
-        for (let m = 0; m < M - 1; m++) { const a = base + m, b = base + m + 1, c = cur + m, d = cur + m + 1; idx.push(a, c, b, b, c, d); }
+        // strips 0-1 and 2-3 only; skipping 1-2 leaves the deck itself open
+        for (const m of [0, 2]) { const a = base + m, b = base + m + 1, c = cur + m, d = cur + m + 1; idx.push(a, c, b, b, c, d); }
       }
       rows++;
     }
@@ -580,33 +593,28 @@ export class ProceduralWorld {
     g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     g.setIndex(idx); g.computeVertexNormals();
-    // Proper concrete lining — albedo, normal and roughness that agree with each
-    // other, rather than a tinted asphalt albedo with no surface response. The
-    // relief is what makes the walls catch the sodium light at grazing angles
-    // instead of reading as flat painted cardboard.
-    const conc = makeConcrete(512);
-    for (const t of [conc.map, conc.normalMap, conc.roughnessMap]) t.repeat.set(3, 3);
-    const mat = deTile(new THREE.MeshStandardMaterial({
-      ...conc,
-      normalScale: new THREE.Vector2(1.1, 1.1),
-      color: 0xb4a894, metalness: 0.0, envMapIntensity: 0.5,
-      side: THREE.DoubleSide,
-    }), { scale: 0.06, amount: 0.35 });
     const mesh = new THREE.Mesh(g, mat);
     mesh.receiveShadow = true;
     this.group.add(mesh);
-    this._tunnelPillars(mat);
-    this._tunnelRibs(mat);
+
+    // Collision follows the parapet, stepped finely enough that the circles
+    // overlap into a continuous barrier — the deck is a long drop to the sea.
+    for (let z = ROAD.lengthStart; z < ROAD.lengthEnd; z += 3) {
+      const cx = roadX(z), dx = roadSlope(z), len = Math.hypot(1, dx), ox = 1 / len, oz = -dx / len;
+      for (const side of [-1, 1]) {
+        this.colliders.add(cx + side * ox * (Wt + 1.6), z + side * oz * (Wt + 1.6), 2.2);
+      }
+    }
   }
 
-  // The columns carrying the roof, in pairs down both verges. The gaps between
-  // them are the openings the sky reaches the road through, so their spacing
-  // sets the rhythm of light and shadow you drive past.
+  // Piers carrying the deck down into the sea, in pairs down both verges. They
+  // stop at deck level now the roof is gone — carried on above it they would be
+  // columns holding nothing up.
   _tunnelPillars(mat) {
-    const { Wt, Hw } = TUNNEL;
-    const YB = OCEAN_Y - 1.5;                         // carried down into the water
-    const h = Hw - YB;
-    const geo = new THREE.BoxGeometry(0.85, h, 1.15);
+    const { Wt } = TUNNEL;
+    const YB = OCEAN_Y - 2.5;                         // footing under the water
+    const h = 0 - YB;                                 // up to the underside of the deck
+    const geo = new THREE.BoxGeometry(1.05, h, 1.35);
     geo.translate(0, YB + h / 2, 0);
     const spacing = 11;
     const mats = [];
@@ -617,9 +625,6 @@ export class ProceduralWorld {
       for (const side of [-1, 1]) {
         const px = cx + side * ox * Wt, pz = z + side * oz * Wt;
         mats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, 0, pz), q, one));
-        // the pillar line is also the parapet — without this the car drives
-        // straight out of a bay and off the causeway
-        this.colliders.add(px, pz, 1.5);
       }
     }
     const inst = new THREE.InstancedMesh(geo, mat, mats.length);

@@ -19,8 +19,12 @@ export const MOODS = [
     // at azimuth 180 the light runs parallel to the road and the pillar shadows
     // lie along it, invisible. Across the road they rake through the bays.
     // Elevation lifted off 2 so the disc actually clears the sea horizon.
-    // The example's own values, unchanged.
-    skyElev: 2, skyAzi: 180, skyTurb: 10, skyRayl: 2,
+    // The example's own sky values. Azimuth is the one thing that has to differ:
+    // 180 puts the sun behind the camera, and since our camera always looks down
+    // the road we would be driving away from the only bright thing in the sky.
+    // Swung ahead, we drive into the sunrise — the same view the example's
+    // default camera has of its sun.
+    skyElev: 2, skyAzi: 45, skyTurb: 10, skyRayl: 2,
     sun: [0x000000, 0], hemi: [0x000000, 0], moon: [0x000000, 0],
     grade: [1, 1, 1], night: 0, lamps: 0, headlights: 0,
     sunset: [0x000000, 0.0],
