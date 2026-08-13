@@ -52,9 +52,23 @@ export class Environment {
          gl_FragColor = vec4( retColor, 1.0 );`);
     sm.needsUpdate = true;
 
-    // No light objects, and nothing casts a shadow — the example creates none,
-    // and contains no castShadow or shadowMap at all. Its "sun" is the bright
-    // disc the sky shader draws, plus the specular the water returns from it.
+    // The one deliberate departure from webgl_shaders_ocean, which creates no
+    // lights at all. Sky light alone has no direction, so the car sat as a
+    // silhouette against its own glare — the sea reads because Water is
+    // specular, and the car had no equivalent. This directional sun rides the
+    // same vector the sky puts its disc on, so the rim it lays on the car comes
+    // from exactly where the glare does, and it grounds the car with a shadow.
+    this.sun = new THREE.DirectionalLight(0xffe8cc, 0);
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.bias = -0.0006;
+    this.sun.shadow.normalBias = 0.5;
+    const s = this.sun.shadow.camera;
+    // A sun this low throws very long shadows — roughly h/tan(elevation), tens
+    // of metres for the car alone — so the box has to be generous or they are
+    // clipped off mid-deck.
+    s.near = 1; s.far = 700; s.left = -110; s.right = 110; s.top = 110; s.bottom = -110;
+    scene.add(this.sun, this.sun.target);
 
     scene.fog = new THREE.FogExp2(0x9aa7b4, 0.0);
     renderer.toneMappingExposure = 0.1;   // the example's exposure
@@ -119,11 +133,15 @@ export class Environment {
     if (hf) hf.value.copy(this.scene.fog.color);
   }
   setExposure(e) { this.renderer.toneMappingExposure = e; }
-  setLight() {}                    // no lights to drive
+  setLight(sunColor, sunI) { this.sun.color.set(sunColor); this.sun.intensity = sunI; }
   setEnvIntensity(v) { this.scene.environmentIntensity = v; }
   setMoon() {}
 
   update(target) {
+    // sun and its shadow box travel with the car, so the map always covers the
+    // stretch of deck on screen rather than somewhere back down the causeway
+    this.sun.position.copy(target).addScaledVector(this.sunDir, 300);
+    this.sun.target.position.copy(target);
     this.sky.position.copy(target);
   }
 
@@ -131,7 +149,7 @@ export class Environment {
     this.scene.environment = null;
     if (this._envRT) this._envRT.dispose();
     this.pmrem.dispose();
-    this.scene.remove(this.sky);
+    this.scene.remove(this.sun, this.sun.target, this.sky);
     this.scene.fog = null;
   }
 }
