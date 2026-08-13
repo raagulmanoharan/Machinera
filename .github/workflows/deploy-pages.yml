@@ -10,9 +10,11 @@ permissions:
   pages: write
   id-token: write
 
-# Allow one concurrent deployment
+# One concurrent run per branch. Scoping the group by ref keeps a feature
+# branch's validation build from cancelling an in-progress main deployment
+# (which shared a single "pages" group before and left main un-deployed).
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
