@@ -147,9 +147,11 @@ export class Pipeline {
 
     // ground-truth ambient occlusion — visible contact shadows + terrain crevices
     this.gtao = new GTAOPass(scene, camera, size.x, size.y);
-    this.gtao.blendIntensity = 0.6;
+    // keep AO subtle: a tighter radius + low blend so it adds soft contact
+    // shadow without drawing hard dark halos around silhouettes in the fog
+    this.gtao.blendIntensity = 0.3;
     try {
-      this.gtao.updateGtaoMaterial({ radius: 2.0, distanceExponent: 1.0, thickness: 1.0, scale: 1.0, samples: 16, screenSpaceRadius: false });
+      this.gtao.updateGtaoMaterial({ radius: 0.9, distanceExponent: 1.0, thickness: 1.0, scale: 1.0, samples: 16, screenSpaceRadius: false });
     } catch (e) { /* keep defaults across minor version diffs */ }
     this.composer.addPass(this.gtao);
 

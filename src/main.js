@@ -151,7 +151,7 @@ function frame() {
       const near = world.lampHeads
         .map((h) => [h, h.distanceToSquared(cp)])
         .sort((a, b) => a[1] - b[1]).slice(0, 4);
-      for (const [h] of near) _volLights.push({ pos: h, color: VCOL_LAMP.clone().multiplyScalar(1.1 * lampLvl), dir: VDIR_DOWN, cone: -0.35, att: 0.16 });
+      for (const [h] of near) _volLights.push({ pos: h, color: VCOL_LAMP.clone().multiplyScalar(0.85 * lampLvl), dir: VDIR_DOWN, cone: 0.3, att: 0.22 });
     }
     const ce = car.getVolumetricEmitters();
     if (ce) {
@@ -161,7 +161,7 @@ function frame() {
       for (const p of ce.tail) _volLights.push({ pos: p, color: VCOL_TAIL.clone().multiplyScalar(0.45 * ce.level), dir: ce.back, cone: 0.2, att: 0.3 });
     }
     pipeline.updateVolumetric(camera, _volLights, {
-      strength: _volLights.length ? 0.11 : 0,
+      strength: _volLights.length ? 0.07 : 0,
       fog: (scene.fog && scene.fog.density) || 0.02,
     });
     dust.update(camera.position, dt);

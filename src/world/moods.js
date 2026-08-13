@@ -10,10 +10,13 @@
 export const MOODS = [
   {
     name: 'Tunnel',
-    fog: [0x7a4a22, 0.048], exposure: 1.12, env: 0.5,
+    // dark, gloomy tube: near-black warm fog so the distance falls into shadow
+    // (real depth), a low warm ambient so the walls aren't flooded flat, and the
+    // lamps + their volumetric scatter carry the light — pools glowing in the dark.
+    fog: [0x140b04, 0.05], exposure: 1.0, env: 0.2,
     skyElev: -8, skyTurb: 8, skyRayl: 1.0,
-    sun: [0x1a1206, 0.1], hemi: [0xb0702e, 4.6], moon: [0x8a5a30, 0.7],
-    grade: [1.08, 0.99, 0.85], night: 0.4, lamps: 1.0, headlights: 1.0,
+    sun: [0x140d05, 0.05], hemi: [0x5a3315, 0.85], moon: [0x6e4520, 0.35],
+    grade: [1.06, 0.98, 0.86], night: 0.55, lamps: 1.0, headlights: 1.0,
     sunset: [0x000000, 0.0],
   },
 ];
