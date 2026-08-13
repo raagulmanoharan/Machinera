@@ -17,7 +17,7 @@ import { CesiumIonAuthPlugin } from '3d-tiles-renderer/core/plugins';
 import { GLTFExtensionsPlugin, TilesFadePlugin, UpdateOnChangePlugin } from '3d-tiles-renderer/three/plugins';
 import {
   EffectComposer, RenderPass, NormalPass, EffectPass, SMAAEffect,
-  ToneMappingEffect, ToneMappingMode,
+  ToneMappingEffect, ToneMappingMode, Effect,
 } from 'postprocessing';
 import {
   CloudsEffect,
@@ -38,8 +38,23 @@ let camera, scene, renderer, composer;
 let tiles, controls, clouds, aerialPerspective;
 let prevTime = 0, deltaTime = 0;
 
-const NO_CLOUDS = new URLSearchParams(location.search).has('noclouds');
+const qs = new URLSearchParams(location.search);
+const NO_CLOUDS = qs.has('noclouds');
+// pmndrs' AgX tone mapping ignores renderer.toneMappingExposure, so scale the
+// HDR radiance ourselves before tone mapping (the example used exposure 10).
+const EXPOSURE = parseFloat(qs.get('exp')) || 10;
 let firstFrame = false;
+
+// a minimal exposure multiply as a pmndrs Effect (runs before AgX)
+class ExposureEffect extends Effect {
+  constructor(exposure = 10) {
+    super('ExposureEffect',
+      'uniform float exposure; void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor){ outputColor = vec4(inputColor.rgb * exposure, inputColor.a); }',
+      { uniforms: new Map([['exposure', new THREE.Uniform(exposure)]]) });
+  }
+  set value(v) { this.uniforms.get('exposure').value = v; }
+  get value() { return this.uniforms.get('exposure').value; }
+}
 
 function hideLoader() { const l = document.getElementById('cityLoader'); if (l) l.style.display = 'none'; }
 function status(msg) { const l = document.getElementById('cityLoader'); if (l) l.textContent = msg; console.log('[city]', msg); }
@@ -129,8 +144,11 @@ async function init() {
   composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType });
   const normalPass = new NormalPass(scene, camera);
   aerialPerspective.normalBuffer = normalPass.texture;
+  const exposure = new ExposureEffect(EXPOSURE);
   const toneMapping = new ToneMappingEffect({ mode: ToneMappingMode.AGX });
-  const skyEffects = NO_CLOUDS ? [aerialPerspective, toneMapping] : [clouds, aerialPerspective, toneMapping];
+  const skyEffects = NO_CLOUDS
+    ? [aerialPerspective, exposure, toneMapping]
+    : [clouds, aerialPerspective, exposure, toneMapping];
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(normalPass);
   composer.addPass(new EffectPass(camera, ...skyEffects));
@@ -170,7 +188,7 @@ async function init() {
 
   // ---- sun position (time of day) ----
   const sunDirection = new THREE.Vector3();
-  const params = { hourUTC: 6 };
+  const params = { hourUTC: 3 };            // ~noon in Tokyo (brightest for now)
   const updateSun = () => {
     const ms = params.hourUTC * 3600000;
     const date = new Date(Date.UTC(2024, 2, 1) + ms);
@@ -188,7 +206,10 @@ async function init() {
   addEventListener('resize', onResize);
   onResize();
 
-  window.__city = { camera, scene, renderer, composer, tiles, controls, clouds, aerialPerspective, params, updateSun, NO_CLOUDS };
+  window.__city = {
+    camera, scene, renderer, composer, tiles, controls, clouds, aerialPerspective, params, updateSun, NO_CLOUDS,
+    setExposure: (v) => { exposure.value = v; },     // live-tune: __city.setExposure(20)
+  };
   renderer.setAnimationLoop(animate);
 }
 
