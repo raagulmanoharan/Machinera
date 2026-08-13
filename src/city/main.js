@@ -38,26 +38,35 @@ let camera, scene, renderer, composer;
 let tiles, controls, clouds, aerialPerspective;
 let prevTime = 0, deltaTime = 0;
 
+const NO_CLOUDS = new URLSearchParams(location.search).has('noclouds');
+let firstFrame = false;
+
+function hideLoader() { const l = document.getElementById('cityLoader'); if (l) l.style.display = 'none'; }
+function status(msg) { const l = document.getElementById('cityLoader'); if (l) l.textContent = msg; console.log('[city]', msg); }
 function fail(msg) {
   const el = document.getElementById('cityErr');
   if (el) { el.textContent = msg; el.style.display = 'block'; }
-  const l = document.getElementById('cityLoader');
-  if (l) l.style.display = 'none';
-  console.error(msg);
+  hideLoader();
+  console.error('[city]', msg);
 }
 
-init().catch((e) => fail('City failed to load: ' + (e && e.message ? e.message : e)));
+// guarantee the loader never sticks (looks like a black screen) even if init stalls
+setTimeout(hideLoader, 5000);
+init().catch((e) => fail('City failed: ' + (e && e.message ? e.message : e)));
 
 async function init() {
   camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 10, 1e6);
   scene = new THREE.Scene();
 
   renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  // the @takram atmosphere/clouds + pmndrs postprocessing require WebGL2
+  if (!renderer.capabilities.isWebGL2) { fail('This device/browser has no WebGL2 — the photoreal city needs it.'); return; }
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);
   // tone mapping is applied in the effect chain (pmndrs), not by the renderer
   renderer.toneMapping = THREE.NoToneMapping;
   document.body.appendChild(renderer.domElement);
+  status('Starting the atmosphere…');
 
   // ---- tiles (Google Photorealistic 3D Tiles via Cesium Ion) ----
   const draco = new DRACOLoader();
@@ -116,42 +125,48 @@ async function init() {
   });
 
   // ---- post pipeline (pmndrs postprocessing; HDR HalfFloat buffer) ----
+  // Canonical @takram order: scene -> normals -> [clouds +] aerial + AgX tonemap.
   composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType });
   const normalPass = new NormalPass(scene, camera);
   aerialPerspective.normalBuffer = normalPass.texture;
+  const toneMapping = new ToneMappingEffect({ mode: ToneMappingMode.AGX });
+  const skyEffects = NO_CLOUDS ? [aerialPerspective, toneMapping] : [clouds, aerialPerspective, toneMapping];
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(normalPass);
-  composer.addPass(new EffectPass(camera, clouds, aerialPerspective));
+  composer.addPass(new EffectPass(camera, ...skyEffects));
   composer.addPass(new EffectPass(camera, new LensFlareEffect()));
-  composer.addPass(new EffectPass(camera, new ToneMappingEffect({ mode: ToneMappingMode.AGX })));
   composer.addPass(new EffectPass(camera, new DitheringEffect()));
   composer.addPass(new EffectPass(camera, new SMAAEffect()));
 
   // ---- precomputed atmosphere textures (generated on the GPU) ----
+  status('Precomputing atmosphere…');
   const generator = new PrecomputedTexturesGenerator(renderer);
   const textures = await generator.update();
   Object.assign(aerialPerspective, textures);
   Object.assign(clouds, textures);
+  status('Loading the city…');
 
   // ---- cloud noise / weather textures (streamed from the @takram CDN) ----
-  const texLoader = new THREE.TextureLoader();
-  const loadTex = (url, prop) => texLoader.load(url, (t) => {
-    t.minFilter = THREE.LinearMipMapLinearFilter; t.magFilter = THREE.LinearFilter;
-    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.needsUpdate = true;
-    clouds[prop] = t;
-  });
-  loadTex(DEFAULT_LOCAL_WEATHER_URL, 'localWeatherTexture');
-  loadTex(DEFAULT_TURBULENCE_URL, 'turbulenceTexture');
+  if (!NO_CLOUDS) {
+    const texLoader = new THREE.TextureLoader();
+    const loadTex = (url, prop) => texLoader.load(url, (t) => {
+      t.minFilter = THREE.LinearMipMapLinearFilter; t.magFilter = THREE.LinearFilter;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.needsUpdate = true;
+      clouds[prop] = t;
+    }, undefined, () => console.warn('[city] cloud texture failed:', url));
+    loadTex(DEFAULT_LOCAL_WEATHER_URL, 'localWeatherTexture');
+    loadTex(DEFAULT_TURBULENCE_URL, 'turbulenceTexture');
 
-  const load3D = (url, size, prop) => fetch(url).then((r) => r.arrayBuffer()).then((buf) => {
-    const t = new THREE.Data3DTexture(new Uint8Array(buf), size, size, size);
-    t.format = THREE.RedFormat; t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter;
-    t.wrapS = t.wrapT = t.wrapR = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.needsUpdate = true;
-    clouds[prop] = t;
-  });
-  load3D(DEFAULT_SHAPE_URL, CLOUD_SHAPE_TEXTURE_SIZE, 'shapeTexture');
-  load3D(DEFAULT_SHAPE_DETAIL_URL, CLOUD_SHAPE_DETAIL_TEXTURE_SIZE, 'shapeDetailTexture');
-  new STBNLoader().load(DEFAULT_STBN_URL, (t) => { clouds.stbnTexture = t; aerialPerspective.stbnTexture = t; });
+    const load3D = (url, size, prop) => fetch(url).then((r) => r.arrayBuffer()).then((buf) => {
+      const t = new THREE.Data3DTexture(new Uint8Array(buf), size, size, size);
+      t.format = THREE.RedFormat; t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter;
+      t.wrapS = t.wrapT = t.wrapR = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.needsUpdate = true;
+      clouds[prop] = t;
+    }).catch(() => console.warn('[city] cloud 3D texture failed:', url));
+    load3D(DEFAULT_SHAPE_URL, CLOUD_SHAPE_TEXTURE_SIZE, 'shapeTexture');
+    load3D(DEFAULT_SHAPE_DETAIL_URL, CLOUD_SHAPE_DETAIL_TEXTURE_SIZE, 'shapeDetailTexture');
+    new STBNLoader().load(DEFAULT_STBN_URL, (t) => { clouds.stbnTexture = t; aerialPerspective.stbnTexture = t; });
+  }
 
   // ---- sun position (time of day) ----
   const sunDirection = new THREE.Vector3();
@@ -167,14 +182,13 @@ async function init() {
   const hour = document.getElementById('hour');
   if (hour) { hour.value = String(params.hourUTC); hour.addEventListener('input', (e) => { params.hourUTC = parseFloat(e.target.value); updateSun(); }); }
 
+  // surface tile/token/network problems instead of a silent black screen
+  tiles.addEventListener('load-error', (e) => fail('Tiles error (check the Cesium Ion token / its allowed URLs): ' + (e && e.error ? e.error.message || e.error : '')));
+
   addEventListener('resize', onResize);
   onResize();
 
-  // hide the loader once the first tiles have a chance to stream in
-  tiles.addEventListener('load-tile-set', () => { const l = document.getElementById('cityLoader'); if (l) l.style.display = 'none'; });
-  setTimeout(() => { const l = document.getElementById('cityLoader'); if (l) l.style.display = 'none'; }, 6000);
-
-  window.__city = { camera, scene, renderer, composer, tiles, controls, clouds, aerialPerspective, params, updateSun };
+  window.__city = { camera, scene, renderer, composer, tiles, controls, clouds, aerialPerspective, params, updateSun, NO_CLOUDS };
   renderer.setAnimationLoop(animate);
 }
 
@@ -193,4 +207,5 @@ function animate(time) {
   camera.updateMatrixWorld();
   tiles.update();
   composer.render(deltaTime);
+  if (!firstFrame) { firstFrame = true; hideLoader(); }   // rendering has begun
 }
