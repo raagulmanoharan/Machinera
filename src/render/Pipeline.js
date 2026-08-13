@@ -164,22 +164,41 @@ export class Pipeline {
     this.composer.setPixelRatio(renderer.getPixelRatio());
     this.composer.setSize(size.x, size.y);
 
-    // webgl_shaders_ocean has NO post-processing: it renders straight to the
-    // canvas with ACES at exposure 0.5. Verified by building the example locally
-    // against this same three.js and comparing — with a 1.5-strength bloom at
-    // exposure 0.1 it blows out to a white wash, while plain at 0.5 it gives the
-    // familiar small sun disc over a graded sky.
-    //
-    // RenderPass -> OutputPass is the equivalent of a direct render: the HDR
-    // pass leaves tone mapping off (three.js skips it when drawing to a render
-    // target) and OutputPass applies the same ACES curve and sRGB conversion.
+    // The ocean example's post chain, which is one bloom pass:
+    //   bloomPass = new UnrealBloomPass( resolution, 1.5, 0.4, 0.85 );
+    //   renderer.setEffects( [ bloomPass ] );
+    // setEffects is master-only and absent from the pinned three.js, so the same
+    // pass runs through EffectComposer: render to HDR (the example's
+    // outputBufferType: HalfFloatType), bloom there, then OutputPass to tone-map
+    // and convert — what setEffects does internally.
     this.composer.addPass(new RenderPass(scene, camera));
+
+    // Ceiling on the HDR buffer before bloom. Two problems it solves at once:
+    // the Preetham sun disc emits radiance orders of magnitude past half-float's
+    // 65504 limit, so blooming it raw overflows to Inf, turns NaN and takes the
+    // frame to black; and the pass's 0.85 threshold only separates highlights
+    // from midtones when values sit in a sane range — against raw radiance
+    // everything clears it and the frame blows white.
+    this.composer.addPass(new ShaderPass({
+      uniforms: { tDiffuse: { value: null }, uMax: { value: 4.0 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+      fragmentShader: `uniform sampler2D tDiffuse; uniform float uMax; varying vec2 vUv;
+        void main(){ vec4 c = texture2D(tDiffuse, vUv);
+          gl_FragColor = vec4(min(c.rgb, vec3(uMax)), c.a); }`,
+    }));
+
+    // The example's strength is 1.5, tuned for a camera that views its sun past
+    // a cube and through cloud. Ours looks straight down the road at an
+    // unobstructed disc on the horizon, which at 1.5 swallows the frame whole.
+    // Radius and threshold are the example's.
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.28, 0.4, 0.85);
+    this.composer.addPass(this.bloom);
+
+    // Tone-map last, so bloom stays in linear light as the example intends.
     this.composer.addPass(new OutputPass());
 
-    // Everything below stays constructed but out of the chain so the rest of the
-    // app's calls remain valid — the example runs none of them.
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 1.5, 0.4, 0.85);
-    this.bloom.enabled = false;
+    // Everything below stays constructed but out of the chain — the example runs
+    // no AO, no scattering, no antialias pass and no colour grade.
     this.gtao = new GTAOPass(scene, camera, size.x, size.y);
     this.gtao.enabled = false;
     this.volumetric = new ShaderPass(VolumetricLightShader);

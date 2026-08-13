@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import { Sky } from 'three/examples/jsm/objects/Sky.js';
+// The ocean example's Sky, vendored from three.js master — the Sky shipped with
+// the pinned 0.170 has no clouds, which is most of why our sky looked nothing
+// like the reference.
+import { Sky } from './vendor/Sky.js';
 
 // A real gradient sky via atmospheric scattering (three.js Sky / Preetham),
 // tunable per mood — a proper coloured dusk/night gradient instead of a flat
@@ -22,35 +25,17 @@ export class Environment {
     u.mieCoefficient.value = 0.005;
     u.mieDirectionalG.value = 0.8;
 
-    // Fade the lower sky into the fog colour so the sky dome and the fogged
-    // terrain meet seamlessly at the horizon — no "composite" seam. uHorizonFog
-    // tracks the live fog colour (see setFog).
-    const sm = this.sky.material;
-    sm.uniforms.uHorizonFog = { value: new THREE.Color(0x9aa7b4) };
-    // The band over which the sky fades into fog colour. Reaching well up the
-    // sky (uFogBandHi) means distant mountain ridges sit inside a haze-coloured
-    // sky, so their silhouettes dissolve softly instead of cutting a hard edge.
-    // Band pushed below the horizon so the mix is a no-op and the Preetham sky
-    // renders exactly as the example does. Raising uFogBandHi re-enables the
-    // fade for a fog-based mood.
-    sm.uniforms.uFogBandLo = { value: -1.2 };
-    sm.uniforms.uFogBandHi = { value: -1.0 };
-    // A faint warm sunset ember low on the horizon — late-dusk light behind the
-    // terrain. It lives only at the very bottom of the sky, fading out before it
-    // reaches mountain-ridge height, so the ridges still meet cool haze and stay
-    // soft. Baked into the environment (below), it also lifts the ambient light.
-    sm.uniforms.uSunset = { value: new THREE.Color(0xff9a52) };
-    sm.uniforms.uSunsetAmt = { value: 0.0 };
-    sm.fragmentShader = sm.fragmentShader
-      .replace('uniform float mieDirectionalG;', 'uniform float mieDirectionalG;\nuniform vec3 uHorizonFog;\nuniform float uFogBandLo;\nuniform float uFogBandHi;\nuniform vec3 uSunset;\nuniform float uSunsetAmt;')
-      .replace(
-        'gl_FragColor = vec4( retColor, 1.0 );',
-        `float _ember = smoothstep(0.17, -0.06, direction.y) * uSunsetAmt;
-         vec3 _hzCol = mix( uHorizonFog, uSunset, _ember );
-         float _hz = smoothstep(uFogBandLo, uFogBandHi, direction.y);
-         retColor = mix( _hzCol, retColor, _hz );
-         gl_FragColor = vec4( retColor, 1.0 );`);
-    sm.needsUpdate = true;
+    // Clouds, at the vendored Sky's own defaults. This is the layer that was
+    // missing entirely — the reference's sky is mostly cloud.
+    u.cloudScale.value = 0.0002;
+    u.cloudSpeed.value = 0.0001;
+    u.cloudCoverage.value = 0.4;
+    u.cloudDensity.value = 0.4;
+    u.cloudElevation.value = 0.5;
+
+    // The old fog-band and sunset-ember shader patch is gone: it existed for the
+    // fogged-terrain moods, it has no counterpart in the reference, and it
+    // patched against shader text this Sky no longer contains.
 
     // The one deliberate departure from webgl_shaders_ocean, which creates no
     // lights at all. Sky light alone has no direction, so the car sat as a
@@ -137,7 +122,9 @@ export class Environment {
   setEnvIntensity(v) { this.scene.environmentIntensity = v; }
   setMoon() {}
 
-  update(target) {
+  update(target, dt = 1 / 60) {
+    // drives the cloud motion in the vendored Sky
+    this.sky.material.uniforms.time.value += dt;
     // sun and its shadow box travel with the car, so the map always covers the
     // stretch of deck on screen rather than somewhere back down the causeway
     this.sun.position.copy(target).addScaledVector(this.sunDir, 300);

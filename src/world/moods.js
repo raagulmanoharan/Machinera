@@ -11,10 +11,9 @@
 export const MOODS = [
   {
     name: 'Ocean Sky',
-        // 0.5, the example's actual exposure. Its published look comes from ACES at
-    // 0.5 with no post-processing at all — at 0.1 under a 1.5-strength bloom the
-    // example itself blows out to a featureless white wash.
-    fog: [0x000000, 0.0], exposure: 0.5, env: 1.0,
+        // The example's exposure. It is this low because the sky it renders — with
+    // clouds, and bloomed — is enormously bright.
+    fog: [0x000000, 0.0], exposure: 0.1, env: 1.0,
 
     // The example's sky. Azimuth is the one change: at its 180 the sun sits
     // opposite the example's camera, which looks toward it — ours looks down
@@ -28,7 +27,7 @@ export const MOODS = [
     // own glare — the sea reads because Water is specular, and the car has no
     // equivalent. Aimed along the sky's own sun vector, so the rim it lays on
     // the car arrives from exactly where the glare does.
-    sun: [0xffe8cc, 2.2], hemi: [0x000000, 0], moon: [0x000000, 0],
+    sun: [0xffe8cc, 10], hemi: [0x000000, 0], moon: [0x000000, 0],
 
     grade: [1, 1, 1], night: 0, lamps: 0, headlights: 0,
     sunset: [0x000000, 0.0],
