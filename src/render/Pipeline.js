@@ -164,24 +164,22 @@ export class Pipeline {
     this.composer.setPixelRatio(renderer.getPixelRatio());
     this.composer.setSize(size.x, size.y);
 
-    // webgl_shaders_ocean's entire post chain is one bloom pass:
-    //   bloomPass = new UnrealBloomPass( resolution, 1.5, 0.4, 0.85 );
-    //   renderer.setEffects( [ bloomPass ] );
-    // setEffects is a three.js master-only API and doesn't exist in the version
-    // pinned here, so the equivalent is assembled by hand: render to an HDR
-    // buffer (the example's outputBufferType: HalfFloatType), bloom in HDR, then
-    // OutputPass to tone-map and convert — which is what setEffects does
-    // internally. Same parameters, same order.
+    // webgl_shaders_ocean has NO post-processing: it renders straight to the
+    // canvas with ACES at exposure 0.5. Verified by building the example locally
+    // against this same three.js and comparing — with a 1.5-strength bloom at
+    // exposure 0.1 it blows out to a white wash, while plain at 0.5 it gives the
+    // familiar small sun disc over a graded sky.
+    //
+    // RenderPass -> OutputPass is the equivalent of a direct render: the HDR
+    // pass leaves tone mapping off (three.js skips it when drawing to a render
+    // target) and OutputPass applies the same ACES curve and sRGB conversion.
     this.composer.addPass(new RenderPass(scene, camera));
-
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 1.5, 0.4, 0.85);
-    this.composer.addPass(this.bloom);
-
     this.composer.addPass(new OutputPass());
 
-    // No AO, no volumetric scattering, no antialias pass and no colour grade —
-    // the example runs none of them. The passes below stay constructed but
-    // unused so the rest of the app's calls remain valid.
+    // Everything below stays constructed but out of the chain so the rest of the
+    // app's calls remain valid — the example runs none of them.
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 1.5, 0.4, 0.85);
+    this.bloom.enabled = false;
     this.gtao = new GTAOPass(scene, camera, size.x, size.y);
     this.gtao.enabled = false;
     this.volumetric = new ShaderPass(VolumetricLightShader);
