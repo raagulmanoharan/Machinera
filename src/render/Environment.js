@@ -58,7 +58,7 @@ export class Environment {
     s.near = 1; s.far = 420; s.left = -110; s.right = 110; s.top = 110; s.bottom = -110;
     scene.add(this.sun, this.sun.target);
 
-    this.hemi = new THREE.HemisphereLight(0x9fb0c4, 0x3a3630, 0.5);
+    this.hemi = new THREE.HemisphereLight(0x9fb0c4, 0x33210f, 0.5);   // warm ground bounce
     scene.add(this.hemi);
 
     // a soft, cool moonlight — a low fill from a fixed high angle that shapes

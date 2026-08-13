@@ -151,7 +151,7 @@ function frame() {
       const near = world.lampHeads
         .map((h) => [h, h.distanceToSquared(cp)])
         .sort((a, b) => a[1] - b[1]).slice(0, 4);
-      for (const [h] of near) _volLights.push({ pos: h, color: VCOL_LAMP.clone().multiplyScalar(0.85 * lampLvl), dir: VDIR_DOWN, cone: 0.3, att: 0.22 });
+      for (const [h] of near) _volLights.push({ pos: h, color: VCOL_LAMP.clone().multiplyScalar(0.95 * lampLvl), dir: VDIR_DOWN, cone: 0.18, att: 0.2 });
     }
     const ce = car.getVolumetricEmitters();
     if (ce) {
@@ -166,6 +166,7 @@ function frame() {
     });
     dust.update(camera.position, dt);
     chase.update(dt, car);
+    pipeline.setSpeed(Math.min(1, Math.abs(car.speed) / 50));   // speed → motion blur
     engine.update(dt, { speed: car.speed, throttle: input.throttle });
   }
   pipeline.render(dt);

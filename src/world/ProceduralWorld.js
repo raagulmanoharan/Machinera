@@ -476,9 +476,12 @@ export class ProceduralWorld {
 
   _roadMesh() {
     const W = ROAD.halfWidth;
-    // concrete tunnel floor — reaches the walls (the road's curb/verge)
-    const cDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); cDiff.repeat.set(TUNNEL.Wt * 2 / 3.5, 1 / 3.5);
-    const floor = new THREE.Mesh(this._ribbonGeo(TUNNEL.Wt), deTile(new THREE.MeshStandardMaterial({
+    // concrete tunnel floor — runs a little past the walls (tucked behind the
+    // wall base) so the floor/wall seam is hidden instead of reading as a bright
+    // grazing edge-line down the tunnel
+    const FW = TUNNEL.Wt + 1.2;
+    const cDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); cDiff.repeat.set(FW * 2 / 3.5, 1 / 3.5);
+    const floor = new THREE.Mesh(this._ribbonGeo(FW), deTile(new THREE.MeshStandardMaterial({
       map: cDiff, roughness: 0.96, metalness: 0.0, envMapIntensity: 0.0, color: 0x3a3833,
     }), { scale: 0.1, amount: 0.4 }));
     floor.position.y = -0.02; floor.receiveShadow = true; this.group.add(floor);

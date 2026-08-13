@@ -10,13 +10,16 @@
 export const MOODS = [
   {
     name: 'Tunnel',
-    // dark, gloomy tube: near-black warm fog so the distance falls into shadow
-    // (real depth), a low warm ambient so the walls aren't flooded flat, and the
-    // lamps + their volumetric scatter carry the light — pools glowing in the dark.
-    fog: [0x140b04, 0.05], exposure: 1.0, env: 0.2,
-    skyElev: -8, skyTurb: 8, skyRayl: 1.0,
-    sun: [0x140d05, 0.05], hemi: [0x5a3315, 0.85], moon: [0x6e4520, 0.35],
-    grade: [1.06, 0.98, 0.86], night: 0.55, lamps: 1.0, headlights: 1.0,
-    sunset: [0x000000, 0.0],
+    // A warm sodium-lit fog tunnel (the reference): a luminous amber haze with
+    // real depth — near is clear, the distance dissolves into glowing amber.
+    // Lit like three.js' ocean demo: a warm low-sun sky baked to a PMREM
+    // environment (soft IBL) under controlled ACES exposure, plus a moderate
+    // warm ambient and the sodium lamps as the glowing accents. Moderate fog
+    // density is what keeps the depth — dense fog flattens it into a wall.
+    fog: [0x4e2f18, 0.03], exposure: 0.95, env: 0.45,
+    skyElev: 2, skyTurb: 10, skyRayl: 2,
+    sun: [0x2a1c0c, 0.06], hemi: [0x9a5626, 2.0], moon: [0x7a4a24, 0.5],
+    grade: [1.07, 0.99, 0.86], night: 0.2, lamps: 1.0, headlights: 1.0,
+    sunset: [0xff7a2a, 0.85],
   },
 ];
