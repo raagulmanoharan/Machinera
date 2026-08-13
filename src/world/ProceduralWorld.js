@@ -349,9 +349,10 @@ export class ProceduralWorld {
         // ceiling lights aim straight down the road crown (onto the car);
         // wall lights pool between the wall and the centre line
         sl.target.position.set(overhead ? roadX(h.z) : h.x * 0.6 + roadX(h.z) * 0.4, 0.0, h.z);
-        // brighter per fixture now that they're sparse, so each throws a real
-        // pool of light across the bore before the next stretch of dark
-        sl.intensity = (overhead ? 430 : 170) * level;
+        // Tuned against the wider cone and longer reach above — those already
+        // spread far more light than the old narrow, short-range spot, so the
+        // raw intensity has to come down or anything under a lamp blows out.
+        sl.intensity = (overhead ? 165 : 120) * level;
       } else { sl.visible = false; }
     }
   }
