@@ -12,19 +12,29 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 // A `night` uniform cools and deepens the image for mood after dark. Runs last,
 // on the tonemapped sRGB image.
 const CinematicShader = {
-  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amount: { value: 1.0 }, night: { value: 0.0 }, tint: { value: new THREE.Color(1, 1, 1) } },
+  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amount: { value: 1.0 }, night: { value: 0.0 }, speed: { value: 0.0 }, tint: { value: new THREE.Color(1, 1, 1) } },
   vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
   fragmentShader: /* glsl */`
-    uniform sampler2D tDiffuse; uniform float time; uniform float amount; uniform float night; uniform vec3 tint; varying vec2 vUv;
+    uniform sampler2D tDiffuse; uniform float time; uniform float amount; uniform float night; uniform float speed; uniform vec3 tint; varying vec2 vUv;
     float rand(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233)))*43758.5453); }
     void main(){
-      // subtle analog chromatic aberration — RGB split grows toward the edges
       vec2 dir = vUv - 0.5;
+      // subtle analog chromatic aberration — RGB split grows toward the edges
       float ca = 0.0004 * dot(dir, dir) * 2.0;
-      vec3 col;
-      col.r = texture2D(tDiffuse, vUv + dir * ca).r;
-      col.g = texture2D(tDiffuse, vUv).g;
-      col.b = texture2D(tDiffuse, vUv - dir * ca).b;
+      // forward motion blur: a short radial smear toward the screen centre that
+      // grows with speed and toward the edges — velocity reads on screen while
+      // the car (centre) stays crisp. The chromatic split rides along each tap.
+      float mb = clamp(speed, 0.0, 1.0);
+      vec3 col = vec3(0.0);
+      const int TAPS = 6;
+      for (int i = 0; i < TAPS; i++){
+        float sc = 1.0 - (float(i) / float(TAPS)) * mb * 0.16;   // pull toward centre
+        vec2 uv = 0.5 + dir * sc;
+        col.r += texture2D(tDiffuse, uv + dir * ca).r;
+        col.g += texture2D(tDiffuse, uv).g;
+        col.b += texture2D(tDiffuse, uv - dir * ca).b;
+      }
+      col /= float(TAPS);
       vec3 g = col;
 
       // filmic S-curve: stronger contrast + a lower lift for richer blacks, so
@@ -59,6 +69,12 @@ const CinematicShader = {
 
       // film grain — a touch heavier for the gritty analog look
       g += (rand(vUv + fract(time)) - 0.5) * 0.032;
+
+      // lift the black point into a faint warm haze — no absolute blacks, so the
+      // far end of the tunnel and deep shadows stay faintly visible in amber
+      // rather than crushing to a hard black silhouette
+      vec3 haze = vec3(0.05, 0.031, 0.017);
+      g = haze + g * (1.0 - haze);
 
       gl_FragColor = vec4(mix(col, g, amount), 1.0);
     }`,
@@ -176,6 +192,7 @@ export class Pipeline {
 
   setGrade(amount) { this.grade.uniforms.amount.value = amount; }
   setNight(n) { this.grade.uniforms.night.value = n; }
+  setSpeed(s) { this.grade.uniforms.speed.value = s; }   // 0..1 → motion blur
   setTint(r, g, b) { this.grade.uniforms.tint.value.setRGB(r, g, b); }
 
   setCamera(camera) {

@@ -13,6 +13,7 @@ export class ChaseCamera {
     this._pos = new THREE.Vector3();
     this._look = new THREE.Vector3();
     this._init = false;
+    this._t = 0;
   }
 
   cycle() {
@@ -20,12 +21,20 @@ export class ChaseCamera {
   }
 
   update(dt, car) {
+    this._t += dt;
     const v = VIEWS[this.i];
     const heading = car.heading;
     const cos = Math.cos(heading), sin = Math.sin(heading);
 
-    // rotate local offset (x=right, z=forward) into world by heading
-    const ox = v.off.x, oy = v.off.y, oz = v.off.z;
+    // speed 0..1 — drives FOV, camera dolly and shake so velocity is felt
+    const spN = Math.min(1, Math.abs(car.speed) / 60);
+
+    // rotate local offset (x=right, z=forward) into world by heading. As speed
+    // climbs the camera drops and pulls back a little — a grounded, fast read
+    // instead of the high, floaty "toy" view.
+    const ox = v.off.x;
+    const oy = v.off.y - spN * 0.5;
+    const oz = v.off.z - spN * 2.8;
     const wx = car.pos.x + (ox * cos + oz * sin);
     const wz = car.pos.z + (-ox * sin + oz * cos);
     const wy = car.pos.y + oy;
@@ -48,10 +57,14 @@ export class ChaseCamera {
     this._look.lerp(lookTarget, Math.min(1, dt * (v.damp + 3)));
 
     this.camera.position.copy(this._pos);
+    // subtle high-speed handheld shake — deterministic, grows with speed
+    const sh = spN * spN * 0.05;
+    this.camera.position.x += (Math.sin(this._t * 37.0) + Math.sin(this._t * 61.3)) * sh;
+    this.camera.position.y += Math.sin(this._t * 53.7) * sh * 0.6;
     this.camera.lookAt(this._look);
 
-    // speed-reactive FOV
-    const targetFov = v.fov + Math.min(10, Math.abs(car.speed) * 0.16);
+    // speed-reactive FOV — a strong widening so the tunnel rushes past at speed
+    const targetFov = v.fov + spN * 20;
     this.camera.fov += (targetFov - this.camera.fov) * Math.min(1, dt * 3);
     this.camera.updateProjectionMatrix();
   }
