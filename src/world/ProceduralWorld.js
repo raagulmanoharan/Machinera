@@ -450,23 +450,24 @@ export class ProceduralWorld {
       return hash(i * 1.7 + seed) * (1 - t) + hash((i + 1) * 1.7 + seed) * t;
     };
     const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-    // dashed line, worn, at alpha scale `amp`
-    const dashed = (x, w, amp, seed) => {
-      const dash = 80, gap = 150;
-      for (let d = -Math.floor(hash(seed) * (dash + gap)); d < H; d += dash + gap) {
-        const cond = 0.5 + 0.5 * hash(d * 0.31 + seed);
+    // regular dashed lane line at alpha scale `amp`. All lines share the same
+    // dash phase so the lanes read as an orderly grid, with only gentle wear
+    // along the length (no random dropout / per-line offset).
+    const dashed = (x, w, amp) => {
+      const dash = 90, gap = 130;
+      for (let d = 0; d < H; d += dash + gap) {
         for (let y = Math.max(0, d); y < d + dash && y < H; y++) {
-          const wear = cond * (0.6 + 0.4 * noise(y * 0.05, 20 + d * 0.01 + seed));
-          const a = ss(0.28, 0.62, wear) * amp;
+          const wear = 0.78 + 0.22 * noise(y * 0.04, 20);      // gentle length-wise wear
+          const a = ss(0.2, 0.7, wear) * amp;
           if (a <= 0.02) continue;
           g.fillStyle = `rgba(220,216,205,${a.toFixed(3)})`;
           g.fillRect(x, y, w, 1);
         }
       }
     };
-    dashed(W / 2 - 2, 4, 0.85, 1.2);                           // centre line
-    for (const [x, s] of [[W / 6, 2.4], [W / 3, 5.1], [2 * W / 3, 7.7], [5 * W / 6, 3.3]]) {
-      dashed(Math.round(x) - 1, 3, 0.5, s);                   // faint lane dividers
+    dashed(W / 2 - 2, 4, 0.85);                                // centre line
+    for (const x of [W / 6, W / 3, 2 * W / 3, 5 * W / 6]) {
+      dashed(Math.round(x) - 1, 3, 0.5);                       // evenly spaced lane dividers
     }
     const t = new THREE.CanvasTexture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
@@ -543,37 +544,23 @@ export class ProceduralWorld {
   // warm sodium lights lining both tunnel walls, staggered, glowing in the fog.
   // Reuses the volumetric-glow (lampHeads) + spotlight-pool machinery.
   _tunnelLights() {
-    const { Wt, Hw, Ha } = TUNNEL;
+    const { Hw, Ha } = TUNNEL;
     const heads = [];               // all fixture positions (feed the volumetric glow)
     const ceilHeads = [];           // ceiling-only positions (aim spotlights down onto the car)
-    const wallMats = [], ceilMats = [];
-    const yl = Hw - 0.1;            // wall fixtures just under the wall top
+    const ceilMats = [];
     const yc = Hw + Ha - 0.35;      // ceiling fixtures hung just below the arch apex
     const spacing = 15;
     for (let z = ROAD.lengthStart + 10; z < ROAD.lengthEnd; z += spacing) {
-      for (const side of [-1, 1]) {
-        const zz = z + (side > 0 ? spacing * 0.5 : 0);   // stagger the two sides
-        const cx = roadX(zz), dx = roadSlope(zz), len = Math.hypot(1, dx), ox = 1 / len, oz = -dx / len;
-        const px = cx + side * ox * (Wt - 0.35), pz = zz + side * oz * (Wt - 0.35);
-        wallMats.push(new THREE.Matrix4().makeTranslation(px, yl, pz));
-        heads.push(new THREE.Vector3(px, yl, pz));
-      }
-      // a row of ceiling fixtures running down the crown of the arch, offset
-      // half a span from the walls so the whole tunnel is evenly lit
-      const zc = z + spacing * 0.25;
-      const cx = roadX(zc);
-      ceilMats.push(new THREE.Matrix4().makeTranslation(cx, yc, zc));
-      const h = new THREE.Vector3(cx, yc, zc);
+      // a row of ceiling fixtures running down the crown of the arch
+      const cx = roadX(z);
+      ceilMats.push(new THREE.Matrix4().makeTranslation(cx, yc, z));
+      const h = new THREE.Vector3(cx, yc, z);
       heads.push(h); ceilHeads.push(h);
     }
     const lens = new THREE.MeshStandardMaterial({
       color: 0xffca82, emissive: 0xff8a2a, emissiveIntensity: 0, roughness: 0.5, metalness: 0.1, toneMapped: true,
     });
     this._lensMat = lens;
-    const wallInst = new THREE.InstancedMesh(new THREE.SphereGeometry(0.32, 10, 8), lens, wallMats.length);
-    for (let i = 0; i < wallMats.length; i++) wallInst.setMatrixAt(i, wallMats[i]);
-    wallInst.instanceMatrix.needsUpdate = true; wallInst.frustumCulled = false;
-    this.group.add(wallInst);
     // ceiling fixtures: a small flush-mounted disc so it reads as an overhead light
     const ceilGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.16, 14);
     const ceilInst = new THREE.InstancedMesh(ceilGeo, lens, ceilMats.length);
