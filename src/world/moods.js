@@ -1,6 +1,6 @@
-// Enclosed foggy tunnel: warm sodium light filling dense haze. There's no open
-// sky or terrain — the atmosphere is a single, fixed warm-fog mood, lit by the
-// wall lamps and a warm ambient fill.
+// Sky-lit only. The scene holds no Light objects: the Preetham sky is baked to
+// a PMREM and assigned as scene.environment, which is the sole illumination —
+// the setup three.js' webgl_shaders_ocean uses.
 //
 // fog:  [colorHex, density]        grade: [r,g,b] cast + night 0..1
 // sun:  [colorHex, intensity]      hemi:  [colorHex, intensity]
@@ -9,20 +9,19 @@
 
 export const MOODS = [
   {
-    name: 'Tunnel',
-    // A warm sodium-lit tunnel. Fog density is the critical dial: thin enough
-    // that the walls, ribs and the receding lamp row stay legible for a long
-    // way (so the tunnel's length and curve read, and lit surfaces hold
-    // contrast against the haze), while still stacking into a warm amber glow
-    // in the far distance. Dense fog flattens all of that into a featureless
-    // wash. Lit like three.js' ocean demo — a warm low-sun sky baked to a PMREM
-    // environment under controlled ACES exposure, not an ambient flood.
-    fog: [0x3a2110, 0.011], exposure: 1.0, env: 0.62,
-    skyElev: 2, skyTurb: 10, skyRayl: 2,
-    // ambient has to carry the walls between the sparse lamps — without it the
-    // bore goes pitch black a few metres past each fixture
-    sun: [0x2a1c0c, 0.06], hemi: [0x9a5626, 3.6], moon: [0x7a4a24, 0.7],
-    grade: [1.07, 0.99, 0.86], night: 0.12, lamps: 1.0, headlights: 1.0,
-    sunset: [0xff7a2a, 0.85],
+    // Lighting lifted wholesale from three.js' webgl_shaders_ocean: a low sun at
+    // 2° elevation / 180° azimuth driving the Preetham sky, baked to a PMREM and
+    // used as the only light in the scene. No fog, no discrete lights, no colour
+    // grade — exposure 0.1 under ACES, exactly as the example runs it.
+    name: 'Ocean Sky',
+    // The example runs exposure 0.1, but its frame is almost entirely sky and
+    // specular water — both enormously bright. Ours is mostly diffuse concrete
+    // and asphalt under a 2° sun, which at 0.1 tone-maps to black. Same rig and
+    // same sky, opened up until the scene actually reads.
+    fog: [0x000000, 0.0], exposure: 2.4, env: 1.0,
+    skyElev: 2, skyAzi: 180, skyTurb: 10, skyRayl: 2,
+    sun: [0x000000, 0], hemi: [0x000000, 0], moon: [0x000000, 0],
+    grade: [1, 1, 1], night: 0, lamps: 0, headlights: 0,
+    sunset: [0x000000, 0.0],
   },
 ];

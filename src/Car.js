@@ -134,22 +134,11 @@ export class Car {
       if (front) this.frontWheels.push(pivot);
     }
 
-    // headlight beams — real spotlights lighting the road ahead at night; the
-    // in-air glow through the fog is done volumetrically in the post pipeline
+    // No headlight or tail-light spotlights: the scene carries no Light objects
+    // at all, lit solely by the sky environment map. The lenses keep their
+    // emissive so the car still reads as having lamps.
     this.headlights = [];
-    this._headMats = [lightF, lightR]; // front/rear emissive, boosted at night
-    for (const sx of [-0.6, 0.6]) {
-      const hl = new THREE.SpotLight(0xffeecb, 0, 120, 0.9, 1.0, 1.1);
-      hl.position.set(sx, 0.62, 2.0);
-      hl.target.position.set(sx * 2.0, -0.4, 30);
-      g.add(hl); g.add(hl.target);
-      this.headlights.push(hl);
-    }
-    // a real red spotlight so the tail-lights spill red onto the road behind
-    this._tailLight = new THREE.SpotLight(0xff1a10, 0, 22, 1.0, 1.0, 1.4);
-    this._tailLight.position.set(0, 0.7, -1.9);
-    this._tailLight.target.position.set(0, 0, -8);
-    g.add(this._tailLight); g.add(this._tailLight.target);
+    this._headMats = [lightF, lightR]; // front/rear emissive
 
     // local emitter positions for the volumetric pass (transformed to world
     // each frame in getVolumetricEmitters)

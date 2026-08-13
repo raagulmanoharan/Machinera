@@ -77,18 +77,18 @@ function dirtShade(material, { scale = 0.08, amount = 0.4, greenKill = 0.0 } = {
 export function heightAt(x, z) {
   const c = distToRoad(x, z);
   if (c <= FLAT_TO) return CORRIDOR_Y;
-  const ramp = smoothstep(FLAT_TO, FLAT_TO + 20, c);
-  // rolling base + rugged rocky detail for broken, barren ground
-  const hills = fbm(x * 0.0055, z * 0.0055) * 14 + fbm(x * 0.02, z * 0.02) * 3.2;
-  const rough = (fbm(x * 0.09 + 5, z * 0.09 - 5) - 0.5) * 5.5      // rocky bumps
-    + (fbm(x * 0.28, z * 0.28) - 0.5) * 1.8;                        // gravelly grain
-  // layered ridges that rise with distance — overlapping ridgelines that recede
-  // and fade into the fog at different depths, so the haze reads with depth
-  const ridge = (a, b, f, amp) => { const n = fbm(x * f + a, z * f + b); return (1 - Math.abs(2 * n - 1)) * amp; };
-  const layers = smoothstep(70, 240, c) * ridge(3, 7, 0.0065, 26)
-    + smoothstep(150, 400, c) * ridge(21, -5, 0.0034, 85)
-    + smoothstep(120, 460, c) * (fbm(x * 0.0014 + 10, z * 0.0014 - 4) * 210 + 40);
-  return CORRIDOR_Y + ramp * (hills + rough) + layers;
+  const ramp = smoothstep(FLAT_TO, FLAT_TO + 26, c);
+  // The road runs along a causeway and the ground falls away from it. Terrain
+  // that rises instead walls the road into a bowl — and since the sky *is* the
+  // light source here, burying the horizon behind a hillside leaves the scene
+  // black no matter the exposure. Dropping it keeps the horizon in view through
+  // the gallery's open bays.
+  const drop = -(16 + fbm(x * 0.006, z * 0.006) * 26);
+  const relief = (fbm(x * 0.02, z * 0.02) - 0.5) * 9        // rolling ground
+    + (fbm(x * 0.09 + 5, z * 0.09 - 5) - 0.5) * 3.5;        // rocky detail
+  // distant ground stays below eye level so the horizon line reads
+  const far = smoothstep(140, 620, c) * (fbm(x * 0.0016 + 10, z * 0.0016 - 4) * 46 - 14);
+  return CORRIDOR_Y + ramp * (drop + relief + far);
 }
 
 export class ProceduralWorld {
@@ -116,14 +116,14 @@ export class ProceduralWorld {
   }
 
   _build() {
+    this._terrain();      // ground seen through the gallery's open bays
     this._roadMesh();     // concrete floor + asphalt lanes + subtle centre line
-    this._tunnel();       // enclosing arched shell (walls + ceiling)
+    this._tunnel();       // roof on pillars, open to the sky between them
   }
 
-  // warm sodium lights lining both tunnel walls (the fog-lit reference look)
-  async populate() {
-    this._tunnelLights();
-  }
+  // Nothing to place: the scene carries no lights at all, so there are no
+  // fixtures to hang. The sky environment map is the only illumination.
+  async populate() {}
 
   // dark bare-tree silhouettes lining the road, thinning with distance and
   // fading into the fog — the roadside framing from the reference
@@ -485,7 +485,7 @@ export class ProceduralWorld {
     const FW = TUNNEL.Wt + 0.4;
     const cDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); cDiff.repeat.set(FW * 2 / 3.5, 1 / 3.5);
     const floor = new THREE.Mesh(this._ribbonGeo(FW), deTile(new THREE.MeshStandardMaterial({
-      map: cDiff, roughness: 0.96, metalness: 0.0, envMapIntensity: 0.0, color: 0x3a3833,
+      map: cDiff, roughness: 0.96, metalness: 0.0, envMapIntensity: 1.0, color: 0x3a3833,
     }), { scale: 0.1, amount: 0.4 }));
     // coplanar with the asphalt — the road's polygonOffset keeps it in front, so
     // there's no raised lip along the asphalt's edge to catch the light
@@ -496,7 +496,7 @@ export class ProceduralWorld {
     const aNor = loadTexture(TEXTURES.asphaltNor); aNor.repeat.copy(aDiff.repeat);
     const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshStandardMaterial({
       map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(1.8, 1.8),
-      roughness: 0.93, metalness: 0.0, envMapIntensity: 0.0,
+      roughness: 0.93, metalness: 0.0, envMapIntensity: 1.0,
       color: 0x35383c,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
     }), { scale: 0.14, amount: 0.45 }));
@@ -505,24 +505,24 @@ export class ProceduralWorld {
     // subtle worn centre + lane lines
     const mTex = this._markingTex(); mTex.repeat.set(1, 1 / 26);
     const marks = new THREE.Mesh(this._ribbonGeo(W), new THREE.MeshStandardMaterial({
-      map: mTex, color: 0x6a675e, alphaTest: 0.4, roughness: 0.9, envMapIntensity: 0.0,
+      map: mTex, color: 0x6a675e, alphaTest: 0.4, roughness: 0.9, envMapIntensity: 1.0,
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     }));
     marks.position.y = 0.012; this.group.add(marks);
   }
 
-  // arched concrete shell enclosing the road — walls + ceiling, following the
-  // road centreline. Camera sits inside, so render both sides.
+  // An open gallery rather than a sealed bore: a continuous concrete roof
+  // carried on regular pillars, with the bays between them open to the sky.
+  // Sealed, the only illumination (the sky baked to an environment map) never
+  // reaches the camera; opened up, the low sun rakes through the bays and lays
+  // light bars across the road. Camera sits inside, so render both sides.
   _tunnel() {
     const { Wt, Hw, Ha } = TUNNEL;
     const A = 12;                       // arch segments
-    // Walls run below the road plane so the floor slab ends *inside* solid wall.
-    // Stopping them at y=0 leaves a sliver at the verge that you see straight
-    // through, which draws a bright hairline down both sides of the tunnel.
-    const YB = -1.2;
-    const sec = [[-Wt, YB], [-Wt, Hw]];
+    // roof only — from the top of one pillar line, over the crown, to the other
+    const sec = [[-Wt, Hw]];
     for (let k = 1; k < A; k++) { const p = Math.PI * (1 - k / A); sec.push([Wt * Math.cos(p), Hw + Ha * Math.sin(p)]); }
-    sec.push([Wt, Hw], [Wt, YB]);
+    sec.push([Wt, Hw]);
     const M = sec.length;
     const verts = [], uvs = [], idx = [];
     let rows = 0;
@@ -558,7 +558,39 @@ export class ProceduralWorld {
     const mesh = new THREE.Mesh(g, mat);
     mesh.receiveShadow = true;
     this.group.add(mesh);
+    this._tunnelPillars(mat);
     this._tunnelRibs(mat);
+  }
+
+  // The columns carrying the roof, in pairs down both verges. The gaps between
+  // them are the openings the sky reaches the road through, so their spacing
+  // sets the rhythm of light and shadow you drive past.
+  _tunnelPillars(mat) {
+    const { Wt, Hw } = TUNNEL;
+    const YB = -1.2;                                  // foot buried below the road
+    const h = Hw - YB;
+    const geo = new THREE.BoxGeometry(0.85, h, 1.15);
+    geo.translate(0, YB + h / 2, 0);
+    const spacing = 11;
+    const mats = [];
+    const up = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
+    for (let z = ROAD.lengthStart; z < ROAD.lengthEnd; z += spacing) {
+      const cx = roadX(z), dx = roadSlope(z), len = Math.hypot(1, dx), ox = 1 / len, oz = -dx / len;
+      q.setFromAxisAngle(up, Math.atan2(dx, 1));      // follow the bend
+      for (const side of [-1, 1]) {
+        const px = cx + side * ox * Wt, pz = z + side * oz * Wt;
+        mats.push(new THREE.Matrix4().compose(new THREE.Vector3(px, 0, pz), q, one));
+        // the pillar line is also the parapet — without this the car drives
+        // straight out of a bay and off the causeway
+        this.colliders.add(px, pz, 1.5);
+      }
+    }
+    const inst = new THREE.InstancedMesh(geo, mat, mats.length);
+    for (let i = 0; i < mats.length; i++) inst.setMatrixAt(i, mats[i]);
+    inst.instanceMatrix.needsUpdate = true;
+    inst.castShadow = true; inst.receiveShadow = true;
+    inst.frustumCulled = false;
+    this.group.add(inst);
   }
 
   // Concrete ring ribs protruding slightly into the bore every few metres.
@@ -572,13 +604,11 @@ export class ProceduralWorld {
     const inset = 0.13;
     const W = Wt - inset, H = Hw, A = Ha - inset;
     const AS = 12, L = 0.6;                          // arch segments, rib length along z
-    // Ribs start well above the floor. Carried all the way down they'd meet the
-    // road and their lit lower edges would march off as a bright dotted line
-    // along both verges — exactly the road-edge line we're trying to be rid of.
-    const Y0 = 1.6;
-    const sec = [[-W, Y0], [-W, H]];
+    // Arch only, now that the walls below are open bays — a rib carried down
+    // past the roofline would hang in mid-air over the opening.
+    const sec = [[-W, H]];
     for (let k = 1; k < AS; k++) { const p = Math.PI * (1 - k / AS); sec.push([W * Math.cos(p), H + A * Math.sin(p)]); }
-    sec.push([W, H], [W, Y0]);
+    sec.push([W, H]);
     const M = sec.length;
     const verts = [], uvs = [], idx = [];
     for (let r = 0; r < 2; r++) {

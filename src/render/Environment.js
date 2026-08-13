@@ -30,8 +30,11 @@ export class Environment {
     // The band over which the sky fades into fog colour. Reaching well up the
     // sky (uFogBandHi) means distant mountain ridges sit inside a haze-coloured
     // sky, so their silhouettes dissolve softly instead of cutting a hard edge.
-    sm.uniforms.uFogBandLo = { value: -0.05 };
-    sm.uniforms.uFogBandHi = { value: 0.62 };
+    // Band pushed below the horizon so the mix is a no-op and the Preetham sky
+    // renders exactly as the example does. Raising uFogBandHi re-enables the
+    // fade for a fog-based mood.
+    sm.uniforms.uFogBandLo = { value: -1.2 };
+    sm.uniforms.uFogBandHi = { value: -1.0 };
     // A faint warm sunset ember low on the horizon — late-dusk light behind the
     // terrain. It lives only at the very bottom of the sky, fading out before it
     // reaches mountain-ridge height, so the ridges still meet cool haze and stay
@@ -49,29 +52,12 @@ export class Environment {
          gl_FragColor = vec4( retColor, 1.0 );`);
     sm.needsUpdate = true;
 
-    this.sun = new THREE.DirectionalLight(0xcfe0ff, 1.2);
-    this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
-    this.sun.shadow.bias = -0.0003;
-    this.sun.shadow.normalBias = 0.5;
-    const s = this.sun.shadow.camera;
-    s.near = 1; s.far = 420; s.left = -110; s.right = 110; s.top = 110; s.bottom = -110;
-    scene.add(this.sun, this.sun.target);
+    // No Light objects at all — matching three.js' webgl_shaders_ocean, where
+    // every bit of illumination comes from the Sky shader baked to a PMREM and
+    // assigned as scene.environment. Nothing is instantiated here on purpose.
 
-    this.hemi = new THREE.HemisphereLight(0x9fb0c4, 0x33210f, 0.5);   // warm ground bounce
-    scene.add(this.hemi);
-
-    // a soft, cool moonlight — a low fill from a fixed high angle that shapes
-    // and rim-lights the terrain/road without brightening the sky dome (kept
-    // separate from the below-horizon sun). Driven per mood.
-    this.moonDir = new THREE.Vector3().setFromSphericalCoords(
-      1, THREE.MathUtils.degToRad(90 - 34), THREE.MathUtils.degToRad(-48),
-    ).normalize();
-    this.moon = new THREE.DirectionalLight(0x9fb4d8, 0.0);
-    scene.add(this.moon, this.moon.target);
-
-    scene.fog = new THREE.FogExp2(0x9aa7b4, 0.012);
-    renderer.toneMappingExposure = 0.9;
+    scene.fog = new THREE.FogExp2(0x9aa7b4, 0.0);
+    renderer.toneMappingExposure = 0.1;   // the example's exposure
 
     this.pmrem = new THREE.PMREMGenerator(renderer);
     this._skyScene = new THREE.Scene();
@@ -125,20 +111,13 @@ export class Environment {
     if (hf) hf.value.copy(this.scene.fog.color);
   }
   setExposure(e) { this.renderer.toneMappingExposure = e; }
-  setLight(sunColor, sunI, hemiColor, hemiI) {
-    this.sun.color.set(sunColor);
-    this.sun.intensity = sunI;
-    this.hemi.color.set(hemiColor);
-    this.hemi.intensity = hemiI;
-  }
+  // No-ops: there are no discrete lights any more, so the mood director's
+  // sun/hemi/moon channels have nothing to drive. Kept so moods stay declarative.
+  setLight() {}
   setEnvIntensity(v) { this.scene.environmentIntensity = v; }
-  setMoon(color, intensity) { this.moon.color.set(color); this.moon.intensity = intensity; }
+  setMoon() {}
 
   update(target) {
-    this.sun.position.copy(target).addScaledVector(this.sunDir, 200);
-    this.sun.target.position.copy(target);
-    this.moon.position.copy(target).addScaledVector(this.moonDir, 300);
-    this.moon.target.position.copy(target);
     this.sky.position.copy(target);
   }
 
@@ -146,7 +125,7 @@ export class Environment {
     this.scene.environment = null;
     if (this._envRT) this._envRT.dispose();
     this.pmrem.dispose();
-    this.scene.remove(this.sun, this.sun.target, this.moon, this.moon.target, this.hemi, this.sky);
+    this.scene.remove(this.sky);
     this.scene.fog = null;
   }
 }
