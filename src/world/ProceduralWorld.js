@@ -561,7 +561,10 @@ export class ProceduralWorld {
   // measurable length, and the ribs sweeping around a bend show the curve.
   _tunnelRibs(mat) {
     const { Wt, Hw, Ha } = TUNNEL;
-    const inset = 0.26;                              // how far a rib stands proud of the wall
+    // Shallow on purpose: past some distance the ribs overlap into a continuous
+    // inner tube, and the boundary where that tube hides the wall behind it
+    // draws an arc down the bore. The deeper they stand, the harder that arc.
+    const inset = 0.13;
     const W = Wt - inset, H = Hw, A = Ha - inset;
     const AS = 12, L = 0.6;                          // arch segments, rib length along z
     // Ribs start well above the floor. Carried all the way down they'd meet the

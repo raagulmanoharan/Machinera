@@ -247,24 +247,110 @@ button.primary:hover { filter: brightness(1.06); }
 #radio::before { left: 6px; top: 6px; }
 #radio::after { right: 6px; bottom: 6px; }
 
-/* maker's plate */
+/* maker's plate: power key, brand, and the collapse toggle */
 .vr-hd {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 0 2px 6px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 2px 7px;
 }
 .vr-brand {
+  flex: 1 1 auto;
   font-size: 8px;
   letter-spacing: 0.24em;
   color: #9d8256;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
 }
 .vr-model {
+  flex: 0 0 auto;
   font-size: 6.5px;
   letter-spacing: 0.16em;
   color: #6a5a3f;
 }
+/* power key — the classic broken-ring glyph, lit when on air */
+.vr-pwr {
+  flex: 0 0 auto;
+  width: 16px; height: 16px;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 209, 102, 0.25);
+  background: linear-gradient(180deg, rgba(255, 240, 214, 0.08), rgba(0, 0, 0, 0.26));
+  box-shadow: inset 0 1px 0 rgba(255, 240, 214, 0.09), 0 1px 2px rgba(0, 0, 0, 0.45);
+  display: flex; align-items: center; justify-content: center;
+}
+.vr-pwr span {
+  position: relative;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid #6a5a3f;
+  border-top-color: transparent;
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+.vr-pwr span::after {
+  content: '';
+  position: absolute;
+  top: -2px; left: 50%;
+  width: 1.5px; height: 5px;
+  margin-left: -0.75px;
+  background: #6a5a3f;
+  transition: background 0.4s, box-shadow 0.4s;
+}
+.vr-pwr:hover { background: rgba(255, 209, 102, 0.12); }
+.vr-pwr:active { transform: translateY(1px); }
+#radio.is-on .vr-pwr span {
+  border-color: var(--amber);
+  border-top-color: transparent;
+  box-shadow: 0 0 6px rgba(255, 207, 122, 0.65);
+}
+#radio.is-on .vr-pwr span::after { background: var(--amber); box-shadow: 0 0 5px rgba(255, 207, 122, 0.8); }
+
+/* collapse toggle */
+.vr-min {
+  flex: 0 0 auto;
+  width: 16px; height: 16px;
+  padding: 0;
+  cursor: pointer;
+  border: 1px solid rgba(255, 209, 102, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  color: #8d7750;
+  border-radius: 4px;
+  font-size: 9px;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.vr-min:hover { background: rgba(255, 209, 102, 0.12); color: var(--amber); }
+.vr-min:active { transform: translateY(1px); }
+
+/* what's playing, shown only while collapsed */
+.vr-mini {
+  display: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  color: #4e4a3f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.5s;
+}
+#radio.is-on .vr-mini { color: #caa96f; }
+
+/* collapsed: just the header strip */
+#radio.is-min { width: 186px; padding-bottom: 8px; }
+#radio.is-min::after { display: none; }
+#radio.is-min .vr-hd { padding-bottom: 0; }
+#radio.is-min .vr-brand,
+#radio.is-min .vr-model,
+#radio.is-min .vr-face,
+#radio.is-min .vr-read,
+#radio.is-min .vr-ctrl,
+#radio.is-min .vr-foot,
+#radio.is-min .vr-grille { display: none; }
+#radio.is-min .vr-mini { display: block; }
 
 /* the backlit dial face */
 .vr-face {

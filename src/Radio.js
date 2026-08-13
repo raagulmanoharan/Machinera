@@ -110,8 +110,11 @@ export class Radio {
     el.id = 'radio';
     el.innerHTML = `
       <div class="vr-hd">
+        <button class="vr-pwr" aria-label="Power" aria-pressed="false" title="Power"><span></span></button>
         <span class="vr-brand">MACHINERA</span>
+        <span class="vr-mini"></span>
         <span class="vr-model">MK·II</span>
+        <button class="vr-min" aria-label="Collapse radio" title="Collapse">▾</button>
       </div>
       <div class="vr-face">
         <span class="vr-band">FM<em>MHz</em></span>
@@ -141,10 +144,21 @@ export class Radio {
     this.$freq = el.querySelector('.vr-freq');
     this.$name = el.querySelector('.vr-name');
     this.$needle = el.querySelector('.vr-needle');
+    this.$mini = el.querySelector('.vr-mini');
+    this.$pwr = el.querySelector('.vr-pwr');
 
     const tap = (fn) => (e) => { this._boot(); fn(e); if (e.currentTarget) e.currentTarget.blur(); };
     el.querySelector('.vr-prev').addEventListener('click', tap(() => this.prev()));
     el.querySelector('.vr-next').addEventListener('click', tap(() => this.next()));
+
+    // power + collapse: these must not fall through to the tap-anywhere-to-start
+    // handler below, or pressing them would switch the radio straight back on
+    this.$pwr.addEventListener('click', (e) => {
+      e.stopPropagation(); this.togglePower(); e.currentTarget.blur();
+    });
+    el.querySelector('.vr-min').addEventListener('click', (e) => {
+      e.stopPropagation(); this.toggleCollapsed(); e.currentTarget.blur();
+    });
     const vol = el.querySelector('.vr-vol');
     vol.addEventListener('input', (e) => { this._boot(); this.setVolume(+e.target.value); });
     vol.addEventListener('change', (e) => e.target.blur());
@@ -153,7 +167,14 @@ export class Radio {
     // *inside* a gesture, and the first gesture may land before the player is
     // ready — so we retry on EVERY gesture (touch/click/key) until it's actually
     // playing, then detach. Tapping the radio itself also works.
-    this._bootBound = () => this._boot();
+    // The power and collapse keys are exempt: their pointerdown would otherwise
+    // switch the radio on here, and the click that follows would immediately
+    // toggle it back off — so the first press of Power would appear to do nothing.
+    this._bootBound = (e) => {
+      const t = e && e.target;
+      if (t && t.closest && t.closest('.vr-pwr, .vr-min')) return;
+      this._boot();
+    };
     ['pointerdown', 'touchend', 'keydown'].forEach((ev) =>
       window.addEventListener(ev, this._bootBound, { passive: true }));
     el.addEventListener('click', this._bootBound);
@@ -165,14 +186,41 @@ export class Radio {
     const s = this.stations[this.index];
     this.$freq.textContent = s ? s.freq : '––.–';
     this.$name.textContent = s ? s.name : 'no signal';
+    if (this.$mini) this.$mini.textContent = s ? `${s.freq}  ${s.name}` : '––.–';
     const n = this.stations.length;
     const pct = n > 1 ? (this.index / (n - 1)) * 100 : 50;
     this.$needle.style.left = `calc(8% + ${pct * 0.84}%)`;
   }
 
+  // Collapse to a slim header strip (power + what's playing) and back.
+  toggleCollapsed(on) {
+    this.collapsed = on === undefined ? !this.collapsed : !!on;
+    this.el.classList.toggle('is-min', this.collapsed);
+    const b = this.el.querySelector('.vr-min');
+    b.textContent = this.collapsed ? '▸' : '▾';
+    b.setAttribute('aria-label', this.collapsed ? 'Expand radio' : 'Collapse radio');
+    b.title = this.collapsed ? 'Expand' : 'Collapse';
+  }
+
+  togglePower() { if (this.powered) this.powerOff(); else { this._userOff = false; this._boot(); } }
+
+  powerOff() {
+    this.powered = false;
+    // remembered so the tap-anywhere-to-start handler doesn't immediately
+    // undo an intentional power-off on the very next click
+    this._userOff = true;
+    this.el.classList.remove('is-on');
+    this.$pwr.setAttribute('aria-pressed', 'false');
+    this.static.setBed(0);
+    this._playing = false;
+    try { if (this.player && this.ready) this.player.pauseVideo(); } catch { /* ignore */ }
+  }
+
   _boot() {
+    if (this._userOff) return;          // switched off by hand — stay off
     this.powered = true;
     this.el.classList.add('is-on');
+    this.$pwr.setAttribute('aria-pressed', 'true');
     this.static.resume();
     this.static.setBed(this._bedFor(this.volume));
     this._startOrResume();
