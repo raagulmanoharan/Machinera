@@ -593,6 +593,9 @@ export class ProceduralWorld {
       side: THREE.DoubleSide,
     }), { scale: 0.06, amount: 0.35 });
     const mesh = new THREE.Mesh(g, mat);
+    // casting matters more than receiving here: the roof is what blocks the low
+    // sun, so the open bays throw bright bars of light across the deck
+    mesh.castShadow = true;
     mesh.receiveShadow = true;
     this.group.add(mesh);
     this._tunnelPillars(mat);
