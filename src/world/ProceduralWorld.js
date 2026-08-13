@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ROAD, roadX, roadSlope, distToRoad } from './road.js';
-import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo } from '../render/textures.js';
+import { makeNormalMap, makeRoughnessMap, makeAsphaltAlbedo, makeConcrete } from '../render/textures.js';
 import { assets, MODELS, TEXTURES, loadTexture, deTile, roadShade } from '../render/AssetLibrary.js';
 import { makeStreetlamp, makeBareTree } from './props.js';
 import { Colliders } from './Colliders.js';
@@ -543,13 +543,18 @@ export class ProceduralWorld {
     g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     g.setIndex(idx); g.computeVertexNormals();
-    const cDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true, repeat: 4 });
-    // pale-ish concrete that actually catches the sodium light + a little IBL,
-    // so the walls read as surfaces instead of vanishing into the haze
+    // Proper concrete lining — albedo, normal and roughness that agree with each
+    // other, rather than a tinted asphalt albedo with no surface response. The
+    // relief is what makes the walls catch the sodium light at grazing angles
+    // instead of reading as flat painted cardboard.
+    const conc = makeConcrete(512);
+    for (const t of [conc.map, conc.normalMap, conc.roughnessMap]) t.repeat.set(3, 3);
     const mat = deTile(new THREE.MeshStandardMaterial({
-      map: cDiff, color: 0x8a8074, roughness: 0.92, metalness: 0.0, envMapIntensity: 0.5,
+      ...conc,
+      normalScale: new THREE.Vector2(1.1, 1.1),
+      color: 0xb4a894, metalness: 0.0, envMapIntensity: 0.5,
       side: THREE.DoubleSide,
-    }), { scale: 0.06, amount: 0.5 });
+    }), { scale: 0.06, amount: 0.35 });
     const mesh = new THREE.Mesh(g, mat);
     mesh.receiveShadow = true;
     this.group.add(mesh);
