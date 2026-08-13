@@ -7,6 +7,15 @@ import { MOODS } from './moods.js';
 const HOLD = 38;   // seconds a mood settles before drifting on
 const TRANS = 8;   // crossfade seconds
 
+// global brightness boosts so the terrain reads clearly: lift the sun toward
+// the horizon (a brighter sky = brighter HDRI/IBL that actually lights the
+// terrain), plus stronger IBL, exposure and ambient fill.
+const SKY_ELEV_BOOST = 11; // degrees added to each mood's sun elevation (golden hour)
+const ENV_BOOST = 2.0;     // sky/IBL (HDRI) intensity
+const EXPO_BOOST = 1.2;    // tone-map exposure
+const HEMI_BOOST = 1.35;   // hemisphere ambient
+const SUN_BOOST = 5.0;     // direct sunlight — lights the terrain faces so they read
+
 export class MoodDirector {
   constructor(env, pipeline, car, { onChange } = {}) {
     this.env = env; this.pipeline = pipeline; this.car = car;
@@ -46,7 +55,7 @@ export class MoodDirector {
   _applyDiscrete(m) {
     const s = m.sunset || [0x000000, 0];
     if (this.env.setSunset) this.env.setSunset(s[0], s[1]);   // set before the bake
-    this.env.setSky(m.skyElev ?? 4, m.skyAzi ?? 165, m.skyTurb ?? 8, m.skyRayl ?? 2);
+    this.env.setSky((m.skyElev ?? 4) + SKY_ELEV_BOOST, m.skyAzi ?? 165, m.skyTurb ?? 8, m.skyRayl ?? 2);
   }
 
   update(dt) {
@@ -63,11 +72,11 @@ export class MoodDirector {
   _apply(a, b, k) {
     const e = this.env, pl = this.pipeline;
     e.setFog(this._mix(this._fog, a.fog[0], b.fog[0], k), this._l(a.fog[1], b.fog[1], k));
-    e.setEnvIntensity(this._l(a.env, b.env, k));   // reflections / IBL
-    e.setExposure(this._l(a.exposure, b.exposure, k));
+    e.setEnvIntensity(this._l(a.env, b.env, k) * ENV_BOOST);   // sky/IBL (HDRI) lighting
+    e.setExposure(this._l(a.exposure, b.exposure, k) * EXPO_BOOST);
     e.setLight(
-      this._mix(this._sun, a.sun[0], b.sun[0], k), this._l(a.sun[1], b.sun[1], k),
-      this._mix(this._hemi, a.hemi[0], b.hemi[0], k), this._l(a.hemi[1], b.hemi[1], k),
+      this._mix(this._sun, a.sun[0], b.sun[0], k), this._l(a.sun[1], b.sun[1], k) * SUN_BOOST,
+      this._mix(this._hemi, a.hemi[0], b.hemi[0], k), this._l(a.hemi[1], b.hemi[1], k) * HEMI_BOOST,
     );
     if (e.setMoon && a.moon && b.moon) {
       e.setMoon(this._mix(this._moon, a.moon[0], b.moon[0], k), this._l(a.moon[1], b.moon[1], k));
