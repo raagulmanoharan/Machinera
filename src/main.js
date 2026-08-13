@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { Input } from './Input.js';
 import { Car } from './Car.js';
 import { ChaseCamera } from './ChaseCamera.js';
-import { OSMWorld } from './world/OSMWorld.js';
 import { ProceduralWorld } from './world/ProceduralWorld.js';
 import { Environment } from './render/Environment.js';
 import { Pipeline } from './render/Pipeline.js';
@@ -104,42 +103,16 @@ window.addEventListener('touchstart', () => {
 let world = null;
 let loading = false;
 
-// ---------- prefs ----------
-const prefs = loadPrefs();
-function loadPrefs() {
-  try { return JSON.parse(localStorage.getItem('machinera') || '{}'); } catch { return {}; }
-}
-function savePrefs() {
-  localStorage.setItem('machinera', JSON.stringify(prefs));
-}
-
 // ---------- world loading ----------
 async function loadWorld() {
   if (loading) return;
   loading = true;
-  showLoader(true, 'Preparing…');
+  showLoader(true, 'Growing the forest…');
 
   if (world) { world.dispose(); world = null; }
 
-  const source = prefs.source || 'procedural';
-  try {
-    if (source === 'osm') {
-      const [lat, lng] = parseLatLng(prefs.location) || [46.5197, 6.6323];
-      const w = new OSMWorld(scene);
-      await w.load({ lat, lng, radius: prefs.radius || 750, sunDir: env.sunDir, onProgress: (m) => setLoader(m) });
-      world = w;
-    } else {
-      setLoader('Growing the forest…');
-      world = new ProceduralWorld(scene);
-      await world.populate();
-    }
-  } catch (err) {
-    console.warn(err);
-    toast('Could not load that place (' + err.message + '). Dropping you on the scenic route instead.', true);
-    if (world) { world.dispose(); world = null; }
-    world = new ProceduralWorld(scene);
-    await world.populate();
-  }
+  world = new ProceduralWorld(scene);
+  await world.populate();
 
   car.reset(world.carStart.pos, world.carStart.heading);
   window.__world = world; // debug handle
@@ -156,13 +129,6 @@ async function loadWorld() {
   }
 }
 let hintShown = false;
-
-function parseLatLng(s) {
-  if (!s) return null;
-  const m = String(s).split(',').map((v) => parseFloat(v.trim()));
-  if (m.length === 2 && m.every((n) => !isNaN(n))) return m;
-  return null;
-}
 
 // ---------- loop ----------
 const clock = new THREE.Clock();
@@ -225,45 +191,9 @@ function toast(msg, err = false) {
   setTimeout(() => { if (toastEl) { toastEl.remove(); toastEl = null; } }, 6000);
 }
 
-function openSettings(open) {
-  $('settings').classList.toggle('hidden', !open);
-}
-
-// settings wiring
-function initSettings() {
-  const source = $('source'), preset = $('preset'), custom = $('customRow'),
-    latlng = $('latlng'), radius = $('radius'), osmSection = $('osm-section');
-
-  source.value = prefs.source || 'osm';
-  if (prefs.location) {
-    const match = [...preset.options].find((o) => o.value === prefs.location);
-    preset.value = match ? prefs.location : 'custom';
-    if (!match) { custom.style.display = ''; latlng.value = prefs.location; }
-  }
-  if (prefs.radius) radius.value = String(prefs.radius);
-
-  const syncSource = () => osmSection.style.display = source.value === 'osm' ? '' : 'none';
-  syncSource();
-  source.addEventListener('change', syncSource);
-  preset.addEventListener('change', () => {
-    custom.style.display = preset.value === 'custom' ? '' : 'none';
-  });
-
-  $('apply').addEventListener('click', () => {
-    prefs.source = source.value;
-    prefs.location = preset.value === 'custom' ? latlng.value.trim() : preset.value;
-    prefs.radius = parseInt(radius.value, 10);
-    savePrefs();
-    openSettings(false);
-    loadWorld();
-  });
-  $('close').addEventListener('click', () => openSettings(false));
-}
-
 // keys
 window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
-  if (k === 'escape') openSettings($('settings').classList.contains('hidden'));
   if (k === 'c') chase.cycle();
   if (k === 'r' && world) { car.reset(world.carStart.pos, world.carStart.heading); chase.snap(); }
 });
@@ -286,6 +216,5 @@ window.addEventListener('orientationchange', () => {
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeView);
 
 // ---------- boot ----------
-initSettings();
 frame();
 loadWorld();
