@@ -41,6 +41,8 @@ function mulberry32(seed) {
 
 const FLAT_TO = ROAD.halfWidth + ROAD.shoulder + 1.8;
 const CORRIDOR_Y = 0.0; // road surface level — car rests here, no clipping
+// enclosing tunnel cross-section: interior half-width, wall height, arch rise
+const TUNNEL = { Wt: ROAD.halfWidth + 2.2, Hw: 4.8, Ha: 3.2 };
 
 // De-tile a dirt material (break the obvious repeat) and, when greenKill > 0,
 // suppress the green weeds baked into the dirt albedo so the ground reads as
@@ -114,19 +116,13 @@ export class ProceduralWorld {
   }
 
   _build() {
-    this._terrain();
-    this._roadMesh();
-    this._guardrails();
+    this._roadMesh();     // concrete floor + asphalt lanes + subtle centre line
+    this._tunnel();       // enclosing arched shell (walls + ceiling)
   }
 
-  // async: pull real CC0 models (trees, boulders, lamps) with procedural fallback
+  // warm sodium lights lining both tunnel walls (the fog-lit reference look)
   async populate() {
-    const rng = mulberry32(1337);
-    await Promise.all([
-      this._boulders(rng),
-      this._lamps(),
-    ]);
-    this._bareTrees();
+    this._tunnelLights();
   }
 
   // dark bare-tree silhouettes lining the road, thinning with distance and
@@ -332,20 +328,27 @@ export class ProceduralWorld {
     const ref = pos || (camera && camera.position);
     if (!ref) return;
     const level = this.lampLevel || 0;
-    const near = this.lampHeads
+    const n = this._lampLights.length;
+    // reserve the first two spotlights for the nearest ceiling fixtures so the
+    // car is always lit warmly from directly overhead; the rest track the
+    // nearest fixtures of any kind (wall pools + fill)
+    const nearest = (list, k) => list
       .map((h) => [h, h.distanceToSquared(ref)])
-      .sort((a, b) => a[1] - b[1])
-      .slice(0, this._lampLights.length);
-    for (let i = 0; i < this._lampLights.length; i++) {
+      .sort((a, b) => a[1] - b[1]).slice(0, k).map((e) => e[0]);
+    const ceil = this.ceilHeads ? nearest(this.ceilHeads, 2) : [];
+    const any = nearest(this.lampHeads, n);
+    const picks = ceil.concat(any).slice(0, n);
+    for (let i = 0; i < n; i++) {
       const sl = this._lampLights[i];
-      if (level > 0 && i < near.length) {
-        const h = near[i][0];
+      const h = picks[i];
+      if (level > 0 && h) {
+        const overhead = i < ceil.length;      // first slots are ceiling lights
         sl.visible = true;
         sl.position.copy(h);
-        // aim almost straight down so the pool lands on the ground right below
-        // the lamp (a soft scatter under it), like a real streetlight
-        sl.target.position.set(h.x * 0.6 + roadX(h.z) * 0.4, 0.0, h.z);
-        sl.intensity = 170 * level;
+        // ceiling lights aim straight down the road crown (onto the car);
+        // wall lights pool between the wall and the centre line
+        sl.target.position.set(overhead ? roadX(h.z) : h.x * 0.6 + roadX(h.z) * 0.4, 0.0, h.z);
+        sl.intensity = (overhead ? 260 : 170) * level;
       } else { sl.visible = false; }
     }
   }
@@ -435,9 +438,8 @@ export class ProceduralWorld {
   }
 
   _markingTex() {
-    // 6-lane layout across the full road width (canvas x maps 0..road width):
-    // solid white edges, a double-yellow centre, and dashed white lane dividers
-    // (2 lanes either side of centre). Paint is worn in smooth patches.
+    // subtle worn lane lines across the road width (canvas x maps 0..road width):
+    // a dashed centre line and faint dashed lane dividers — no bright edges.
     const W = 128, H = 512;
     const c = document.createElement('canvas'); c.width = W; c.height = H;
     const g = c.getContext('2d');
@@ -448,35 +450,24 @@ export class ProceduralWorld {
       return hash(i * 1.7 + seed) * (1 - t) + hash((i + 1) * 1.7 + seed) * t;
     };
     const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-    // straight-edged worn line down the whole length
-    const solid = (x, w, rgb, seed) => {
-      for (let y = 0; y < H; y++) {
-        const wear = 0.58 * noise(y * 0.02, seed) + 0.42 * noise(y * 0.07, seed + 40);
-        const a = ss(0.28, 0.62, wear) * 0.82;
-        if (a <= 0.02) continue;
-        g.fillStyle = `rgba(${rgb},${a.toFixed(3)})`;
-        g.fillRect(x, y, w, 1);
-      }
-    };
-    // dashed lane divider — proper dashes, each its own condition + internal wear
-    const dashed = (x, w, rgb, seed) => {
-      const dash = 90, gap = 150;
-      for (let d = -Math.floor(hash(seed) * (dash + gap)); d < H; d += dash + gap) {
-        const cond = 0.55 + 0.45 * hash(d * 0.31 + seed);
+    // regular dashed lane line at alpha scale `amp`. All lines share the same
+    // dash phase so the lanes read as an orderly grid, with only gentle wear
+    // along the length (no random dropout / per-line offset).
+    const dashed = (x, w, amp) => {
+      const dash = 90, gap = 130;
+      for (let d = 0; d < H; d += dash + gap) {
         for (let y = Math.max(0, d); y < d + dash && y < H; y++) {
-          const wear = cond * (0.6 + 0.4 * noise(y * 0.05, 20 + d * 0.01 + seed));
-          const a = ss(0.24, 0.6, wear) * 0.82;
+          const wear = 0.78 + 0.22 * noise(y * 0.04, 20);      // gentle length-wise wear
+          const a = ss(0.2, 0.7, wear) * amp;
           if (a <= 0.02) continue;
-          g.fillStyle = `rgba(${rgb},${a.toFixed(3)})`;
+          g.fillStyle = `rgba(220,216,205,${a.toFixed(3)})`;
           g.fillRect(x, y, w, 1);
         }
       }
     };
-    const white = '226,224,212', yellow = '222,190,68';
-    solid(3, 4, white, 3.1); solid(W - 7, 4, white, 9.7);      // edge lines
-    solid(W / 2 - 7, 4, yellow, 1.2); solid(W / 2 + 3, 4, yellow, 6.4);  // double-yellow centre
-    for (const [x, s] of [[W / 6, 2.4], [W / 3, 5.1], [2 * W / 3, 7.7], [5 * W / 6, 3.3]]) {
-      dashed(Math.round(x) - 2, 4, white, s);                 // dashed lane dividers
+    dashed(W / 2 - 2, 4, 0.85);                                // centre line
+    for (const x of [W / 6, W / 3, 2 * W / 3, 5 * W / 6]) {
+      dashed(Math.round(x) - 1, 3, 0.5);                       // evenly spaced lane dividers
     }
     const t = new THREE.CanvasTexture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
@@ -485,28 +476,109 @@ export class ProceduralWorld {
 
   _roadMesh() {
     const W = ROAD.halfWidth;
-    // dirt shoulder — bare packed earth beside the asphalt (green weeds killed
-    // so it matches the terrain apron and reads as dirt, not grass)
-    const SW = W + 3.6;
-    const dDiff = loadTexture(TEXTURES.dirtDiff, { srgb: true }); dDiff.repeat.set(SW * 2 / 4, 1 / 4);
-    const dNor = loadTexture(TEXTURES.dirtNor); dNor.repeat.copy(dDiff.repeat);
-    const dirt = new THREE.Mesh(this._ribbonGeo(SW), dirtShade(new THREE.MeshStandardMaterial({
-      map: dDiff, normalMap: dNor, normalScale: new THREE.Vector2(1, 1), roughness: 1, envMapIntensity: 0.4,
-      color: 0xb69a7c,   // warm packed-dirt tint
-    }), { scale: 0.12, amount: 0.4, greenKill: 0.9 }));
-    dirt.position.y = -0.035; dirt.receiveShadow = true; this.group.add(dirt);
+    // concrete tunnel floor — reaches the walls (the road's curb/verge)
+    const cDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); cDiff.repeat.set(TUNNEL.Wt * 2 / 3.5, 1 / 3.5);
+    const floor = new THREE.Mesh(this._ribbonGeo(TUNNEL.Wt), deTile(new THREE.MeshStandardMaterial({
+      map: cDiff, roughness: 0.96, metalness: 0.0, envMapIntensity: 0.0, color: 0x3a3833,
+    }), { scale: 0.1, amount: 0.4 }));
+    floor.position.y = -0.02; floor.receiveShadow = true; this.group.add(floor);
 
-    // asphalt surface — rough, worn, no painted markings; crumbles into the dirt
-    // at the edges (roadShade) so there's no hard "snow"-like line
+    // asphalt driving surface — rough, worn, dark
     const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.2, 1 / 3.2);
     const aNor = loadTexture(TEXTURES.asphaltNor); aNor.repeat.copy(aDiff.repeat);
-    const road = new THREE.Mesh(this._ribbonGeo(W), roadShade(new THREE.MeshStandardMaterial({
-      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(2.1, 2.1),  // strong relief — rough, pitted surface
-      roughness: 0.94, metalness: 0.0, envMapIntensity: 0.35,
-      color: 0x3c3f43,                                 // darker worn asphalt
+    const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshStandardMaterial({
+      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(1.8, 1.8),
+      roughness: 0.93, metalness: 0.0, envMapIntensity: 0.0,
+      color: 0x35383c,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-    }), { scale: 0.14, amount: 0.5, edge: 0.12 }));
+    }), { scale: 0.14, amount: 0.45 }));
     road.position.y = 0.0; road.receiveShadow = true; this.group.add(road);
+
+    // subtle worn centre + lane lines
+    const mTex = this._markingTex(); mTex.repeat.set(1, 1 / 26);
+    const marks = new THREE.Mesh(this._ribbonGeo(W), new THREE.MeshStandardMaterial({
+      map: mTex, color: 0x6a675e, alphaTest: 0.4, roughness: 0.9, envMapIntensity: 0.0,
+      polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+    }));
+    marks.position.y = 0.012; this.group.add(marks);
+  }
+
+  // arched concrete shell enclosing the road — walls + ceiling, following the
+  // road centreline. Camera sits inside, so render both sides.
+  _tunnel() {
+    const { Wt, Hw, Ha } = TUNNEL;
+    const A = 12;                       // arch segments
+    const sec = [[-Wt, 0], [-Wt, Hw]];
+    for (let k = 1; k < A; k++) { const p = Math.PI * (1 - k / A); sec.push([Wt * Math.cos(p), Hw + Ha * Math.sin(p)]); }
+    sec.push([Wt, Hw], [Wt, 0]);
+    const M = sec.length;
+    const verts = [], uvs = [], idx = [];
+    let rows = 0;
+    for (let z = ROAD.lengthStart - 20; z <= ROAD.lengthEnd + 20; z += 6) {
+      const cx = roadX(z), dx = roadSlope(z), len = Math.hypot(1, dx), ox = 1 / len, oz = -dx / len;
+      for (let m = 0; m < M; m++) {
+        const lx = sec[m][0], ly = sec[m][1];
+        verts.push(cx + lx * ox, ly, z + lx * oz);
+        uvs.push(m / (M - 1) * 3, z * 0.09);
+      }
+      if (rows > 0) {
+        const base = (rows - 1) * M, cur = rows * M;
+        for (let m = 0; m < M - 1; m++) { const a = base + m, b = base + m + 1, c = cur + m, d = cur + m + 1; idx.push(a, c, b, b, c, d); }
+      }
+      rows++;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    const cDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true, repeat: 4 });
+    const mat = deTile(new THREE.MeshStandardMaterial({
+      map: cDiff, color: 0x4a463f, roughness: 0.97, metalness: 0.0, envMapIntensity: 0.0,
+      side: THREE.DoubleSide,
+    }), { scale: 0.06, amount: 0.5 });
+    const mesh = new THREE.Mesh(g, mat);
+    mesh.receiveShadow = true;
+    this.group.add(mesh);
+  }
+
+  // warm sodium lights lining both tunnel walls, staggered, glowing in the fog.
+  // Reuses the volumetric-glow (lampHeads) + spotlight-pool machinery.
+  _tunnelLights() {
+    const { Hw, Ha } = TUNNEL;
+    const heads = [];               // all fixture positions (feed the volumetric glow)
+    const ceilHeads = [];           // ceiling-only positions (aim spotlights down onto the car)
+    const ceilMats = [];
+    const yc = Hw + Ha - 0.35;      // ceiling fixtures hung just below the arch apex
+    const spacing = 15;
+    for (let z = ROAD.lengthStart + 10; z < ROAD.lengthEnd; z += spacing) {
+      // a row of ceiling fixtures running down the crown of the arch
+      const cx = roadX(z);
+      ceilMats.push(new THREE.Matrix4().makeTranslation(cx, yc, z));
+      const h = new THREE.Vector3(cx, yc, z);
+      heads.push(h); ceilHeads.push(h);
+    }
+    const lens = new THREE.MeshStandardMaterial({
+      color: 0xffca82, emissive: 0xff8a2a, emissiveIntensity: 0, roughness: 0.5, metalness: 0.1, toneMapped: true,
+    });
+    this._lensMat = lens;
+    // ceiling fixtures: a small flush-mounted disc so it reads as an overhead light
+    const ceilGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.16, 14);
+    const ceilInst = new THREE.InstancedMesh(ceilGeo, lens, ceilMats.length);
+    for (let i = 0; i < ceilMats.length; i++) ceilInst.setMatrixAt(i, ceilMats[i]);
+    ceilInst.instanceMatrix.needsUpdate = true; ceilInst.frustumCulled = false;
+    this.group.add(ceilInst);
+    this.lampHeads = heads;
+    this.ceilHeads = ceilHeads;
+
+    // a small pool of real spotlights re-homed onto the nearest fixtures each
+    // frame, casting warm pools on the road/walls + lighting the car from above
+    this._lampLights = [];
+    for (let i = 0; i < 4; i++) {
+      const sl = new THREE.SpotLight(0xffb267, 0, 46, 1.0, 1.0, 1.4);
+      sl.visible = false; sl.castShadow = false;
+      this.group.add(sl); this.group.add(sl.target);
+      this._lampLights.push(sl);
+    }
   }
 
   // ---------- guardrails ----------

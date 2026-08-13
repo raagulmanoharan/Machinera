@@ -157,7 +157,7 @@ function frame() {
     if (ce) {
       // headlights: a soft forward glow, not a blinding wall — low intensity +
       // short reach so it fades within a few metres of fog ahead
-      for (const p of ce.head) _volLights.push({ pos: p, color: VCOL_HEAD.clone().multiplyScalar(0.5 * ce.level), dir: ce.fwd, cone: 0.82, att: 0.09 });
+      for (const p of ce.head) _volLights.push({ pos: p, color: VCOL_HEAD.clone().multiplyScalar(0.42 * ce.level), dir: ce.fwd, cone: 0.58, att: 0.11 });
       for (const p of ce.tail) _volLights.push({ pos: p, color: VCOL_TAIL.clone().multiplyScalar(0.45 * ce.level), dir: ce.back, cone: 0.2, att: 0.3 });
     }
     pipeline.updateVolumetric(camera, _volLights, {

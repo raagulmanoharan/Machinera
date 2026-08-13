@@ -116,7 +116,7 @@ const VolumetricLightShader = {
           vec3 fromL = p - uPos[l]; float dl = length(fromL); fromL /= max(dl, 0.001);
           float att = 1.0 / (1.0 + uAtt[l] * dl * dl);
           float align = dot(fromL, uDir[l]);                 // p relative to the light's emission dir
-          float cone = smoothstep(uCone[l], mix(uCone[l], 1.0, 0.55), align);
+          float cone = smoothstep(uCone[l], mix(uCone[l], 1.0, 0.78), align);
           s += uCol[l] * (att * cone);
         }
         acc += s * exp(-uFog * t * 2.6) * stepLen;
