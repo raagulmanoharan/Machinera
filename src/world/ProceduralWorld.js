@@ -524,12 +524,16 @@ export class ProceduralWorld {
     // there's no raised lip along the asphalt's edge to catch the light
     floor.position.y = 0.0; floor.receiveShadow = true; this.group.add(floor);
 
-    // asphalt driving surface — rough, worn, dark
+    // Rain-slick asphalt. Wet, it mirrors the sky the way the sea does, and at
+    // grazing angles down the road Fresnel makes that reflection strong — which
+    // is what lets the exposure sit down near the example's, instead of being
+    // propped up to keep a dull matte deck out of the black.
     const aDiff = loadTexture(TEXTURES.asphaltDiff, { srgb: true }); aDiff.repeat.set(W * 2 / 3.2, 1 / 3.2);
     const aNor = loadTexture(TEXTURES.asphaltNor); aNor.repeat.copy(aDiff.repeat);
-    const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshStandardMaterial({
-      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(1.8, 1.8),
-      roughness: 0.9, metalness: 0.0, envMapIntensity: 2.0,
+    const road = new THREE.Mesh(this._ribbonGeo(W), deTile(new THREE.MeshPhysicalMaterial({
+      map: aDiff, normalMap: aNor, normalScale: new THREE.Vector2(0.35, 0.35),
+      roughness: 0.14, metalness: 0.0, envMapIntensity: 2.4,
+      clearcoat: 1.0, clearcoatRoughness: 0.06,
       color: 0xffffff,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
     }), { scale: 0.14, amount: 0.45 }));
