@@ -113,6 +113,7 @@ async function loadWorld() {
 
   world = new ProceduralWorld(scene);
   await world.populate();
+  if (world.water) env.setWater(world.water);   // one sun vector drives sky + water
 
   car.reset(world.carStart.pos, world.carStart.heading);
   window.__world = world; // debug handle

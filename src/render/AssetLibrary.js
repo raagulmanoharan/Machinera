@@ -18,6 +18,7 @@ export const TEXTURES = {
   asphaltNor: `${BASE}textures/asphalt_nor.jpg`,
   dirtDiff: `${BASE}textures/dirt_diff.jpg`,
   dirtNor: `${BASE}textures/dirt_nor.jpg`,
+  waterNormals: `${BASE}textures/waternormals.jpg`,
 };
 
 // Break obvious texture repetition by modulating the albedo with a large-scale

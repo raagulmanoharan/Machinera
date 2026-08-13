@@ -75,7 +75,15 @@ export class Environment {
     this._sunV.setFromSphericalCoords(1, phi, theta);
     u.sunPosition.value.copy(this._sunV);
     this.sunDir.copy(this._sunV).normalize();
+    this._syncWater();
     this._updateEnv();
+  }
+
+  // The ocean example feeds the same sun vector to both the sky and the water,
+  // so the specular highlight sits exactly where the sky says the sun is.
+  setWater(water) { this.water = water; this._syncWater(); }
+  _syncWater() {
+    if (this.water) this.water.material.uniforms.sunDirection.value.copy(this.sunDir).normalize();
   }
 
   // bake the sky into the scene environment (reflections + ambient IBL)
