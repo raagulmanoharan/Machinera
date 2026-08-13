@@ -10,9 +10,6 @@
     <div id="app">
       <canvas id="scene"></canvas>
 
-      <!-- link to the photoreal city mode -->
-      <a id="cityLink" href="./city.html">◲ city</a>
-
       <!-- Loading overlay -->
       <div id="loader" class="overlay">
         <div class="loader-inner">
@@ -22,67 +19,10 @@
         </div>
       </div>
 
-
       <!-- Touch driving controls (shown on touch devices) -->
       <div id="touch" aria-hidden="true">
         <button id="brakeBtn" class="tbtn brake" aria-label="Brake">❚❚</button>
         <button id="accelBtn" class="tbtn accel" aria-label="Accelerate">▲</button>
-      </div>
-
-      <!-- Settings panel -->
-      <div id="settings" class="overlay hidden">
-        <div class="panel">
-          <h1>Where do you want to drive?</h1>
-
-          <section>
-            <h2>World</h2>
-            <label class="row">
-              <span>Drive</span>
-              <select id="source">
-                <option value="procedural">Scenic route — a soothing cruise</option>
-                <option value="osm">Real place — OpenStreetMap</option>
-              </select>
-            </label>
-          </section>
-
-          <section id="osm-section">
-            <p class="muted">
-              Drive a real place, built live from <b>OpenStreetMap</b> + open elevation
-              data — no account or API key. Great for picturesque spots; the scenic route
-              is smoother to cruise.
-            </p>
-            <label class="row">
-              <span>Location</span>
-              <select id="preset">
-                <option value="46.5197,6.6323">Lake Geneva — Lausanne</option>
-                <option value="46.6863,7.8632">Interlaken — Swiss Alps</option>
-                <option value="36.0544,-112.1401">Grand Canyon rim</option>
-                <option value="36.5786,-121.9018">Big Sur — Pacific coast</option>
-                <option value="44.2619,-71.3020">White Mountains, NH</option>
-                <option value="46.4102,10.0106">Stelvio Pass, Dolomites</option>
-                <option value="64.1466,-21.9426">Reykjavík, Iceland</option>
-                <option value="custom">Custom lat, lng…</option>
-              </select>
-            </label>
-            <label class="row" id="customRow" style="display:none">
-              <span>Lat, Lng</span>
-              <input id="latlng" type="text" placeholder="34.0100, -118.4960" autocomplete="off" />
-            </label>
-            <label class="row">
-              <span>Area size</span>
-              <select id="radius">
-                <option value="500">Small — loads fast</option>
-                <option value="750" selected>Medium</option>
-                <option value="1100">Large — more to explore</option>
-              </select>
-            </label>
-          </section>
-
-          <div class="actions">
-            <button id="apply" class="primary">Drive</button>
-            <button id="close">Close</button>
-          </div>
-        </div>
       </div>
     </div>
 
