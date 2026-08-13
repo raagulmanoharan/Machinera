@@ -17,9 +17,11 @@ export const MOODS = [
     // in the far distance. Dense fog flattens all of that into a featureless
     // wash. Lit like three.js' ocean demo — a warm low-sun sky baked to a PMREM
     // environment under controlled ACES exposure, not an ambient flood.
-    fog: [0x3a2110, 0.011], exposure: 1.0, env: 0.5,
+    fog: [0x3a2110, 0.011], exposure: 1.0, env: 0.62,
     skyElev: 2, skyTurb: 10, skyRayl: 2,
-    sun: [0x2a1c0c, 0.06], hemi: [0x9a5626, 2.4], moon: [0x7a4a24, 0.55],
+    // ambient has to carry the walls between the sparse lamps — without it the
+    // bore goes pitch black a few metres past each fixture
+    sun: [0x2a1c0c, 0.06], hemi: [0x9a5626, 3.6], moon: [0x7a4a24, 0.7],
     grade: [1.07, 0.99, 0.86], night: 0.12, lamps: 1.0, headlights: 1.0,
     sunset: [0xff7a2a, 0.85],
   },

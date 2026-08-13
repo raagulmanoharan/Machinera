@@ -319,6 +319,7 @@ export class ProceduralWorld {
   setLamps(level) {
     this.lampLevel = THREE.MathUtils.clamp(level, 0, 1);   // read by update() + the volumetric pass
     if (this._lensMat) this._lensMat.emissiveIntensity = 7.0 * this.lampLevel;
+    if (this._glowMat) this._glowMat.opacity = 0.4 * this.lampLevel;
   }
 
   // re-home the real spotlights onto the nearest lamps so their light pools
@@ -602,7 +603,7 @@ export class ProceduralWorld {
     const ceilHeads = [];           // ceiling-only positions (aim spotlights down onto the car)
     const ceilMats = [];
     const yc = Hw + Ha - 0.35;      // ceiling fixtures hung just below the arch apex
-    const spacing = 42;             // sparse — long dark stretches between lamps
+    const spacing = 30;             // sparse — long dark stretches between lamps
     for (let z = ROAD.lengthStart + 10; z < ROAD.lengthEnd; z += spacing) {
       // a row of ceiling fixtures running down the crown of the arch
       const cx = roadX(z);
@@ -617,15 +618,39 @@ export class ProceduralWorld {
     // Ceiling fixtures. A round core rather than a flat disc — a disc seen at
     // the shallow angle you get looking down the tunnel foreshortens into a
     // hard-edged rectangle, while a sphere stays soft and round from anywhere.
-    const ceilGeo = new THREE.SphereGeometry(0.34, 14, 10);
+    // Big enough to cover real pixels: a tiny emitter is only a few pixels wide,
+    // and bloom's mip chain smears something that small into a blocky square
+    // rather than a round halo.
+    const ceilGeo = new THREE.SphereGeometry(0.55, 16, 12);
     const ceilInst = new THREE.InstancedMesh(ceilGeo, lens, ceilMats.length);
     for (let i = 0; i < ceilMats.length; i++) ceilInst.setMatrixAt(i, ceilMats[i]);
     ceilInst.instanceMatrix.needsUpdate = true; ceilInst.frustumCulled = false;
     this.group.add(ceilInst);
 
-    // The halo is left to bloom rather than a translucent shell: any shell mesh
-    // carries its own silhouette, which up close is just a bigger hard-edged
-    // blob. Bloom spreads the bright core with a genuinely soft falloff.
+    // The halo: a camera-facing quad carrying a gaussian falloff, added over the
+    // scene. Unlike a shell mesh it has no silhouette of its own, and unlike
+    // relying on bloom alone it can't go blocky — bloom builds its glow from
+    // coarse mips, which squares off around a small bright source. Billboarded
+    // in the vertex shader so one instanced draw covers every fixture.
+    this._glowMat = new THREE.MeshBasicMaterial({
+      map: this._glowTex(), color: 0xff9a3c, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+    });
+    this._glowMat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace(
+        '#include <project_vertex>',
+        `vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+         mvPosition.xy += transformed.xy;
+         gl_Position = projectionMatrix * mvPosition;`,
+      );
+    };
+    this._glowMat.customProgramCacheKey = () => 'billboardglow';
+    const glowInst = new THREE.InstancedMesh(new THREE.PlaneGeometry(5.2, 5.2), this._glowMat, ceilMats.length);
+    for (let i = 0; i < ceilMats.length; i++) glowInst.setMatrixAt(i, ceilMats[i]);
+    glowInst.instanceMatrix.needsUpdate = true;
+    glowInst.frustumCulled = false;
+    glowInst.renderOrder = 3;
+    this.group.add(glowInst);
     this.lampHeads = heads;
     this.ceilHeads = ceilHeads;
 
@@ -633,7 +658,10 @@ export class ProceduralWorld {
     // frame, casting warm pools on the road/walls + lighting the car from above
     this._lampLights = [];
     for (let i = 0; i < 4; i++) {
-      const sl = new THREE.SpotLight(0xffb267, 0, 46, 1.0, 1.0, 1.4);
+      // Wide cone, full penumbra, gentle decay and a reach well past the pool it
+      // casts — a narrow cone with a short range stamps a hard-edged circle of
+      // light on the road where the cone and the distance cutoff bite.
+      const sl = new THREE.SpotLight(0xffb267, 0, 90, 1.32, 1.0, 1.15);
       sl.visible = false; sl.castShadow = false;
       this.group.add(sl); this.group.add(sl.target);
       this._lampLights.push(sl);

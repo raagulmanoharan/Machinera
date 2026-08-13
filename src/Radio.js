@@ -109,20 +109,32 @@ export class Radio {
     const el = document.createElement('div');
     el.id = 'radio';
     el.innerHTML = `
+      <div class="vr-hd">
+        <span class="vr-brand">MACHINERA</span>
+        <span class="vr-model">MK·II</span>
+      </div>
       <div class="vr-face">
+        <span class="vr-band">FM<em>MHz</em></span>
+        <div class="vr-nums"><i>88</i><i>92</i><i>96</i><i>100</i><i>104</i><i>108</i></div>
         <div class="vr-scale"></div>
-        <div class="vr-needle"></div>
-        <div class="vr-read">
-          <span class="vr-freq"></span>
-          <span class="vr-name"></span>
-        </div>
-        <span class="vr-on" title="on air"></span>
+        <div class="vr-needle"><b></b></div>
+        <div class="vr-glass"></div>
+      </div>
+      <div class="vr-read">
+        <span class="vr-freq"></span>
+        <span class="vr-name"></span>
       </div>
       <div class="vr-ctrl">
         <button class="vr-tune vr-prev" aria-label="Previous station">‹</button>
+        <div class="vr-meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
         <button class="vr-tune vr-next" aria-label="Next station">›</button>
-        <input class="vr-vol" type="range" min="0" max="100" value="${this.volume}" aria-label="Volume" />
       </div>
+      <div class="vr-foot">
+        <span class="vr-vol-l">VOL</span>
+        <input class="vr-vol" type="range" min="0" max="100" value="${this.volume}" aria-label="Volume" />
+        <span class="vr-on" title="on air"></span>
+      </div>
+      <div class="vr-grille" aria-hidden="true"></div>
       <div id="yt-audio"></div>`;
     mount.appendChild(el);
     this.el = el;

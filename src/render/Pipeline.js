@@ -62,7 +62,7 @@ const CinematicShader = {
 
       // vignette
       vec2 d = vUv - 0.5; float vig = smoothstep(0.95, 0.30, length(d));
-      g *= mix(mix(0.86, 1.0, vig), mix(0.80, 1.0, vig), night);
+      g *= mix(mix(0.93, 1.0, vig), mix(0.90, 1.0, vig), night);
 
       // per-mood colour cast (liminal grade)
       g *= tint;
@@ -182,7 +182,9 @@ export class Pipeline {
     // bloom — glows the headlight beams and their scatter through the smog, and
     // the dusk horizon. Lower threshold + more strength so the diffused beams
     // read as light blooming in the fog.
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.8, 0.9, 0.6);
+    // A tighter radius keeps the halo round — a wide radius pulls from coarse
+    // mips and gives small bright sources a boxy glow.
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.62, 0.55, 0.72);
     this.composer.addPass(this.bloom);
 
     this.composer.addPass(new SMAAPass(size.x, size.y));
