@@ -191,6 +191,10 @@ export class Pipeline {
     this.composer.addPass(new OutputPass());
 
     this.grade = new ShaderPass(CinematicShader);
+    // Amount 0 passes the tonemapped image straight through (motion blur is
+    // sampled before the grade, so it survives). The example applies no grading
+    // at all — raise this to bring the cinematic look back.
+    this.grade.uniforms.amount.value = 0;
     this.composer.addPass(this.grade);
     this._t = 0;
   }
