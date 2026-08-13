@@ -14,21 +14,18 @@ export const MOODS = [
     // used as the only light in the scene. No fog, no discrete lights, no colour
     // grade — exposure 0.1 under ACES, exactly as the example runs it.
     name: 'Ocean Sky',
-    // The example's own exposure, reachable now that the sun sits high enough to
-    // burn the sky brightly — the earlier 0.4 was propping up a twilight scene.
-    fog: [0x000000, 0.0], exposure: 0.11, env: 1.0,
+    fog: [0x000000, 0.0], exposure: 0.1, env: 1.0,
     // Sun swung round to the side of the causeway rather than straight down it:
     // at azimuth 180 the light runs parallel to the road and the pillar shadows
     // lie along it, invisible. Across the road they rake through the bays.
     // Elevation lifted off 2 so the disc actually clears the sea horizon.
-    // Elevation matters twice over: it sets how brightly the sky burns (and so
-    // what exposure suits), and it decides whether sun entering a bay reaches
-    // the deck at all. At 7 deg the light needs ~39 m of run to drop from the
-    // roofline to the road — further than the deck is wide — so nothing landed.
-    skyElev: 26, skyAzi: 95, skyTurb: 10, skyRayl: 2,
-    // Intensity is set against the sky IBL, not in isolation: at 3 the sun was
-    // swamped by it and cast no readable shadow at all.
-    sun: [0xfff0dc, 50], hemi: [0x000000, 0], moon: [0x000000, 0],
+    // The example's own sky values. Azimuth is the one thing that has to differ:
+    // 180 puts the sun behind the camera, and since our camera always looks down
+    // the road we would be driving away from the only bright thing in the sky.
+    // Swung ahead, we drive into the sunrise — the same view the example's
+    // default camera has of its sun.
+    skyElev: 2, skyAzi: 45, skyTurb: 10, skyRayl: 2,
+    sun: [0x000000, 0], hemi: [0x000000, 0], moon: [0x000000, 0],
     grade: [1, 1, 1], night: 0, lamps: 0, headlights: 0,
     sunset: [0x000000, 0.0],
   },

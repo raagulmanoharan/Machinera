@@ -52,21 +52,9 @@ export class Environment {
          gl_FragColor = vec4( retColor, 1.0 );`);
     sm.needsUpdate = true;
 
-    // A single directional sun, aimed along the same vector the sky puts the sun
-    // on. The ocean example has no lights at all, so nothing in it casts a
-    // shadow — its "sun" is the bright disc in the sky plus specular on water.
-    // Ambient sky light alone gives shape but no direction, which is why the
-    // scene read as having no light source. This is the one addition.
-    this.sun = new THREE.DirectionalLight(0xfff0dc, 0);
-    this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
-    this.sun.shadow.bias = -0.0006;
-    this.sun.shadow.normalBias = 0.4;
-    const s = this.sun.shadow.camera;
-    // tight around the stretch of causeway in view — a wider box spreads the
-    // same 2048 map over more ground and the pillar shadows go soft and blocky
-    s.near = 1; s.far = 500; s.left = -70; s.right = 70; s.top = 70; s.bottom = -70;
-    scene.add(this.sun, this.sun.target);
+    // No light objects, and nothing casts a shadow — the example creates none,
+    // and contains no castShadow or shadowMap at all. Its "sun" is the bright
+    // disc the sky shader draws, plus the specular the water returns from it.
 
     scene.fog = new THREE.FogExp2(0x9aa7b4, 0.0);
     renderer.toneMappingExposure = 0.1;   // the example's exposure
@@ -131,15 +119,11 @@ export class Environment {
     if (hf) hf.value.copy(this.scene.fog.color);
   }
   setExposure(e) { this.renderer.toneMappingExposure = e; }
-  setLight(sunColor, sunI) { this.sun.color.set(sunColor); this.sun.intensity = sunI; }
+  setLight() {}                    // no lights to drive
   setEnvIntensity(v) { this.scene.environmentIntensity = v; }
-  setMoon() {}                     // no moon in this mood set
+  setMoon() {}
 
   update(target) {
-    // keep the sun (and its shadow box) travelling with the car, so the shadow
-    // map always covers the stretch of road actually on screen
-    this.sun.position.copy(target).addScaledVector(this.sunDir, 220);
-    this.sun.target.position.copy(target);
     this.sky.position.copy(target);
   }
 
@@ -147,7 +131,7 @@ export class Environment {
     this.scene.environment = null;
     if (this._envRT) this._envRT.dispose();
     this.pmrem.dispose();
-    this.scene.remove(this.sun, this.sun.target, this.sky);
+    this.scene.remove(this.sky);
     this.scene.fog = null;
   }
 }

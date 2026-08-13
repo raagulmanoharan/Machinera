@@ -141,7 +141,9 @@ const VolumetricLightShader = {
     }`,
 };
 
-// Full-screen effect stack: AO -> volumetric light -> bloom -> AA -> tonemap -> grade.
+// Post chain, matching webgl_shaders_ocean exactly: bloom, then tone-map. That
+// is the whole of it — the example runs no AO, no scattering, no antialias pass
+// and no colour grade.
 export class Pipeline {
   constructor(renderer, scene, camera) {
     this.renderer = renderer;
@@ -154,48 +156,39 @@ export class Pipeline {
     this.depthRT = new THREE.WebGLRenderTarget(size.x, size.y);
     this.depthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
 
-    this.composer = new EffectComposer(renderer);
+    // HDR working buffer — the example's `outputBufferType: HalfFloatType`. The
+    // bloom threshold of 0.85 only means anything if values above 1 survive to
+    // reach it, which an 8-bit buffer would clip away.
+    const hdr = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType });
+    this.composer = new EffectComposer(renderer, hdr);
     this.composer.setPixelRatio(renderer.getPixelRatio());
     this.composer.setSize(size.x, size.y);
 
+    // webgl_shaders_ocean's entire post chain is one bloom pass:
+    //   bloomPass = new UnrealBloomPass( resolution, 1.5, 0.4, 0.85 );
+    //   renderer.setEffects( [ bloomPass ] );
+    // setEffects is a three.js master-only API and doesn't exist in the version
+    // pinned here, so the equivalent is assembled by hand: render to an HDR
+    // buffer (the example's outputBufferType: HalfFloatType), bloom in HDR, then
+    // OutputPass to tone-map and convert — which is what setEffects does
+    // internally. Same parameters, same order.
     this.composer.addPass(new RenderPass(scene, camera));
 
-    // ground-truth ambient occlusion — visible contact shadows + terrain crevices
-    // Ground-truth AO. Disabled in the fog tunnel: screen-space AO draws dark
-    // outlines at every depth discontinuity, which in dense haze read as hard
-    // ink lines tracing the road edge and the distant fixtures. The car carries
-    // its own soft contact shadow, so there's nothing to miss here. Kept wired
-    // so an open-air mood can switch it back on.
-    this.gtao = new GTAOPass(scene, camera, size.x, size.y);
-    this.gtao.blendIntensity = 0.3;
-    try {
-      this.gtao.updateGtaoMaterial({ radius: 0.9, distanceExponent: 1.0, thickness: 1.0, scale: 1.0, samples: 16, screenSpaceRadius: false });
-    } catch (e) { /* keep defaults across minor version diffs */ }
-    this.gtao.enabled = false;
-    this.composer.addPass(this.gtao);
-
-    // volumetric street-lamp light scattering through the fog (true 3D)
-    this.volumetric = new ShaderPass(VolumetricLightShader);
-    this.volumetric.uniforms.tDepth.value = this.depthRT.texture;
-    this.composer.addPass(this.volumetric);
-
-    // bloom — glows the headlight beams and their scatter through the smog, and
-    // the dusk horizon. Lower threshold + more strength so the diffused beams
-    // read as light blooming in the fog.
-    // A tighter radius keeps the halo round — a wide radius pulls from coarse
-    // mips and gives small bright sources a boxy glow.
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.62, 0.55, 0.72);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 1.5, 0.4, 0.85);
     this.composer.addPass(this.bloom);
 
-    this.composer.addPass(new SMAAPass(size.x, size.y));
     this.composer.addPass(new OutputPass());
 
+    // No AO, no volumetric scattering, no antialias pass and no colour grade —
+    // the example runs none of them. The passes below stay constructed but
+    // unused so the rest of the app's calls remain valid.
+    this.gtao = new GTAOPass(scene, camera, size.x, size.y);
+    this.gtao.enabled = false;
+    this.volumetric = new ShaderPass(VolumetricLightShader);
+    this.volumetric.enabled = false;
+    this.volumetric.uniforms.tDepth.value = this.depthRT.texture;
     this.grade = new ShaderPass(CinematicShader);
-    // Amount 0 passes the tonemapped image straight through (motion blur is
-    // sampled before the grade, so it survives). The example applies no grading
-    // at all — raise this to bring the cinematic look back.
-    this.grade.uniforms.amount.value = 0;
-    this.composer.addPass(this.grade);
+    this.grade.enabled = false;
     this._t = 0;
   }
 
