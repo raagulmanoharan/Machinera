@@ -348,7 +348,9 @@ export class ProceduralWorld {
         // ceiling lights aim straight down the road crown (onto the car);
         // wall lights pool between the wall and the centre line
         sl.target.position.set(overhead ? roadX(h.z) : h.x * 0.6 + roadX(h.z) * 0.4, 0.0, h.z);
-        sl.intensity = (overhead ? 260 : 170) * level;
+        // brighter per fixture now that they're sparse, so each throws a real
+        // pool of light across the bore before the next stretch of dark
+        sl.intensity = (overhead ? 430 : 170) * level;
       } else { sl.visible = false; }
     }
   }
@@ -600,7 +602,7 @@ export class ProceduralWorld {
     const ceilHeads = [];           // ceiling-only positions (aim spotlights down onto the car)
     const ceilMats = [];
     const yc = Hw + Ha - 0.35;      // ceiling fixtures hung just below the arch apex
-    const spacing = 15;
+    const spacing = 42;             // sparse — long dark stretches between lamps
     for (let z = ROAD.lengthStart + 10; z < ROAD.lengthEnd; z += spacing) {
       // a row of ceiling fixtures running down the crown of the arch
       const cx = roadX(z);
