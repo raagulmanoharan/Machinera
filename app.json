@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Little Zine",
+    "slug": "little-zine",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/zine-icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.littlezine.journal",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose photos and videos to keep in your private zine.",
+          "cameraPermission": "Capture moments for your private zine.",
+          "microphonePermission": "Record sound with your zine videos."
+        }
+      ],
+      "expo-video",
+      "expo-sharing",
+      "expo-dev-client"
+    ],
+    "scheme": "littlezine"
+  }
+}

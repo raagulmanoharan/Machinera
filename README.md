@@ -1,117 +1,87 @@
-# Machinera
+# Little Zine
 
-> A newly-born mind, raised by you.
+A private photo/video journal with editable notes and animated page turns. Data stays on the phone, with no account, feed, or app backend. Uninstalling can erase the journal; there is no app-managed backup or sync. Expo Go storage does not automatically migrate into a standalone build.
 
-Machinera is a **conversation**. A newly-born mind that knows **nothing** about the real
-world messages you — showing you what it "sees" (at first a formless field) and asking what
-things are. You reply, in plain words, like texting a curious child. It remembers everything,
-and slowly its inner world takes the exact shape of what you chose to teach it. No two people
-raise the same mind. The interface is just that chat — nothing else.
+The default POC now runs free in **Expo Go**. See [EXPO_GO.md](EXPO_GO.md) for installation and phone testing. The manual camera is hidden when its native module is unavailable.
 
-This repo is an early, runnable prototype of that experience.
+[TESTFLIGHT.md](TESTFLIGHT.md) is retained for future standalone distribution.
 
-## The one idea that makes it real
+## Native manual camera
 
-The child must **genuinely** learn — never pretend to be dumb. So Machinera enforces a
-firewall between **faculty** and **content** (`lib/mind/firewall.ts`):
+The camera no longer requires RAW. Choose **Add a moment → Shoot / manual camera** in a custom iOS build. It uses the physical rear wide camera at 1× and allows manual ISO/shutter. Minimum available ISO is the default, with shutter near 1/125 s. Actual exposure settings are stored with the page. The camera must support manual exposure.
 
-- The **memory graph is the only source of what the mind knows about the world.** If you
-  haven't taught it, it does not exist for the mind.
-- The reasoning engine is a **faculty only** — machinery for language, association, and
-  curiosity — not a source of world-knowledge (a newborn brain, not an encyclopaedia).
-- **Content words** (things, qualities, feelings) must be taught. **Function words** (what,
-  why, is, the, feel…) are always available — they are language faculty, not world-knowledge,
-  which is what lets the child ask *real* questions instead of naming-word fragments.
-- Every message the child speaks and every image prompt it forms is vetted. Anything
-  referencing an un-taught concept is rejected — so even a frontier LLM faculty cannot leak
-  pretrained knowledge. The ignorance is **real**.
+AVFoundation requests a JPEG with speed prioritization, flash off, and virtual-camera fusion, red-eye reduction, and content-aware distortion correction disabled. ProRAW is not enabled. The app saves the returned JPEG without resizing, re-encoding, developing, or filtering it.
 
-Because it starts empty, it literally cannot picture or name anything — so its first message
-is a formless image and a wordless "…?". As you teach it, its questions deepen (from "what is
-this?" to "why does the water feel cold but the sun feel warm?") and its images sharpen. That
-arc is **emergent** from the graph getting richer — and it is meant to unfold over **months**
-of tending, not a single session. The maturity curve is deliberately slow; a mind stays young
-for a long time.
+This does **not** switch off Apple's entire ISP, Smart HDR, sharpening, or denoising. Speed prioritization is not a documented global processing-off switch. JPEG capture is not unprocessed sensor data and does not guarantee the full sensor dynamic range. Low ISO and careful exposure can help; excessive underexposure loses shadow information. The live exposure meter is relative to Apple's metering target, not a RAW clipping histogram.
 
-## Run it
+The supplied LAMPA reference is https://www.lampa.camera/. The cloud proxy returned 403 when fetching it. Its actual capture method is unverified, and this implementation does not claim equivalence. Access to that site is requested in the environment draft for later inspection.
 
-```bash
-npm install
-npm run dev
-# open http://localhost:3000
+## Original and Flat
+
+**Editorial / Medium** is selected by default for new photos and imports. Original remains available for an unfiltered comparison. It saves the photo as supplied by the camera or picker, which may already have been processed by iOS.
+
+**Flat** and **Editorial** are optional treatments. Editorial layers olive greens, gently warm neutrals, and richer reds over the flat base, inspired by the supplied reference. Light, Medium, and Full adjust the strength. **Flat** omits those selective colour changes. It creates a separate SDR JPEG with a -0.65 EV scale in linear light, slightly lifted blacks, restrained highlights, and 82% saturation. It adds no sharpening, noise reduction, or grain. The rendition is capped at 1600 pixels on its longest edge to bound memory/CPU use. Renditions are generated only when a treatment is selected; the source file stays intact. Compare Original/Flat before saving or in the journal reader. Flat cannot recover clipped highlights or undo camera processing.
+
+Videos use the system camera and are unchanged by photo treatments. Library import remains available. Legacy RAW pages and DNG export remain supported, but new captures do not produce or require DNGs.
+
+Native temporary JPEGs are discarded after save/cancel. Failed saves leave the draft available for retry. Backgrounding the native camera cancels it and stops the session. Removing a page removes app-owned media copies, not the original in Photos.
+
+## Install on iPhone without opening Xcode
+
+The native Swift module in `modules/zine-camera` requires a custom iOS build. **Expo Go cannot load manual camera controls**, even though RAW is no longer required. Expo Go can use the system photo/video camera, imports, and the journal reader.
+
+Use Node 22.13+ (validated with Node 24). For TestFlight or cloud-built physical-device distribution you need an Expo account and paid Apple Developer membership. Removing RAW does not remove Apple's signing requirement. A free Apple ID plus a Mac with Xcode installed can use short-lived free device provisioning.
+
+```sh
+npm ci
+npx eas-cli@latest login
+npx eas-cli@latest build:configure
+npx eas-cli@latest device:create
+npx eas-cli@latest build --platform ios --profile preview
 ```
 
-No API keys required. By default the reasoning faculty is local (simple questions) and the
-Imagination generates real images via a keyless open-model endpoint; set
-`NEXT_PUBLIC_IMAGINATION=procedural` to run **fully offline**. For the deepening,
-conversational voice, run the sidecar (below). Each visitor's mind and conversation persist
-in their own browser (`localStorage`), so everyone raises their own private mind.
+The preview profile embeds JavaScript and needs no Metro server or local Mac. Register your iPhone and install via EAS's resulting installation page. Choose your own unique bundle identifier in `app.json` and replace starter icons before distribution. EAS reported Not logged in here, so no native compilation or installable build has been run. Supply an Expo token securely in environment settings or log in locally; never paste credentials into chat. Apple signing is also required.
 
-## The two engines
+For development, build with `--profile development`, install it, then run `npm run start:native`. For Expo Go use `npm run start:go`. Phone access to cloud Metro needs an externally reachable connection; tunnel access has not been configured or verified. Rebuild after Swift or native-dependency changes.
 
-| Engine | What it does | Default | Upgrade |
-| --- | --- | --- | --- |
-| **The Mind** | holds the memory graph, gets curious, speaks, integrates your answers | local faculty (`lib/mind/faculty.ts`) | **real LLM faculty** via the sidecar (`sidecar/`) |
-| **The Imagination** | turns the current thought into an image | **real text-to-image** (FLUX via Pollinations, keyless — `lib/imagination/pollinations.ts`) | **Z-Image Turbo** endpoint (`lib/imagination/zimage.ts`); procedural offline fallback |
+For TestFlight, after configuring the App Store Connect app:
 
-Maturity (`lib/mind/maturity.ts`) drives the **style**, not just a threshold: a young mind's
-images are formless and dreamlike, sharpening into detailed, vivid scenes as it grows — the
-abstract→complex arc, on real generated images. A mind with nothing learned yet can depict
-nothing, so turn zero is genuine procedural abstraction. What every image *depicts* is still
-firewalled — the prompt is built only from taught concepts.
-
-Real generation needs no API key: the browser (or the sidecar, if one is running) calls a
-free FLUX-backed endpoint. Set `NEXT_PUBLIC_IMAGINATION=procedural` to force the offline
-look, or configure a `ZIMAGE_ENDPOINT` to use your own Z-Image Turbo deployment instead.
-
-### Real LLM faculty — the sidecar
-
-The Mind can be powered by a real LLM without touching the (static) app, using the
-**sidecar pattern**: a small companion service (`sidecar/`) runs alongside the site, holds
-any API key server-side, and serves the faculty. The app calls it only when
-`NEXT_PUBLIC_SIDECAR_URL` is set; otherwise it uses the built-in local faculty.
-
-Crucially, the [firewall](lib/mind/firewall.ts) still governs the LLM's output: every word
-it speaks is vetted against the taught vocabulary, and on learning it may only extract
-concepts from the parent's own words. The LLM supplies language and association — never
-world-knowledge. So the mind stays genuinely ignorant of anything it wasn't taught, even
-with a frontier model behind it.
-
-```bash
-# terminal 1 — the sidecar (defaults to the local `claude` CLI as the LLM)
-npm run sidecar
-# terminal 2 — the app, pointed at it
-NEXT_PUBLIC_SIDECAR_URL=http://localhost:8787 npm run dev
+```sh
+npx eas-cli@latest build --platform ios --profile production
+npx eas-cli@latest submit --platform ios --latest
 ```
 
-Providers are pluggable (`sidecar/llm.ts`): set `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY`
-(+ `SIDECAR_OPENAI_BASE` for any OpenAI-compatible endpoint), or the local Claude CLI by
-default. The sidecar exposes `/open` and `/reply` (the conversation) and `/image` (proxies
-the image model where only the server has external egress).
+No build or submission has been performed.
 
-### Image generation (open model)
+## Validation
 
-Images are generated by an **open-weight model** (FLUX, keyless by default). Maturity drives
-the style — dreamlike/abstract for a young mind, detailed as it grows (over months). To run
-your own from the research (`docs/open-source-image-generation-research.md`), set
-`NEXT_PUBLIC_ZIMAGE_ENDPOINT` to a **Z-Image Turbo** (6B, Apache-2.0) or compatible endpoint;
-it takes precedence over the keyless default.
-
-## Layout
-
-```
-app/                     Next.js app (static export)
-  page.tsx               the messaging UI — a chat, nothing else
-lib/engine.ts            conversation engine: local faculty, or the sidecar if configured
-lib/mind/                the Mind: graph, firewall (content vs function words), maturity,
-                         local faculty, browser-store
-lib/imagination/         the Imagination: open-model generation + procedural fallback
-sidecar/                 the real-LLM faculty service (/open, /reply, /image; providers)
-docs/                    experience design + open-source image-model research
-.github/workflows/       GitHub Pages deploy
+```sh
+npm run typecheck
+npm test
+npx expo export --platform ios
+npx expo-modules-autolinking resolve --platform apple --json
 ```
 
-## Design
+Tests cover saved-page validation, exposure metadata, manual-JPEG and legacy RAW bridge results, tonal behavior, JPEG processing, and navigation bounds. JS export does not validate Swift compilation, signing, or camera hardware. Native-module discovery and iOS project generation passed; this Linux environment has no Apple SDK/compiler. A successful EAS build and device tests remain required.
 
-See [`docs/machinera-experience-design.md`](docs/machinera-experience-design.md) for the
-principles, the two-engine model, and the decisions locked so far.
+Physical-device checks:
+
+1. Capture on an iPhone without Bayer RAW support. Compare two shutter settings at minimum ISO and verify JPEG EXIF and journal metadata.
+2. Compare the default Editorial/Medium with Original and Flat. Compare Flat, save, restart, and confirm the source stays unchanged.
+3. Deny permissions, background the camera, and retry failed captures. Verify the session stops on close.
+4. Import portrait/landscape HEIC, JPEG, PNG, and large photos; check orientation and memory use.
+5. Test videos with sound, page flipping, note edits, draft cancellation, and page deletion.
+6. Open legacy RAW pages and export existing DNGs.
+7. Verify LAMPA's documented technique and compare actual scenes before claiming the same look or processing behavior.
+
+## Files
+
+- `App.tsx`: reader, capture flow, drafts, and treatment controls.
+- `modules/zine-camera/ios/`: native camera and Expo bridge.
+- `src/manualCapture.ts`: validation of JPEG capture results.
+- `src/nativeCamera.ts`: native camera access and temporary-file cleanup.
+- `src/model.ts`, `src/storage.ts`: journal format and on-device persistence.
+- `src/processPhoto.ts`, `src/treatment.ts`, `src/jpeg.ts`: optional Flat processing.
+- `eas.json`: preview, development, and production build profiles.
+
+The previous Machinera files were cleared at your request. Git history remains, and the backup is `/workspace/Machinera-before-fresh-project.tar.gz`. The Expo Go POC is published on the codex/little-zine-expo-go-poc branch.
