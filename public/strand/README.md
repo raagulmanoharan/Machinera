@@ -1,19 +1,24 @@
-# Strand — camera only
-The page shows only a detailed 3D camera and, after capture, the woven fabric. There are no visible menus, headings, controls, or chrome. Brief notices appear only for errors.
+# Strand — dense woven memories
+A detailed 3D camera turns a captured moment into a tightly woven digital textile. Capture or photo upload opens a retro-future optical viewfinder; its processed image becomes the dye source for the fabric.
 
-Tap the camera to open live capture; tap again to photograph and weave. Hold the camera to choose a photo. Drag the camera or finished cloth to turn it. Pinch (or scroll) to inspect the yarns closely. Hold or double-tap the finished cloth to save a PNG. Double-tap the camera after weaving to start again. Keyboard: Enter capture, U upload, Space sample reveal, S save, Escape reset. Screen-reader controls are retained invisibly.
+## Fabric
+The weave represents 320 warp yarns and 256 weft yarns, with 81,920 over-under crossings. Compressed cotton profiles pack closely together, with small variations in thickness, twisted surface fibers, loose fiber ends, and fringe. At normal viewing distance, a mipmapped woven surface avoids subpixel moiré. Macro inspection switches to individual instanced yarn geometry and draws only the visible region. This is a visual textile simulation, not a physics solver.
 
-The camera is Poly Haven's Camera 01 by Rajil Jose Macatangay, CC0. Its original geometry and 1K base colour, normal, roughness, metalness, and ambient-occlusion textures are bundled in public/assets/camera.gltf. Provenance and verified source checksums are in camera-license.json. The strap is hidden and a loom attachment added at runtime.
+Both yarn directions use the full captured image as an sRGB colour-managed dye texture. No dominant-colour clustering, beige warp tint, synthetic band substitution, or palette quantization is applied to the fabric. The optional viewfinder dither affects the captured image when enabled. Studio lighting and shadows affect its rendered appearance.
 
-Fabric consists of individual tubular warp and weft yarns, alternating over/under crossings, micro-bump fiber texture, loose fibers, and fringe. A moving shuttle inserts each row in alternate directions; a reed beats it into place as existing cloth feeds out of the slot. Lighting uses a studio environment, soft shadow maps, material AO maps on the camera, and a separate screen-space ambient-occlusion pass. This is a real-time visual weaving simulation, not a physics-accurate textile solver.
+Pinch or use + / − to zoom up to 12×. Drag to pan when zoomed in; drag to turn the cloth at normal scale. Fit resets the view. Save exports the full fabric and fringe at up to 4096 × 3277 pixels, using detailed geometry irrespective of the current zoom. The camera is omitted from the export. Export dimensions depend on the GPU texture-size limit.
 
-Every decoded source pixel contributes to spatial colour bins used for the textile; no dominant-colour clustering is used. Photos stay on-device. Images over 40 megapixels are rejected. Phone camera access requires HTTPS.
+## Optical capture
+The viewfinder has focus, aperture, film-grain, lens-character, and ordered colour-dither controls. Helios approximates tangential bokeh and off-axis pupil clipping; Anamorph adds vertical oval bokeh and horizontal highlight streaks; Prism adds radial spectral dispersion. The shader integrates 40 pupil samples in linear light. This is a lens-inspired 2D approximation: RGB camera video supplies no measured depth map, so focus selects a spatial region.
 
-Run npm run dev, then open http://localhost:3000. Live: https://raagulmanoharan.github.io/Machinera/strand/.
+The preview stays at modest display resolution. Capture renders the processed image separately at up to 2048 pixels on its longest edge, bounded by source resolution, instead of enlarging the preview. Uploads retain up to 4096 pixels before optical processing. Camera requests prefer 3840 × 2160, with browser/device fallback. All photo processing stays on-device; images over 40 megapixels are rejected.
 
-Three.js and addons are pinned to 0.170.0 and load from unpkg. Reduced-motion settings shorten the printing sequence and stop ambient movement. Actual phone GPU performance and physical camera access still require device testing.
+## Use
+Tap the camera to open capture. Hold it to choose a photo. Use the viewfinder shutter to weave. Keyboard: Enter capture, U upload, Space sample, S save, Escape reset. Screen-reader controls are retained.
 
-## Memory optics viewfinder
-Capture and photo upload open an inset-glass, machined-housing viewfinder with an LCD readout and thumbwheel controls. Tap the glass to choose a focus region. Focus changes the field of defocus; Iris changes aperture size and circular-to-six-blade pupil shape; Grain changes film noise. Helios approximates off-axis pupil clipping and tangentially oriented bokeh, Anamorph stretches the pupil and bright-highlight streaks, and Prism adds radial spectral dispersion. Dither enables ordered colour quantization.
+Run `npm run dev` and open http://localhost:3000. Live: https://raagulmanoharan.github.io/Machinera/strand/. Phone camera access requires HTTPS.
 
-The shader integrates 40 pupil samples in linear light, then encodes sRGB for display. This is a lens-inspired 2D optical approximation: single-camera RGB has no measured depth map, so the selected focus region is spatial rather than true scene-depth focus. Processed capture uses the viewfinder's cropped, rendered image, not the original unfiltered feed, and is limited to its display resolution (up to 480px wide). Uploaded images are resized to at most 1600px before optical processing. Only the rendered photo determines the weave.
+## Assets and rendering
+Poly Haven Camera 01 by Rajil Jose Macatangay is CC0 and bundled with original 1K PBR textures. Provenance and verified checksums are in public/assets/camera-license.json. The strap is hidden and a loom attachment added at runtime.
+
+Three.js 0.170.0 and addons load from unpkg. Lighting uses a studio environment, soft shadows, material occlusion, and a separate screen-space ambient-occlusion pass. Reduced-motion settings shorten the reveal. The cloth renders on interaction rather than continuously while still. Actual phone camera capabilities, colour display, and GPU performance require device testing.
