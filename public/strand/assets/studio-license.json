@@ -1,0 +1,9 @@
+{
+  "name": "Studio Small 08",
+  "author": "Sergej Majboroda",
+  "license": "CC0-1.0",
+  "source": "https://polyhaven.com/a/studio_small_08",
+  "download": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_08_1k.hdr",
+  "original_sha256": "f6a989f89432eb4eee3191364a9c1ceed195c4ec3544173a3c04fd96cb91d0ba",
+  "processing": "Decode RGBE to linear radiance, 4\u00d74 mean downsample to 256\u00d7128, encode Radiance RGBE; embedded in studio-environment.js."
+}
