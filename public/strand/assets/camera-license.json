@@ -1,0 +1,152 @@
+{
+  "name": "Camera 01",
+  "author": "Rajil Jose Macatangay",
+  "source": "https://polyhaven.com/a/Camera_01",
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license",
+  "resolution": "1k",
+  "modifications": "Embedded original geometry and textures in self-contained glTF; strap hidden at runtime; added loom attachment.",
+  "sha256": "80317cd768c719be365b18749b6a18ed52524d04eebda29cc4c17f74ec2b460a",
+  "source_files": [
+    [
+      "textures/Camera_01_lens_body_arm_1k.jpg",
+      {
+        "size": 163109,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_lens_body_arm_1k.jpg",
+        "md5": "41a93d1239e491fc29349ff73d72436c"
+      }
+    ],
+    [
+      "textures/Camera_01_body_diff_1k.jpg",
+      {
+        "size": 175778,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_body_diff_1k.jpg",
+        "md5": "1ceb37036b60b4231c93d0cf383de3da"
+      }
+    ],
+    [
+      "textures/Camera_01_strap_arm_1k.jpg",
+      {
+        "size": 159433,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_strap_arm_1k.jpg",
+        "md5": "c9421b18be3daa84224f8856ddfab5d7"
+      }
+    ],
+    [
+      "textures/Camera_01_lens_body_nor_gl_1k.jpg",
+      {
+        "size": 147816,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_lens_body_nor_gl_1k.jpg",
+        "md5": "1098e1261b17084d081f32a6a05239de"
+      }
+    ],
+    [
+      "Camera_01.bin",
+      {
+        "size": 845028,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/Camera_01/Camera_01.bin",
+        "md5": "055c3af4c5dca45bfa4a3d9348563b88"
+      }
+    ],
+    [
+      "textures/Camera_01_lens_body_diff_1k.jpg",
+      {
+        "size": 106198,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_lens_body_diff_1k.jpg",
+        "md5": "45854840be875f1ea86cf8d830023922"
+      }
+    ],
+    [
+      "textures/Camera_01_body_nor_gl_1k.jpg",
+      {
+        "size": 271892,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_body_nor_gl_1k.jpg",
+        "md5": "51f1e690a469baddcbae1ee941a6acb4"
+      }
+    ],
+    [
+      "textures/Camera_01_body_arm_1k.jpg",
+      {
+        "size": 228449,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_body_arm_1k.jpg",
+        "md5": "1476ee36f1af6b22f2b509963b710f9a"
+      }
+    ],
+    [
+      "textures/Camera_01_strap_diff_1k.jpg",
+      {
+        "size": 132449,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_strap_diff_1k.jpg",
+        "md5": "c8bf1a037fddbc8447ce491059a4e443"
+      }
+    ],
+    [
+      "textures/Camera_01_strap_nor_gl_1k.jpg",
+      {
+        "size": 199844,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_strap_nor_gl_1k.jpg",
+        "md5": "5e35df574e5ec7ef76f34a803c7bd847"
+      }
+    ],
+    [
+      "camera.gltf",
+      {
+        "include": {
+          "textures/Camera_01_lens_body_arm_1k.jpg": {
+            "size": 163109,
+            "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_lens_body_arm_1k.jpg",
+            "md5": "41a93d1239e491fc29349ff73d72436c"
+          },
+          "textures/Camera_01_body_diff_1k.jpg": {
+            "size": 175778,
+            "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_body_diff_1k.jpg",
+            "md5": "1ceb37036b60b4231c93d0cf383de3da"
+          },
+          "textures/Camera_01_strap_arm_1k.jpg": {
+            "size": 159433,
+            "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_strap_arm_1k.jpg",
+            "md5": "c9421b18be3daa84224f8856ddfab5d7"
+          },
+          "textures/Camera_01_lens_body_nor_gl_1k.jpg": {
+            "size": 147816,
+            "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_lens_body_nor_gl_1k.jpg",
+            "md5": "1098e1261b17084d081f32a6a05239de"
+          },
+          "Camera_01.bin": {
+            "size": 845028,
+            "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/Camera_01/Camera_01.bin",
+            "md5": "055c3af4c5dca45bfa4a3d9348563b88"
+          },
+          "textures/Camera_01_lens_body_diff_1k.jpg": {
+            "size": 106198,
+            "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_lens_body_diff_1k.jpg",
+            "md5": "45854840be875f1ea86cf8d830023922"
+          },
+          "textures/Camera_01_body_nor_gl_1k.jpg": {
+            "size": 271892,
+            "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_body_nor_gl_1k.jpg",
+            "md5": "51f1e690a469baddcbae1ee941a6acb4"
+          },
+          "textures/Camera_01_body_arm_1k.jpg": {
+            "size": 228449,
+            "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_body_arm_1k.jpg",
+            "md5": "1476ee36f1af6b22f2b509963b710f9a"
+          },
+          "textures/Camera_01_strap_diff_1k.jpg": {
+            "size": 132449,
+            "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_strap_diff_1k.jpg",
+            "md5": "c8bf1a037fddbc8447ce491059a4e443"
+          },
+          "textures/Camera_01_strap_nor_gl_1k.jpg": {
+            "size": 199844,
+            "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_strap_nor_gl_1k.jpg",
+            "md5": "5e35df574e5ec7ef76f34a803c7bd847"
+          }
+        },
+        "size": 9886,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/Camera_01/Camera_01_1k.gltf",
+        "md5": "c3fa6a2e13db2b6c6802725306089139"
+      }
+    ]
+  ]
+}
