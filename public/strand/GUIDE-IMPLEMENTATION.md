@@ -56,3 +56,12 @@ At 720×1280 DPR1 the final initial render submitted about 2.62 million triangle
 The upper edge now has five load-bearing attachment points with small linen loops. Nodes between them can sag. The initial/rest shape includes unequal widening tension folds, two broad shallow puffs, a gentle asymmetric bow, and a subtly uneven hem; the same field drives yarns, fibres, fringe, hit testing and projected shadows. This is an art-directed rest shape relaxed by the existing position-based solver, not a full stress-derived cloth equilibrium simulation.
 
 Four physics tests cover fixed anchors/settling, wall clearance, smooth grabbing and bounded initial relief. Browser resting/held screenshots and a grab/release check pass without shader errors. The light setup and texture resolution are retained.
+
+
+## v24 shadows from the waved surface
+
+Replace the projected contact/fringe silhouettes with actual depth shadows from the deformed geometry. The 25×39 cloth interaction mesh now also casts the broad surface shadow; its positions and normals use the same interpolated field as the visible yarns. Both the upper-left key and the projected window light cast shadows, the yarns receive them at every viewing distance, and the maps refresh whenever the displayed pose changes. Close-up yarn shadow casters still supply small-scale detail.
+
+Use radius-filtered PCF maps instead of VSM so receiving yarn meshes do not have to be redrawn into every room shadow pass. Keep the soft kernel, move the key slightly more grazing while balancing its intensity, and retain the HDR/area bounce. This is shadow-mapped real-time cloth shading, not full path-traced contact hardening.
+
+Browser checks verify that 975 caster vertices/normals exactly follow the displayed field (maximum discrepancy zero in the float-texture test) after a roughly 18 cm pull. Resting and held captures show responsive wall/fringe shadows and fold shading, and photo/shader checks pass.
