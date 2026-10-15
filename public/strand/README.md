@@ -1,11 +1,11 @@
 # Strand — textile material study
 The default page now opens directly on the full-length textile. Camera capture and cloth simulation are paused while lighting, yarn scale and the supplied embroidery reference are studied. The previous camera entry is preserved at `camera.html`.
 
-The study traces nested arch, returning-curve and coil motifs in teal, terracotta, ochre and ivory. Satin-fill bands use tightly spaced individual three-ply yarns; lattice sections remain open. Fine fibres, micro-bump and real yarn shadowing supply surface detail. All yarn plies retain the same dye: there is no contrasting warp tint or brown secondary body. There is no backing cloth or opaque fill sheet; the neutral plane behind the artwork is the studio wall. The brown backing was also removed from the preserved camera fabric generator.
+The study uses an original striped Jamakkalam-inspired weft-faced plain weave, rather than copying the reference motifs. Fine teal warp alternates over and under closely packed terracotta, teal, ochre and ivory weft. Each yarn contains three geometrically twisted plies, with fine flyaway fibres and a micro-bump material. There is no backing cloth or opaque fill sheet; the neutral plane behind the textile is the studio wall.
 
-The full portrait uses the reference's 714:1280 proportions. The piece is flat and unfolded, without the hanging loop that shortened its visible length. Individual stitch fills are substantially finer than the previous large yarn grid. Crossing motifs use separated shallow height levels to prevent intersecting fill surfaces. There is no cloth deformation in this material study; dragging pans and pinch/wheel zooms up to 12×.
+The flat textile has a 1:1.55 aspect ratio and thin loose warp ends. Camera and cloth deformation remain paused; dragging pans and pinch/wheel zooms up to 12×. The weave and its shadows are real geometry, not a photograph pasted on a plane.
 
-Lighting uses the bundled CC0 Studio Small 08 HDR environment, neutral fill and a warm upper-left key, against a brighter neutral studio background. The light slider adjusts exposure. Save exports the full textile at 2285×4096 on GPUs supporting 4096 textures. The geometry is an original procedural interpretation traced from the supplied reference, not a photograph used as a flat texture or a claim of an exact scan. Physical-phone frame rates and exact photographic fidelity remain unverified.
+A warm upper-left directional key supplies the main illumination, with weak HDR and hemisphere fill. The light slider adjusts exposure. Save exports the full textile at approximately 2643×4096 on GPUs supporting 4096 textures. Physical-phone performance and photographic fidelity remain unverified; this procedural material is not an exact reconstruction of the reference.
 
 Run `npm run dev` and open http://localhost:3000. Live: https://raagulmanoharan.github.io/Machinera/strand/.
 
