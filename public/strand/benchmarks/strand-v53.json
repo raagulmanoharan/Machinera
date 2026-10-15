@@ -1,0 +1,125 @@
+{
+  "scenario": "Same captured v52 five-photo pile, full 13x97 simulation, 240 continuous drag ticks at 1/60 simulated seconds per trial, three trials per backend. Guard poses checked for intersections after every tick.",
+  "environment": "Node/V8 CPU benchmark; excludes rendering and is not an iPhone FPS or thermal benchmark.",
+  "baselineCommit": "e2cfb6c31455935625a6359d1420b7e52df895af",
+  "baseline": {
+    "mode": "baseline",
+    "trials": [
+      {
+        "physics": {
+          "mean": 5.915231312500012,
+          "p95": 9.094154000000344
+        },
+        "guard": {
+          "mean": 5.812442295833325,
+          "p95": 16.50705499999981
+        },
+        "totalMeanMs": 11.727673608333337,
+        "lateTotalMeanMs": 9.310550700000004,
+        "blocked": 77,
+        "frozen": 0,
+        "travel": 0.8619764000579626
+      },
+      {
+        "physics": {
+          "mean": 4.999548399999912,
+          "p95": 7.193594999999732
+        },
+        "guard": {
+          "mean": 5.323018991666646,
+          "p95": 13.633052999999563
+        },
+        "totalMeanMs": 10.322567391666558,
+        "lateTotalMeanMs": 9.131559799999831,
+        "blocked": 77,
+        "frozen": 0,
+        "travel": 0.8619764000579626
+      },
+      {
+        "physics": {
+          "mean": 5.545344587499979,
+          "p95": 8.876505999999608
+        },
+        "guard": {
+          "mean": 5.531057562499962,
+          "p95": 11.389820000000327
+        },
+        "totalMeanMs": 11.076402149999941,
+        "lateTotalMeanMs": 9.53299186249983,
+        "blocked": 77,
+        "frozen": 0,
+        "travel": 0.8619764000579626
+      }
+    ]
+  },
+  "candidate": {
+    "mode": "candidate",
+    "trials": [
+      {
+        "physics": {
+          "mean": 5.788072129166673,
+          "p95": 9.995792000000165
+        },
+        "guard": {
+          "mean": 3.0070740208333495,
+          "p95": 7.24394099999995
+        },
+        "totalMeanMs": 8.795146150000022,
+        "lateTotalMeanMs": 7.205932112500045,
+        "blocked": 77,
+        "frozen": 0,
+        "travel": 0.8619764000579626
+      },
+      {
+        "physics": {
+          "mean": 4.904318620833341,
+          "p95": 7.0399569999999585
+        },
+        "guard": {
+          "mean": 2.850606491666654,
+          "p95": 5.675536000000193
+        },
+        "totalMeanMs": 7.754925112499995,
+        "lateTotalMeanMs": 7.04691911250004,
+        "blocked": 77,
+        "frozen": 0,
+        "travel": 0.8619764000579626
+      },
+      {
+        "physics": {
+          "mean": 5.204770020833325,
+          "p95": 8.32177800000045
+        },
+        "guard": {
+          "mean": 2.8869380583333397,
+          "p95": 6.283613000000514
+        },
+        "totalMeanMs": 8.091708079166665,
+        "lateTotalMeanMs": 7.3780857874999235,
+        "blocked": 77,
+        "frozen": 0,
+        "travel": 0.8619764000579626
+      }
+    ]
+  },
+  "summary": {
+    "baselineTotalMeanMs": 11.04221438333328,
+    "candidateTotalMeanMs": 8.213926447222228,
+    "simulationCpuReductionPercent": 25.61341265371525,
+    "baselineGuardMeanMs": 5.555506283333311,
+    "candidateGuardMeanMs": 2.9148728569444473,
+    "sameTravelAndRepairCounts": true
+  },
+  "browserValidation": {
+    "baselineDragMeanSimulationMs": 15.011999999880791,
+    "wasmDragMeanSimulationMs": 10.986000000238418,
+    "verticalMovementMetres": 0.20920231938362122,
+    "sameRepairCount": 50,
+    "note": "Headless software Chromium functional app check; timings are supplemental, not device performance evidence."
+  },
+  "implementation": {
+    "algorithm": "Existing exact BVH + edge/coplanar tests compiled to scalar WebAssembly, with JavaScript fallback. Physics, contacts, geometry and repair policy unchanged.",
+    "kernelBytes": 6231,
+    "memoryBytes": 4194304
+  }
+}

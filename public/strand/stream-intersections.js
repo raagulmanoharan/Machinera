@@ -21,7 +21,7 @@ function treeFor(nx,ny){const key=nx+':'+ny;if(trees.has(key))return trees.get(k
  function build(x0,x1,y0,y1){const id=nodes.length,node={left:-1,right:-1,faces:null,count:(x1-x0)*(y1-y0)};nodes.push(node);if(node.count===1){const a=y0*nx+x0;node.faces=[[a,a+nx,a+1],[a+nx,a+nx+1,a+1]];for(const face of node.faces){Object.defineProperty(face,"boundsOffset",{value:faces.length*6});faces.push(face);}node.vertices=[a,a+1,a+nx,a+nx+1];}else if(y1-y0>=x1-x0){const m=(y0+y1)>>1;node.left=build(x0,x1,y0,m);node.right=build(x0,x1,m,y1);}else{const m=(x0+x1)>>1;node.left=build(x0,m,y0,y1);node.right=build(m,x1,y0,y1);}return id;}
  build(0,nx-1,0,ny-1);const tree={nodes,faces,faceBounds:new Float64Array(faces.length*6),bounds:new Float64Array(nodes.length*6),stack:[]};trees.set(key,tree);return tree;
 }
-export function findClothIntersections(p,nx,ny,limit=1){
+export function findClothIntersectionsJS(p,nx,ny,limit=1){
  const {nodes,faces,faceBounds:fb,bounds:b,stack}=treeFor(nx,ny),hits=[];
  // Refit exact per-triangle bounds alongside the node bounds. A conservative
  // pad retains the edge test's barycentric tolerance for near-boundary hits.
@@ -36,6 +36,14 @@ export function findClothIntersections(p,nx,ny,limit=1){
  if(!hit){let axes=0;for(let k=0;k<3;k++){const lo=Math.max(fb[to+k],fb[uo+k]),hi=Math.min(fb[to+3+k],fb[uo+3+k]);if(hi-lo>1e-7)axes++;}if(axes>=2)hit=coplanarOverlap(p,T,U);}if(hit){hits.push([T,U]);if(hits.length>=limit)return hits;}}
  }
  return hits;
+}
+
+let collisionKernel=null,kernelPose=null,kernelHits=null;
+export async function installCollisionWasm(bytes){const {instance}=await WebAssembly.instantiate(bytes,{});const e=instance.exports;if(!e.memory||!e.query||!e.positions||!e.hits)throw Error('Invalid collision kernel');collisionKernel=e;kernelPose=new Float32Array(e.memory.buffer,e.positions(),4096*3);kernelHits=new Int32Array(e.memory.buffer,e.hits(),128);return 'wasm';}
+export async function loadCollisionWasm(url){collisionKernel=null;kernelPose=kernelHits=null;const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),1500);try{const response=await fetch(url,{signal:controller.signal});if(!response.ok)throw Error('Collision kernel unavailable');await installCollisionWasm(await response.arrayBuffer());return 'wasm';}catch{return 'javascript';}finally{clearTimeout(timeout);}}
+export function findClothIntersections(p,nx,ny,limit=1){
+ if(collisionKernel&&p instanceof Float32Array&&p.length===nx*ny*3&&p.length<=kernelPose.length&&limit>=1&&limit<=64){kernelPose.set(p);const count=collisionKernel.query(nx,ny,limit);if(count>=0){const faces=treeFor(nx,ny).faces,hits=[];for(let i=0;i<count;i++)hits.push([faces[kernelHits[i*2]],faces[kernelHits[i*2+1]]]);return hits;}}
+ return findClothIntersectionsJS(p,nx,ny,limit);
 }
 
 // A final fail-closed pose gate. Contact iterations are allowed to fail; an
