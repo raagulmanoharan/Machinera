@@ -8,12 +8,13 @@ export class HangingPhysics {
   for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){const i=y*nx+x;if(x<nx-1)link(i,i+1,1);if(y<ny-1)link(i,i+nx,1);if(x<nx-1&&y<ny-1){link(i,i+nx+1,.75);link(i+1,i+nx,.75)}if(x<nx-2)link(i,i+2,.32);if(y<ny-2)link(i,i+nx*2,.32)}
  }
  index(u,v){return Math.max(0,Math.min(this.ny-2,Math.round(v*(this.ny-1))))*this.nx+Math.max(0,Math.min(this.nx-1,Math.round(u*(this.nx-1))))}
- hold(u,v,target){this.grab={index:this.index(u,v),target:[...target]};this.active=true;this.quiet=0;}
- move(target){if(!this.grab)return;const j=this.grab.index*3;this.grab.target=target.map((v,c)=>Math.max(this.rest[j+c]-(c===1?.45:.32),Math.min(this.rest[j+c]+(c===1?.025:.32),v)));this.active=true;}
+ hold(u,v,target){const index=this.index(u,v);this.grab={index,target:Array.from(this.positions.subarray(index*3,index*3+3)),goal:[...target]};this.active=true;this.quiet=0;}
+ move(target){if(!this.grab)return;const j=this.grab.index*3;this.grab.goal=target.map((v,c)=>Math.max(this.rest[j+c]-(c===1?.45:.32),Math.min(this.rest[j+c]+(c===1?.025:.32),v)));this.active=true;}
  impulse(u,v,amount=.008){const i=this.index(u,v),cx=i%this.nx,cy=Math.floor(i/this.nx);for(let y=Math.max(0,cy-3);y<Math.min(this.ny-1,cy+4);y++)for(let x=Math.max(0,cx-3);x<Math.min(this.nx,cx+4);x++){const j=(y*this.nx+x)*3+1;this.previous[j]+=amount*Math.exp(-((x-cx)**2+(y-cy)**2)/5);}this.active=true;this.quiet=0;}
  release(){this.grab=null;this.active=true;this.quiet=0;}
  advance(dt){if(!this.active)return false;this.accumulator+=Math.min(dt,.06);let changed=false;while(this.accumulator>=1/90){this.step();this.accumulator-=1/90;changed=true;}return changed;}
  step(){const p=this.positions,old=this.previous,dt=1/90;
+  if(this.grab)for(let c=0;c<3;c++)this.grab.target[c]+=(this.grab.goal[c]-this.grab.target[c])*.28;
   for(let i=0;i<this.pinned.length;i++){if(this.pinned[i])continue;const j=i*3;for(let c=0;c<3;c++){const v=p[j+c],vel=(v-old[j+c])*.965;old[j+c]=v;p[j+c]=v+vel+(c===2?-2.4*dt*dt:0)+(this.rest[j+c]-v)*.0015;}}
   for(let iteration=0;iteration<7;iteration++){
    for(const[a,b,length,k]of this.links){const j=a*3,l=b*3,dx=p[l]-p[j],dy=p[l+1]-p[j+1],dz=p[l+2]-p[j+2],d=Math.hypot(dx,dy,dz);if(d<1e-9)continue;const wa=this.pinned[a]||this.grab?.index===a?0:1,wb=this.pinned[b]||this.grab?.index===b?0:1;if(!wa&&!wb)continue;const f=(d-length)/d*k/(wa+wb);p[j]+=dx*f*wa;p[j+1]+=dy*f*wa;p[j+2]+=dz*f*wa;p[l]-=dx*f*wb;p[l+1]-=dy*f*wb;p[l+2]-=dz*f*wb;}
