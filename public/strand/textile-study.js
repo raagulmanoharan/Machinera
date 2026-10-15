@@ -1,15 +1,14 @@
 import { addHeritageRoom } from './heritage-room.js?v=33';
 import { FramePacer } from './frame-pacer.js?v=31';
-import { applyRoomDaylight } from './room-daylight.js?v=29';
 import * as T from 'three';
 import { applySurfaceRelief } from './surface-relief.js?v=28';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+import { addTextileLights } from './textile-light-rig.js?v=33';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { installClothInteraction } from './cloth-interaction.js?v=30';
+import { installClothInteraction } from './cloth-interaction.js?v=33';
 import { HangingCloth } from './hanging-cloth.js?v=27';
 import { repairWeaveGeometry } from './weave-model.js?v=27';
 import { bakeWeave } from './weave-bake.js?v=27';
@@ -18,7 +17,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { loadRoomEnvironment } from './room-lighting.js?v=27';
-import { windowDaylight } from './window-daylight.js?v=29';
+
 const stage=document.querySelector('#stage');
 const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,preserveDrawingBuffer:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
@@ -29,18 +28,11 @@ const hdrStatus=document.querySelector('#photoStatus');hdrStatus.hidden=false;hd
 try{scene.environment=await loadRoomEnvironment(renderer);}catch(error){hdrStatus.textContent='The room lighting could not load. Please reload.';throw error;}scene.environmentIntensity=.16;scene.environmentRotation.set(Math.PI/2,0,.35);
 const camera=new T.PerspectiveCamera(25,innerWidth/innerHeight,.03,40);camera.up.set(0,0,1);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableRotate=false;controls.screenSpacePanning=true;controls.minDistance=.16;controls.maxDistance=14;controls.mouseButtons.LEFT=T.MOUSE.PAN;controls.touches.ONE=T.TOUCH.PAN;controls.touches.TWO=T.TOUCH.DOLLY_PAN;
-const roomFloor=-.8;
+let roomPhoto;
 const target=new T.Vector3(0,0,1.13),home=new T.Vector3(0,-10,1.13);
-function fit(){controls.target.copy(target);camera.position.copy(target).add(home.clone().sub(target).multiplyScalar(Math.max(1,.57/camera.aspect)));controls.update();render()}
-const key=new T.DirectionalLight(0xffecd1,1.65);key.position.set(-3.6,-1.9,5.2);key.target.position.set(0,0,1.5);key.castShadow=true;
-Object.assign(key.shadow.camera,{left:-2.3,right:2.3,top:2.7,bottom:-2.7,near:.1,far:15});key.shadow.mapSize.set(1024,1024);key.shadow.radius=4.5;key.shadow.bias=-.000008;key.shadow.normalBias=.00025;scene.add(key,key.target);
-// Broad photographic window light; the aligned directional key casts the wall shadow.
-RectAreaLightUniformsLib.init();
-const windowLight=new T.RectAreaLight(0xfff1de,.8,3.5,4.5);
-windowLight.position.set(-2.8,-2.7,4.8);windowLight.lookAt(0,-.014,1.8);scene.add(windowLight);
-const daylight=windowDaylight();daylight.castShadow=false;scene.add(daylight,daylight.target);
-const highWindowBounce=new T.RectAreaLight('#ffedd8',10,3,1);highWindowBounce.position.set(-1,-2,4.3);highWindowBounce.lookAt(0,.03,3.4);scene.add(highWindowBounce);
-const floorSun=new T.SpotLight('#fff0d7',200,0,.28,1,2);floorSun.map=daylight.map;floorSun.shadow.camera.up.set(0,0,1);floorSun.position.copy(daylight.position);floorSun.target.position.set(-.7,-.6,roomFloor);scene.add(floorSun,floorSun.target);
+function fit(){if(roomPhoto)roomPhoto.fit(camera,controls);else{controls.target.copy(target);camera.position.copy(home);controls.update();}render()}
+const {key,daylight}=addTextileLights(scene);
+
 // HDR supplies the softer room bounce.
 const composer=new EffectComposer(renderer,new T.WebGLRenderTarget(innerWidth,innerHeight,{type:T.HalfFloatType}));
 composer.addPass(new RenderPass(scene,camera));
@@ -50,16 +42,10 @@ function updateAntialias(w,h,ratio=renderer.getPixelRatio()){antialias.uniforms.
 const materialStatus=document.querySelector('#photoStatus');materialStatus.hidden=false;materialStatus.textContent='Preparing the room and yarn…';
 let surfaces;
 try{surfaces=await loadSurfaceMaterials(renderer);}catch(error){materialStatus.textContent='The surface materials could not load. Please reload.';throw error;}
-const plaster=surfaces.wall;plaster.envMapIntensity=2.0;surfaces.floor.envMapIntensity=.9;
-plaster.color.set('#ffffff');
-for(const material of [plaster,surfaces.floor,surfaces.wood])applyRoomDaylight(material);
-function box(name,xyz,size,material){const m=new T.Mesh(new T.BoxGeometry(...size),material);m.name=name;m.position.set(...xyz);m.castShadow=m.receiveShadow=true;scene.add(m);return m;}
-box('Warm lime-plaster wall',[0,.12,1.9],[8,.18,5.4],plaster);
-box('Oak floor',[0,-1.7,roomFloor-.05],[8,4,.1],surfaces.floor);
 const wood=surfaces.wood;
 function woodGrainUV(mesh){const g=mesh.geometry,p=g.attributes.position,n=g.attributes.normal,uv=g.attributes.uv;for(let i=0;i<p.count;i++){const nx=Math.abs(n.getX(i)),ny=Math.abs(n.getY(i)),nz=Math.abs(n.getZ(i));if(nx>ny&&nx>nz)uv.setXY(i,p.getY(i)/.22,p.getZ(i)/.22);else uv.setXY(i,(ny>nz?p.getZ(i):p.getY(i))/.22,p.getX(i)/.7);}uv.needsUpdate=true;}
 
-const skirting=new T.Mesh(new RoundedBoxGeometry(8,.045,.15,3,.007),wood);skirting.position.set(0,.002,roomFloor+.075);skirting.castShadow=skirting.receiveShadow=true;woodGrainUV(skirting);scene.add(skirting);
+
 const rail=new T.Mesh(new RoundedBoxGeometry(1.7,.045,.038,4,.007),wood);rail.position.set(0,-.018,2.985);rail.castShadow=rail.receiveShadow=true;woodGrainUV(rail);scene.add(rail);
 for(const x of [-.73,.73]){const pin=new T.Mesh(new T.CylinderGeometry(.0055,.0055,.009,16),new T.MeshPhysicalMaterial({color:'#a28042',metalness:.8,roughness:.32}));pin.position.set(x,-.045,2.985);pin.castShadow=true;scene.add(pin);}
 const cloth=new HangingCloth(scene,renderer);
@@ -75,7 +61,6 @@ mat.envMapIntensity=1.3;
 const blankPhoto=new T.DataTexture(new Uint8Array([255,255,255,255]),1,1);blankPhoto.needsUpdate=true;
 const photoUniform={value:blankPhoto},hasPhotoUniform={value:0},weaveAOUniform={value:blankPhoto},weaveLightUniform={value:blankPhoto},microShadowUniform={value:0};
 mat.onBeforeCompile=shader=>{
- shader.fragmentShader=shader.fragmentShader.replace('#include <lights_fragment_begin>',T.ShaderChunk.lights_fragment_begin.replace('directLight.color * spotColor.rgb','directLight.color * spotColor.rgb * .2'));
  shader.uniforms.strandBands={value:pattern.map(i=>new T.Color(colours[i]))};shader.uniforms.strandPhoto=photoUniform;shader.uniforms.strandHasPhoto=hasPhotoUniform;shader.uniforms.strandWeaveAO=weaveAOUniform;shader.uniforms.strandWeaveLight=weaveLightUniform;shader.uniforms.strandMicroShadow=microShadowUniform;
  shader.vertexShader='varying vec2 vStrandPhotoUV;\n'+shader.vertexShader;
  shader.vertexShader=shader.vertexShader.replace('#include <project_vertex>',`#include <project_vertex>
@@ -202,13 +187,13 @@ try{
  const shadowGeometry=new T.BufferGeometry();shadowGeometry.setAttribute('position',new T.Float32BufferAttribute(shadowPoints,3));shadowGeometry.setAttribute('normal',new T.Float32BufferAttribute(shadowNormals,3));shadowGeometry.setIndex(shadowIndices);
  const fringeShadow=new T.Mesh(shadowGeometry,new T.MeshStandardMaterial({colorWrite:false,depthWrite:false,side:T.DoubleSide,roughness:1}));fringeShadow.name='Soft fringe shadow envelopes';cloth.attach(fringeShadow);fringeShadow.castShadow=true;scene.add(fringeShadow);
  installClothInteraction({canvas:renderer.domElement,camera,controls,cloth,render,onInteraction:type=>{stage.dataset.lastInteraction=type;}});
- const furnished=await addHeritageRoom(scene,renderer);stage.dataset.roomTriangles=String(furnished.triangles);stage.dataset.roomMeshes=String(furnished.meshes);
+ roomPhoto=await addHeritageRoom(scene,renderer);stage.dataset.roomTriangles=String(roomPhoto.triangles);stage.dataset.roomMeshes=String(roomPhoto.meshes);
  materialStatus.hidden=true;stage.dataset.materials='polyhaven-cc0';stage.dataset.lighting='1k-hdri';stage.dataset.shadows='deformed-mesh';ready=true;document.querySelector('#takePhoto').disabled=false;document.querySelector('#uploadPhoto').disabled=false;fit();
 }catch(error){stage.dataset.error=error.message;const msg=document.createElement('p');msg.textContent='The textile model could not load. Please reload.';msg.style.cssText='position:fixed;top:30%;width:100%;text-align:center;color:#514633';stage.append(msg);console.error(error)}
-controls.addEventListener('change',render);
+controls.addEventListener('change',()=>{roomPhoto?.constrain(camera,controls);render();});
 document.addEventListener('visibilitychange',()=>{lastFrame=0;framePacer.reset();if(!document.hidden)render();});
-window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();composer.setSize(innerWidth,innerHeight);updateAntialias(innerWidth,innerHeight);render()});
-function zoom(f){const offset=camera.position.clone().sub(controls.target);offset.multiplyScalar(f);offset.clampLength(.16,14);camera.position.copy(controls.target).add(offset);controls.update();render()}
+window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();composer.setSize(innerWidth,innerHeight);roomPhoto?.constrain(camera,controls);updateAntialias(innerWidth,innerHeight);render()});
+function zoom(f){const offset=camera.position.clone().sub(controls.target);offset.multiplyScalar(f);offset.clampLength(controls.minDistance,controls.maxDistance);camera.position.copy(controls.target).add(offset);controls.update();render()}
 document.querySelector('#zoomIn').onclick=()=>zoom(1/1.5);document.querySelector('#zoomOut').onclick=()=>zoom(1.5);document.querySelector('#fitFabric').onclick=fit;
 document.querySelector('#light').value='1.1';document.querySelector('#light').oninput=e=>{renderer.toneMappingExposure=Number(e.target.value);render()};
 document.querySelector('#saveFabric').onclick=()=>{const size=new T.Vector2();renderer.getSize(size);const aspect=size.x/size.y,h=Math.min(4096,renderer.capabilities.maxTextureSize),w=Math.round(h*aspect),pixelRatio=renderer.getPixelRatio();renderer.setPixelRatio(1);renderer.setSize(w,h,false);composer.setPixelRatio(1);composer.setSize(w,h);updateAntialias(w,h,1);updateYarns(true);composer.render();renderer.domElement.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='strand-photo-carpet.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)});renderer.setPixelRatio(pixelRatio);renderer.setSize(size.x,size.y,false);composer.setPixelRatio(pixelRatio);composer.setSize(size.x,size.y);updateAntialias(size.x,size.y,pixelRatio);render()};
