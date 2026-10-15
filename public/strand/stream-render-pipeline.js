@@ -1,0 +1,32 @@
+import * as T from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+
+// Keep the initial CSS-resolution scene target stable when Safari resizes its
+// viewport. Canvas DPR is independent: no accidental 4x target growth at DPR 2.
+// Preserve OutputPass before FXAA. Fusing AgX into every FXAA neighbour would
+// repeat expensive tone mapping and change nonlinear bilinear filtering.
+export function createStreamPipeline(renderer, scene, camera) {
+ const composer = new EffectComposer(renderer, new T.WebGLRenderTarget(1, 1, {type:T.HalfFloatType}));
+ composer.setPixelRatio(1);
+ composer.addPass(new RenderPass(scene, camera));
+ composer.addPass(new OutputPass());
+ const aa = new ShaderPass(FXAAShader);
+ composer.addPass(aa);
+ const metrics = {width:1, height:1, renderScale:1, postPasses:2};
+ function resize(width, height) {
+  const w = Math.max(1, Math.round(width)), h = Math.max(1, Math.round(height));
+  composer.setSize(w, h);
+  aa.uniforms.resolution.value.set(1 / w, 1 / h);
+  metrics.width = w; metrics.height = h;
+ }
+ const size = renderer.getSize(new T.Vector2());
+ resize(size.x, size.y);
+ return {composer, metrics, resize, render:()=>composer.render(), dispose:()=>{
+  for(const pass of composer.passes)pass.dispose?.();
+  composer.dispose();
+ }};
+}

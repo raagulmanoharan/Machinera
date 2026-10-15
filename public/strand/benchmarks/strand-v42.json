@@ -1,0 +1,188 @@
+{
+  "baseline": "v41",
+  "candidate": "v42",
+  "environment": "Local headless Chromium, CPU simulation only. No phone or GPU FPS measurement.",
+  "trials": 3,
+  "framesPerTrial": 360,
+  "warmupFrames": 60,
+  "medianOfTrialMeans": {
+    "baselineMainSimulationMs": 10.63866666674614,
+    "candidateMainDispatchCopyReceiveMs": 0.0403333330154419,
+    "mainBlockingReductionPercent": 99.62087981249084,
+    "candidateWorkerRoundTripMs": 8.983666666448116,
+    "simulationTurnaroundReductionPercent": 15.556460712047194
+  },
+  "medianOfTrialP95": {
+    "baselineMainSimulationMs": 13.5,
+    "candidateWorkerRoundTripMs": 13.099999994039536
+  },
+  "renderResizeAtDpr2": {
+    "before": [
+      780,
+      1600
+    ],
+    "after": [
+      390,
+      800
+    ],
+    "pixelReductionPercent": 75
+  },
+  "limitations": [
+    "Worker round trip is not full frame time.",
+    "P95 worker responses still exceed 10ms.",
+    "Main-thread work was moved as well as optimized; its reduction is not an equivalent total computation speedup.",
+    "No sustained 100fps claim."
+  ],
+  "sustainedLocalWorker": {
+    "seconds": 60,
+    "frames": 7027,
+    "maxQueue": 0,
+    "first10Seconds": {
+      "mean": 8.539328743599471,
+      "p95": 10.900000005960464
+    },
+    "last10Seconds": {
+      "mean": 8.576612209861175,
+      "p95": 11.299999997019768
+    },
+    "note": "Saturated local worker CPU test, not a phone thermal or FPS measurement"
+  },
+  "rawTrials": [
+    {
+      "baseline": {
+        "mainThreadMs": {
+          "mean": 10.63866666674614,
+          "p50": 10.700000002980232,
+          "p95": 13.599999994039536,
+          "p99": 17.399999991059303
+        },
+        "workerRoundTripMs": null,
+        "workerPhysicsMs": null,
+        "workerGuardMs": null,
+        "maxQueue": 0,
+        "positionChecksum": 230.694983959198
+      },
+      "candidate": {
+        "mainThreadMs": {
+          "mean": 0.037000000129143396,
+          "p50": 0,
+          "p95": 0.10000000894069672,
+          "p99": 0.20000000298023224
+        },
+        "workerRoundTripMs": {
+          "mean": 8.849333333075046,
+          "p50": 9.100000008940697,
+          "p95": 11.5,
+          "p99": 25.80000001192093
+        },
+        "workerPhysicsMs": {
+          "mean": 4.9509999993940195,
+          "p50": 5.799999997019768,
+          "p95": 7,
+          "p99": 10.099999994039536
+        },
+        "workerGuardMs": {
+          "mean": 3.7083333330849806,
+          "p50": 3.300000011920929,
+          "p95": 5.299999997019768,
+          "p99": 17.5
+        },
+        "maxQueue": 0,
+        "positionChecksum": 230.8683050274849
+      }
+    },
+    {
+      "baseline": {
+        "mainThreadMs": {
+          "mean": 10.669666666686535,
+          "p50": 11,
+          "p95": 13.399999991059303,
+          "p99": 19
+        },
+        "workerRoundTripMs": null,
+        "workerPhysicsMs": null,
+        "workerGuardMs": null,
+        "maxQueue": 0,
+        "positionChecksum": 230.694983959198
+      },
+      "candidate": {
+        "mainThreadMs": {
+          "mean": 0.045333333412806195,
+          "p50": 0,
+          "p95": 0.10000000894069672,
+          "p99": 0.20000001788139343
+        },
+        "workerRoundTripMs": {
+          "mean": 8.983666666448116,
+          "p50": 9.200000002980232,
+          "p95": 13.099999994039536,
+          "p99": 26.5
+        },
+        "workerPhysicsMs": {
+          "mean": 5.014999999602636,
+          "p50": 5.799999997019768,
+          "p95": 7.100000008940697,
+          "p99": 14.100000008940697
+        },
+        "workerGuardMs": {
+          "mean": 3.7600000000496707,
+          "p50": 3.300000011920929,
+          "p95": 5.200000002980232,
+          "p99": 17.799999997019768
+        },
+        "maxQueue": 0,
+        "positionChecksum": 230.8683050274849
+      }
+    },
+    {
+      "baseline": {
+        "mainThreadMs": {
+          "mean": 10.60133333320419,
+          "p50": 10.800000011920929,
+          "p95": 13.5,
+          "p99": 23.099999994039536
+        },
+        "workerRoundTripMs": null,
+        "workerPhysicsMs": null,
+        "workerGuardMs": null,
+        "maxQueue": 0,
+        "positionChecksum": 230.694983959198
+      },
+      "candidate": {
+        "mainThreadMs": {
+          "mean": 0.0403333330154419,
+          "p50": 0,
+          "p95": 0.10000000894069672,
+          "p99": 0.20000001788139343
+        },
+        "workerRoundTripMs": {
+          "mean": 9.240999999990066,
+          "p50": 9.199999988079071,
+          "p95": 14.299999997019768,
+          "p99": 30.19999998807907
+        },
+        "workerPhysicsMs": {
+          "mean": 5.179333332876364,
+          "p50": 5.5,
+          "p95": 7.5999999940395355,
+          "p99": 13.799999997019768
+        },
+        "workerGuardMs": {
+          "mean": 3.8153333331644537,
+          "p50": 3.3999999910593033,
+          "p95": 5.4000000059604645,
+          "p99": 16
+        },
+        "maxQueue": 0,
+        "positionChecksum": 230.8683050274849
+      }
+    }
+  ],
+  "intersectionSearchMicrobenchmark": {
+    "longClothMedianMsBefore": 5.53,
+    "longClothMedianMsAfter": 3.33,
+    "note": "Warmed Node identical-pose lookup benchmark, not frame time. 120 captured poses and 1500 seeded random/coplanar sheets gave identical ordered hits."
+  },
+  "baselineCommit": "9c608397825658cfd888d8fc9cf7aa8a487762a7",
+  "baselineIntersectionSha256": "064b7747fe2d090d21069ef23b2d30b1f2ea8a9c79318965c128fbc4a1bbb246"
+}
