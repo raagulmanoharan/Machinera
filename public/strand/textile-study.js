@@ -25,11 +25,11 @@ const camera=new T.PerspectiveCamera(25,innerWidth/innerHeight,.01,40);camera.up
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableRotate=false;controls.screenSpacePanning=true;controls.minDistance=.16;controls.maxDistance=14;controls.mouseButtons.LEFT=T.MOUSE.PAN;controls.touches.ONE=T.TOUCH.PAN;controls.touches.TWO=T.TOUCH.DOLLY_PAN;
 const target=new T.Vector3(0,0,1.65),home=new T.Vector3(0,-7.9,1.65);
 function fit(){controls.target.copy(target);camera.position.copy(target).add(home.clone().sub(target).multiplyScalar(Math.max(1,.57/camera.aspect)));controls.update();render()}
-const key=new T.DirectionalLight(0xfff1de,1.65);key.position.set(-3,-3.5,5.8);key.target.position.set(0,0,1.5);key.castShadow=true;
-Object.assign(key.shadow.camera,{left:-2.3,right:2.3,top:2.7,bottom:-2.7,near:.1,far:15});key.shadow.mapSize.set(1024,1024);key.shadow.radius=4;key.shadow.blurSamples=12;key.shadow.bias=-.000008;key.shadow.normalBias=.00025;scene.add(key,key.target);
+const key=new T.DirectionalLight(0xfff1de,1.35);key.position.set(-3,-3.5,5.8);key.target.position.set(0,0,1.5);key.castShadow=true;
+Object.assign(key.shadow.camera,{left:-2.3,right:2.3,top:2.7,bottom:-2.7,near:.1,far:15});key.shadow.mapSize.set(1024,1024);key.shadow.radius=8;key.shadow.blurSamples=20;key.shadow.bias=-.000008;key.shadow.normalBias=.00025;scene.add(key,key.target);
 // Broad photographic window light; the aligned directional key casts the wall shadow.
 RectAreaLightUniformsLib.init();
-const windowLight=new T.RectAreaLight(0xfff1de,2.0,3.5,4.5);
+const windowLight=new T.RectAreaLight(0xfff1de,2.3,3.5,4.5);
 windowLight.position.set(-2.8,-2.7,4.8);windowLight.lookAt(0,-.014,1.8);scene.add(windowLight);
 // A feathered pool of window illumination gives the plaster a spatial light gradient.
 const daylight=new T.SpotLight(0xffefda,30,0,.60,1,2);daylight.position.set(-2,-2,4.3);daylight.target.position.set(-.6,.03,2.25);scene.add(daylight,daylight.target);
