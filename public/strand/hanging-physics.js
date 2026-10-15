@@ -2,7 +2,22 @@
 export class HangingPhysics {
  constructor({width=1.536,height=2.304,bottom=.648,nx=25,ny=39}={}){
   Object.assign(this,{width,height,bottom,nx,ny});this.positions=new Float32Array(nx*ny*3);this.previous=new Float32Array(this.positions.length);this.rest=new Float32Array(this.positions.length);this.pinned=new Uint8Array(nx*ny);this.links=[];this.grab=null;this.active=false;this.accumulator=0;this.quiet=0;
-  for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){const u=x/(nx-1),v=y/(ny-1),i=y*nx+x,j=i*3,envelope=Math.sin((1-v)*Math.PI/2);this.positions.set([(u-.5)*width+envelope*Math.pow(Math.abs(u-.5)*2,4)*.003*Math.sin(v*13+.7),-.014-envelope*(.006+.005*Math.sin(u*6.2+v*3.1)),bottom+v*height],j);this.pinned[i]=y===ny-1?1:0;}
+  // Five small attachments carry the short upper edge. Between them the fabric
+  // sags slightly; unequal, widening tension folds relax as they travel downward.
+  const anchors=[0,.25,.5,.75,1],heights=[.024,.036,.027,.032,.018],leans=[.06,-.055,.04,-.065,-.04];
+  const anchorColumns=new Set(anchors.map(u=>Math.round(u*(nx-1))));
+  for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){
+   const u=x/(nx-1),v=y/(ny-1),d=1-v,i=y*nx+x,j=i*3;
+   const release=(1-Math.exp(-d*24))*Math.exp(-d*2.4);
+   let folds=0;for(let k=0;k<anchors.length;k++){const centre=anchors[k]+leans[k]*d,width=.035+.085*d;folds+=heights[k]*Math.exp(-(((u-centre)/width)**2))*release;}
+   const bow=Math.sin(d*Math.PI/2)*(.007+.006*Math.sin(u*4.7+.6));
+   const puffs=.010*Math.exp(-(((u-.36)/.19)**2)-(((d-.43)/.22)**2))+.007*Math.exp(-(((u-.78)/.15)**2)-(((d-.69)/.2)**2));
+   const scallop=.006*Math.sin(u*Math.PI*4)**2*Math.exp(-d*5);
+   const hem=.005*d*d*(.65*Math.sin(u*6.5+.3)+.35*Math.sin(u*14.2));
+   const edge=d*Math.pow(Math.abs(u-.5)*2,4)*.004*Math.sin(d*8+u*3);
+   this.positions.set([(u-.5)*width+edge+.002*release*Math.sin(u*17+d*3),-.014-folds-bow-puffs,bottom+v*height-scallop-hem],j);
+   this.pinned[i]=y===ny-1&&anchorColumns.has(x)?1:0;
+  }
   this.rest.set(this.positions);this.previous.set(this.positions);
   const link=(a,b,k)=>{const j=a*3,l=b*3;this.links.push([a,b,Math.hypot(...[0,1,2].map(c=>this.rest[j+c]-this.rest[l+c])),k])};
   for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){const i=y*nx+x;if(x<nx-1)link(i,i+1,1);if(y<ny-1)link(i,i+nx,1);if(x<nx-1&&y<ny-1){link(i,i+nx+1,.75);link(i+1,i+nx,.75)}if(x<nx-2)link(i,i+2,.32);if(y<ny-2)link(i,i+nx*2,.32)}
