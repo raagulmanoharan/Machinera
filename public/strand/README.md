@@ -35,3 +35,11 @@ Window panes now add bright, softly diffused diagonal illumination instead of da
 The cloth uses 80×120 close-packed crossings, widened laterally while preserving its thin depth. This closes bright background pinholes without adding a backing sheet. Default colour bands remain independent of tile count; uploaded photos still supply pixel colours locally. Fine material normal/roughness maps, flyaways rooted on actual yarn triangles, three-ply cotton fringe and raised jute cords add surface detail. The foreground reuses the authored yarn geometry over a verified CC0 [Poly Haven Hessian 230](https://polyhaven.com/a/hessian_230) surface (Colormass / Rico Cilliers). Source URLs and checksums are in the material manifest.
 
 Sixteen local screenshots/variants informed a two-agent comparison/critique loop. The result improves positive daylight and opaque weave coverage, but does **not** match the supplied reference pixel for pixel. Yarn regularity, fringe and foreground braids remain visible differences. Added foreground/fringe geometry offsets some yarn savings; measured phone frame rates are still unverified.
+
+## Diffused daylight and interaction revision (v26)
+
+The left-side illumination now uses overlapping, gently curved Gaussian pools instead of straight window strips. Brightness changes blend across the wall and floor without crisp edges.
+
+The 25×39 simulation and seven constraint iterations remain unchanged. Packed constraint data and a scalar inner loop reduce local solver time from about 2.28ms to .96ms per step; a 900-step comparison reproduced the previous positions exactly. Static yarn instance buffers upload only when visibility changes. Conservative bounds and cached picking indices avoid repeated mesh bookkeeping. Shadow-only strand envelopes replace sub-texel fringe plies in the shadow maps; the visible high-detail fringe and yarn meshes remain intact.
+
+Interaction resets its idle clock, suppresses tap impulses during drags/pinch/cancellation, scales pull distance in close-ups, and adds hysteresis around the detailed-yarn threshold. Local browser checks measured about 14.3ms→7.9ms CPU frame submission and 2.73M→2.50M triangles during the same grab scenario. These software-browser measurements are not physical-phone FPS. Photo colouring, zoom and export retain their original resolution.
