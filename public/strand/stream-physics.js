@@ -48,6 +48,6 @@ export class StreamPhysics {
   }
   // Triangle contact handles floor folds and raised folds in one pass.
   separateFoldSurfaces(this);this.straightenInlet();this.updateSleeping();
-  let speed=0,energy=0;for(let i=nx*3;i<p.length;i++){const v=p[i]-old[i];speed=Math.max(speed,Math.abs(v));energy+=v*v;}const rms=Math.sqrt(energy/(p.length-nx*3));this.quiet=rms<.0009&&speed<.012&&!this.grab&&!this.feed?this.quiet+1:0;if(this.quiet>90){this.active=false;old.set(p);}
+  let speed=0,energy=0;for(let i=nx*3;i<p.length;i++){const v=p[i]-old[i];speed=Math.max(speed,Math.abs(v));energy+=v*v;}const rms=Math.sqrt(energy/(p.length-nx*3));this.quiet=rms<.0009&&speed<.012&&!this.grab&&!this.feed?this.quiet+1:0;if(this.quiet>45){const t=Math.min(1,(this.quiet-45)/45),gain=1-t*t*(3-2*t);for(let j=pinned*3;j<p.length;j++){const velocity=p[j]-old[j];p[j]=this.collisionStart[j]+(p[j]-this.collisionStart[j])*gain;old[j]=p[j]-velocity*gain;}}if(this.quiet>90){this.active=false;old.set(p);}
  }
 }
