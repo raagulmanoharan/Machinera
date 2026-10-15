@@ -1,0 +1,143 @@
+{
+  "wood_floor": {
+    "source": "https://polyhaven.com/a/wood_floor",
+    "license": "CC0-1.0",
+    "maps": {
+      "Diffuse": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_diff_1k.jpg",
+        "md5": "b7e927d2bf2f8f103820ff3890c8407c",
+        "size": 734493,
+        "sha256": "2a1c07687b6dbb214c4b9213739c6d92d425f1f0fc8ab3ac157f105d78240789"
+      },
+      "nor_gl": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_nor_gl_1k.jpg",
+        "md5": "620f174d2c09b579c5d02d37b2106668",
+        "size": 423303,
+        "sha256": "452247f0d0d1b7fc7f8324ff3b6ed60bcc6de1405f4284eeb8d9bce90d4939c2"
+      },
+      "Rough": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_rough_1k.jpg",
+        "md5": "36146634f1dbd1bc30cd071857584c10",
+        "size": 527754,
+        "sha256": "061f1e1293251b2d28c76e3fac1ea9452b0e8648bb8f9b3728e09db386166e5c"
+      }
+    },
+    "authors": {
+      "Dimitrios Savva": "All"
+    },
+    "resolution": "1k",
+    "usage": "base colour, OpenGL normal and roughness",
+    "delivery": "Poly Haven CDN; no uploaded photos are sent to this host"
+  },
+  "cotton_jersey": {
+    "source": "https://polyhaven.com/a/cotton_jersey",
+    "license": "CC0-1.0",
+    "maps": {
+      "nor_gl": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cotton_jersey/cotton_jersey_nor_gl_1k.jpg",
+        "md5": "2dcc9dda3b726477f607c808e52f1833",
+        "size": 678670,
+        "sha256": "9b79709806511b62567fb007ff61009c3b194bb0d0821fbaee3faf1b2bff0318"
+      },
+      "Rough": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cotton_jersey/cotton_jersey_rough_1k.jpg",
+        "md5": "ac691d215d3aca34dcd6ea2d03937286",
+        "size": 865264,
+        "sha256": "89bed18f5c3f03fc7b4c2382446891629716278e521e06e8b7f6c8f02dd22590"
+      }
+    },
+    "authors": {
+      "colormass": "Photography",
+      "Rico Cilliers": "Processing"
+    },
+    "resolution": "1k",
+    "usage": "normal and roughness only; photo provides dye",
+    "delivery": "Poly Haven CDN; no uploaded photos are sent to this host"
+  },
+  "wool_boucle": {
+    "source": "https://polyhaven.com/a/wool_boucle",
+    "license": "CC0-1.0",
+    "maps": {
+      "nor_gl": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wool_boucle/wool_boucle_nor_gl_1k.jpg",
+        "md5": "6a413f9a1aa70ab3bb4fede917cf8a64",
+        "size": 1266355,
+        "sha256": "2cc13a2be4d0bb942a59a86d613665c0d24ff201560daa4d841cee597af0c752"
+      },
+      "Rough": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wool_boucle/wool_boucle_rough_1k.jpg",
+        "md5": "48bfe3aac53735ada81add2f1054a3f5",
+        "size": 1272361,
+        "sha256": "f09f24bd26378b03bb798d4b75010ac8cc0fd1e4b858959e97e6d8d74fa3f6d8"
+      }
+    },
+    "authors": {
+      "colormass": "Photography",
+      "Rico Cilliers": "Processing"
+    },
+    "resolution": "1k",
+    "usage": "normal and roughness only; photo provides dye",
+    "delivery": "Poly Haven CDN; no uploaded photos are sent to this host"
+  },
+  "painted_plaster_wall": {
+    "source": "https://polyhaven.com/a/painted_plaster_wall",
+    "license": "CC0-1.0",
+    "maps": {
+      "Diffuse": {
+        "size": 686726,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_diff_1k.jpg",
+        "md5": "15ba8c1f63a5ab412b1eabe31728540a",
+        "sha256": "440310f05af089f2c93353167573403cbc3f805948203237b5d26431eeb9e19c"
+      },
+      "nor_gl": {
+        "size": 900461,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_nor_gl_1k.jpg",
+        "md5": "43fff290583dbdfc9bfa088a2750e840",
+        "sha256": "8eb01647d126eb5341e2c325821ad48c8ca11349dbef53447c95422c5d91cc9d"
+      },
+      "Rough": {
+        "size": 354762,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_rough_1k.jpg",
+        "md5": "e076a6360329a2bc18c7397dc50c074a",
+        "sha256": "e0564c297b22ab1cf4ef02a82157b84ce3b92eb4fd49d9c64b7256a8b300af82"
+      }
+    },
+    "authors": {
+      "Amal Kumar": "All"
+    },
+    "resolution": "1k",
+    "usage": "base colour, OpenGL normal and roughness",
+    "delivery": "Poly Haven CDN; no uploaded photos are sent to this host"
+  },
+  "wood_table_worn": {
+    "source": "https://polyhaven.com/a/wood_table_worn",
+    "license": "CC0-1.0",
+    "maps": {
+      "Diffuse": {
+        "size": 761543,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_table_worn/wood_table_worn_diff_1k.jpg",
+        "md5": "8c71f701f70fef34b87fb7c8742ad0a5",
+        "sha256": "092ab3465a6a24b24d092ea86865f332c3bd239b8eb2fd664b70357082031a3f"
+      },
+      "nor_gl": {
+        "size": 747433,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_table_worn/wood_table_worn_nor_gl_1k.jpg",
+        "md5": "d8e76d135e94e32bc81eedb3342c7614",
+        "sha256": "0d494f3fe08320a05f0f966a7a3ca3c4cd6e3f7cde5b176b9bc167b5593fd00d"
+      },
+      "Rough": {
+        "size": 655232,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_table_worn/wood_table_worn_rough_1k.jpg",
+        "md5": "1e068051a440933d9d054dc6614f950f",
+        "sha256": "ebc4a15d7d3495ee1b67ba18f67bffcefac3f93881d1394fa3e22a25f9fe5c72"
+      }
+    },
+    "authors": {
+      "Dimitrios Savva": "Photography",
+      "Rico Cilliers": "Processing"
+    },
+    "resolution": "1k",
+    "usage": "base colour, OpenGL normal and roughness",
+    "delivery": "Poly Haven CDN; no uploaded photos are sent to this host"
+  }
+}
