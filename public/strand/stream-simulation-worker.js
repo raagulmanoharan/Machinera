@@ -1,5 +1,5 @@
-import {StreamPhysics} from './stream-physics.js?v=51';
-import {acceptClothPose} from './stream-intersections.js?v=51';
+import {StreamPhysics} from './stream-physics.js?v=52';
+import {acceptClothPose} from './stream-intersections.js?v=52';
 let sim,buffers=[],accepted,stepPrevious;
 self.onmessage=({data:m})=>{
  try{
