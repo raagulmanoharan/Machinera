@@ -10,13 +10,13 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 // Preserve OutputPass before FXAA. Fusing AgX into every FXAA neighbour would
 // repeat expensive tone mapping and change nonlinear bilinear filtering.
 export function createStreamPipeline(renderer, scene, camera) {
- const composer = new EffectComposer(renderer, new T.WebGLRenderTarget(1, 1, {type:T.HalfFloatType}));
+ const composer = new EffectComposer(renderer, new T.WebGLRenderTarget(1, 1, {type:T.HalfFloatType,samples:2}));
  composer.setPixelRatio(1);
  composer.addPass(new RenderPass(scene, camera));
  composer.addPass(new OutputPass());
  const aa = new ShaderPass(FXAAShader);
  composer.addPass(aa);
- const metrics = {width:1, height:1, renderScale:1, postPasses:2};
+ const metrics = {width:1, height:1, renderScale:1, samples:2, postPasses:2};
  function resize(width, height) {
   const w = Math.max(1, Math.round(width)), h = Math.max(1, Math.round(height));
   composer.setSize(w, h);

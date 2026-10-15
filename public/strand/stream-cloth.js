@@ -2,7 +2,7 @@ import {acceptClothPose} from './stream-intersections.js?v=43';
 import {StreamWorkerClient} from './stream-worker-client.js?v=45';
 import * as T from 'three';
 import {paintPalette} from './palette-strands.js?v=44';
-import {addRaisedYarn} from './stream-yarn.js?v=44';
+import {addRaisedYarn} from './stream-yarn.js?v=47';
 import { StreamPhysics } from './stream-physics.js?v=45';
 export class StreamCloth {
  constructor(scene,renderer){this.scene=scene;this.renderer=renderer;this.sim=new StreamPhysics();this.display=new Float32Array(this.sim.positions.length);this.sim.renderSafe=this.sim.positions.slice();this.uniforms={streamGrid:{value:new T.Vector2(this.sim.nx,this.sim.ny)},streamLength:{value:this.sim.length}};this.meshes=[];this.version=0;
@@ -20,7 +20,7 @@ float yarnRelief(vec2 p){vec2 f=fract(p);float a=pow(max(0.,sin(f.x*3.14159265))
    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
 vec2 weave=vec2(vClothUV.x*160.,vClothUV.y*streamLength*104.);
 float footprint=max(fwidth(weave.x),fwidth(weave.y)),detail=1.-smoothstep(.65,2.,footprint);
-float relief=yarnRelief(weave),grain=sin(weave.x*31.+sin(weave.y*7.))*sin(weave.y*29.);
+float relief=yarnRelief(weave),grain=sin(weave.x*31.+sin(weave.y*7.))*sin(weave.y*29.)*(1.-smoothstep(.3,1.,max(fwidth(weave.x*31.),fwidth(weave.y*29.))));
 float fiberHeight=(relief*.0026+grain*.00006)*detail;
 diffuseColor.rgb*=texture2D(streamStory,vec2(vClothUV.x,clamp(1.-(vClothUV.y*streamLength+streamRemaining)/streamHistoryLength,0.,1.))).rgb;
 diffuseColor.rgb*=mix(.94,.78+.22*relief,detail)*(1.+grain*.025*detail);`);
@@ -28,7 +28,7 @@ diffuseColor.rgb*=mix(.94,.78+.22*relief,detail)*(1.+grain*.025*detail);`);
 vec3 q0=dFdx(-vViewPosition),q1=dFdy(-vViewPosition),r1=cross(q1,normal),r2=cross(normal,q0);
 float determinant=dot(q0,r1);
 normal=normalize(abs(determinant)*normal-sign(determinant)*(dFdx(fiberHeight)*r1+dFdy(fiberHeight)*r2));`);
-  };mat.customProgramCacheKey=()=> 'continuous-woven-surface-v40';
+  shader.fragmentShader=shader.fragmentShader.replace('#include <lights_physical_fragment>','#include <lights_physical_fragment>\nmaterial.specularColor*=.2;');};mat.customProgramCacheKey=()=> 'continuous-woven-surface-v47';
   this.surfaceGeometry=new T.BufferGeometry();for(const key of ['position','normal','uv'])this.surfaceGeometry.setAttribute(key,this.hit.geometry.attributes[key]);this.surfaceGeometry.setIndex(this.hit.geometry.index.clone());this.surfaceGeometry.setDrawRange(0,this.hit.geometry.index.count);this.viewportTick=0;this.viewportMask=new Uint8Array(this.sim.ny).fill(1);this.nextViewportMask=new Uint8Array(this.sim.ny);this.clipPoint=new T.Vector3();this.rowBounds=new Float32Array(this.sim.ny*4);this.surface=new T.Mesh(this.surfaceGeometry,mat);this.surface.frustumCulled=false;this.surface.receiveShadow=true;this.scene.add(this.surface);this.yarn=await addRaisedYarn(this);this.yarn.update();
  }
  addPhoto(image){const section=2.4,old=document.createElement('canvas');old.width=128;old.height=2048;old.getContext('2d').drawImage(this.history,0,0);const nextLength=this.historyLength+section,px=2048*section/nextLength,c=this.history.getContext('2d');c.clearRect(0,0,128,2048);c.drawImage(old,0,px,128,2048-px);

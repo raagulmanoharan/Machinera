@@ -1,11 +1,11 @@
 import * as T from 'three';
 import {paintPalette} from './palette-strands.js?v=44';
 import {createStreamPerformance} from './stream-performance.js?v=42';
-import {createStreamPipeline} from './stream-render-pipeline.js?v=42';
+import {createStreamPipeline} from './stream-render-pipeline.js?v=47';
 import { loadRoomEnvironment } from './room-lighting.js?v=27';
 import { addTextileLights } from './textile-light-rig.js?v=45';
 import { addStreamRoom } from './stream-room.js?v=46';
-import { StreamCloth } from './stream-cloth.js?v=45';
+import { StreamCloth } from './stream-cloth.js?v=47';
 import { installClothInteraction } from './stream-interaction.js?v=44';
 import { FramePacer } from './frame-pacer.js?v=31';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview'),printButton=document.querySelector('#printPhoto');
