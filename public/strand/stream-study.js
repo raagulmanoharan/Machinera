@@ -8,7 +8,7 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { loadRoomEnvironment } from './room-lighting.js?v=27';
 import { addTextileLights } from './textile-light-rig.js?v=38';
 import { addStreamRoom, loadStreamYarn } from './stream-room.js?v=36';
-import { StreamCloth } from './stream-cloth.js?v=37';
+import { StreamCloth } from './stream-cloth.js?v=39';
 import { installClothInteraction } from './cloth-interaction.js?v=33';
 import { FramePacer } from './frame-pacer.js?v=31';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview'),printButton=document.querySelector('#printPhoto');
