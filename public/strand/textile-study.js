@@ -1,3 +1,4 @@
+import { applyRoomDaylight } from './room-daylight.js?v=29';
 import * as T from 'three';
 import { applySurfaceRelief } from './surface-relief.js?v=28';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -10,12 +11,12 @@ import { installClothInteraction } from './cloth-interaction.js?v=27';
 import { HangingCloth } from './hanging-cloth.js?v=27';
 import { repairWeaveGeometry } from './weave-model.js?v=27';
 import { bakeWeave } from './weave-bake.js?v=27';
-import { loadSurfaceMaterials } from './surface-materials.js?v=27';
+import { loadSurfaceMaterials } from './surface-materials.js?v=29';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { loadRoomEnvironment } from './room-lighting.js?v=27';
-import { windowDaylight } from './window-daylight.js?v=27';
+import { windowDaylight } from './window-daylight.js?v=29';
 const stage=document.querySelector('#stage');
 const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
@@ -46,9 +47,10 @@ function updateAntialias(w,h,ratio=renderer.getPixelRatio()){antialias.uniforms.
 const materialStatus=document.querySelector('#photoStatus');materialStatus.hidden=false;materialStatus.textContent='Preparing the room and yarn…';
 let surfaces;
 try{surfaces=await loadSurfaceMaterials(renderer);}catch(error){materialStatus.textContent='The surface materials could not load. Please reload.';throw error;}
-const plaster=surfaces.wall;plaster.envMapIntensity=2.0;surfaces.floor.envMapIntensity=1.8;
+const plaster=surfaces.wall;plaster.envMapIntensity=2.0;surfaces.floor.envMapIntensity=.9;
 plaster.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
  float pigment=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));diffuseColor.rgb=vec3(.87,.78,.67)*(.87+.25*pigment);`);};
+for(const material of [plaster,surfaces.floor,surfaces.wood])applyRoomDaylight(material);
 function box(name,xyz,size,material){const m=new T.Mesh(new T.BoxGeometry(...size),material);m.name=name;m.position.set(...xyz);m.castShadow=m.receiveShadow=true;scene.add(m);return m;}
 box('Warm lime-plaster wall',[0,.12,2.3],[8,.18,4.6],plaster);
 box('Oak floor',[0,-1.7,-.05],[8,4,.1],surfaces.floor);
