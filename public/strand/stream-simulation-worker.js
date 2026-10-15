@@ -1,10 +1,11 @@
-import {StreamPhysics} from './stream-physics.js?v=52';
-import {acceptClothPose} from './stream-intersections.js?v=52';
-let sim,buffers=[],accepted,stepPrevious;
-self.onmessage=({data:m})=>{
+import {StreamPhysics} from './stream-physics.js?v=53';
+import {acceptClothPose,loadCollisionWasm} from './stream-intersections.js?v=53';
+let sim,buffers=[],accepted,stepPrevious,collisionBackend='javascript';
+self.onmessage=async({data:m})=>{
  try{
   if(m.type==='init'){
-   sim=new StreamPhysics({nx:m.nx,ny:m.ny,length:m.length});sim.positions.set(m.positions);sim.previous.set(m.previous);sim.renderSafe=sim.positions.slice();sim.active=m.active;sim.feed=m.feed;accepted=sim.positions.slice();stepPrevious=sim.positions.slice();buffers=[new ArrayBuffer(accepted.byteLength),new ArrayBuffer(accepted.byteLength)];self.postMessage({type:'ready'});return;
+   collisionBackend=await loadCollisionWasm(new URL('./wasm/cloth-collision.wasm?v=53',import.meta.url));
+   sim=new StreamPhysics({nx:m.nx,ny:m.ny,length:m.length});sim.positions.set(m.positions);sim.previous.set(m.previous);sim.renderSafe=sim.positions.slice();sim.active=m.active;sim.feed=m.feed;accepted=sim.positions.slice();stepPrevious=sim.positions.slice();buffers=[new ArrayBuffer(accepted.byteLength),new ArrayBuffer(accepted.byteLength)];self.postMessage({type:'ready',collisionBackend});return;
   }
   if(m.type==='recycle'){buffers.push(m.buffer);return;}
   if(m.type!=='tick')return;
@@ -20,6 +21,6 @@ self.onmessage=({data:m})=>{
   // unchecked snapshots on the UI thread or queue historical touch targets.
   if(!acceptClothPose(sim,accepted)){stepPrevious.set(accepted);}
   const buffer=buffers.pop();if(!buffer)throw Error('Simulation buffer pool exhausted');new Float32Array(buffer).set(accepted);
-  self.postMessage({type:'state',buffer,length:sim.length,active:sim.active,physicsMs,guardMs:performance.now()-guardStart,blocked:sim.blockedPoses??0,sleepingRows:sim.rowSleeping.reduce((a,b)=>a+b,0)},[buffer]);
+  self.postMessage({type:'state',buffer,collisionBackend,length:sim.length,active:sim.active,physicsMs,guardMs:performance.now()-guardStart,blocked:sim.blockedPoses??0,sleepingRows:sim.rowSleeping.reduce((a,b)=>a+b,0)},[buffer]);
  }catch(error){self.postMessage({type:'error',message:error.message});}
 };

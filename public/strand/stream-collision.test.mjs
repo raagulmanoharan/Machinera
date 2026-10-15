@@ -16,3 +16,5 @@ test('large-pile contact does not freeze a continuously moving hanging grab',()=
  for(let f=0;f<180;f++){s.move([start[0]+.15*Math.sin(f*.03),start[1]-.18,start[2]+.25]);s.advance(1/60);display.set(s.positions);acceptClothPose(s,display);assert.equal(findClothIntersections(display,s.nx,s.ny).length,0);let d=0;for(let c=0;c<3;c++)d+=(display[j+c]-last[j+c])**2;if(d<1e-10)frozen++;travel+=Math.sqrt(d);last.set(display);}
  assert.ok(frozen<4,`grab stalls on ${frozen} frames`);assert.ok(travel>.6,'grab follows the changing target despite floor contacts');
 });
+
+test('intersection queries follow in-place changes to a reused pose buffer',()=>{const s=new StreamPhysics(),p=s.positions.slice(),safe=p.slice();assert.equal(findClothIntersections(p,s.nx,s.ny).length,0);for(let y=70;y<75;y++)for(let x=0;x<s.nx;x++){const a=(y*s.nx+x)*3,b=((y-20)*s.nx+x)*3;p[a]=safe[b];p[a+1]=safe[b+1]-.1+x/(s.nx-1)*.2;p[a+2]=safe[b+2];}assert.ok(findClothIntersections(p,s.nx,s.ny,1).length);assert.ok(findClothIntersections(p,s.nx,s.ny,12).length);p.set(safe);assert.equal(findClothIntersections(p,s.nx,s.ny).length,0);assert.equal(findClothIntersections(p,s.nx,s.ny,12).length,0);});
