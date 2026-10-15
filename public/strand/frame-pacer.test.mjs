@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {FramePacer} from './frame-pacer.js';
+for(const refresh of [60,90,120,144])test(`60fps cap preserves average cadence on ${refresh}Hz`,()=>{const p=new FramePacer(),frames=[];for(let tick=0;tick<refresh*10;tick++){const time=tick*1000/refresh;if(p.accept(time))frames.push(time);}assert.ok(Math.abs(frames.length-600)<=1,`${frames.length} frames`);assert.ok(Math.max(...frames.slice(1).map((v,i)=>v-frames[i]))<=1000/60+1000/refresh+.51);});
+test('a long stall resumes immediately without a burst of catch-up renders',()=>{const p=new FramePacer();assert.ok(p.accept(0));assert.ok(p.accept(10000));assert.equal(p.accept(10001),false);p.reset();assert.ok(p.accept(10002));});
