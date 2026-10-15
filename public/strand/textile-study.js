@@ -19,7 +19,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { loadRoomEnvironment } from './room-lighting.js?v=27';
 import { windowDaylight } from './window-daylight.js?v=29';
 const stage=document.querySelector('#stage');
-const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:false,powerPreference:'high-performance'});
+const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,preserveDrawingBuffer:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.AgXToneMapping;renderer.toneMappingExposure=1.1;
 renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;renderer.shadowMap.type=T.PCFShadowMap;stage.prepend(renderer.domElement);
@@ -36,7 +36,7 @@ Object.assign(key.shadow.camera,{left:-2.3,right:2.3,top:2.7,bottom:-2.7,near:.1
 RectAreaLightUniformsLib.init();
 const windowLight=new T.RectAreaLight(0xfff1de,.8,3.5,4.5);
 windowLight.position.set(-2.8,-2.7,4.8);windowLight.lookAt(0,-.014,1.8);scene.add(windowLight);
-const daylight=windowDaylight();scene.add(daylight,daylight.target);
+const daylight=windowDaylight();daylight.castShadow=false;scene.add(daylight,daylight.target);
 const highWindowBounce=new T.RectAreaLight('#ffedd8',10,3,1);highWindowBounce.position.set(-1,-2,4.3);highWindowBounce.lookAt(0,.03,3.4);scene.add(highWindowBounce);
 const floorSun=new T.SpotLight('#fff0d7',200,0,.28,1,2);floorSun.map=daylight.map;floorSun.shadow.camera.up.set(0,0,1);floorSun.position.copy(daylight.position);floorSun.target.position.set(-.7,-.6,0);scene.add(floorSun,floorSun.target);
 // HDR supplies the softer room bounce.
