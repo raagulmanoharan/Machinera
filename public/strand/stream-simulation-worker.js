@@ -1,4 +1,4 @@
-import {StreamPhysics} from './stream-physics.js?v=43';
+import {StreamPhysics} from './stream-physics.js?v=45';
 import {acceptClothPose} from './stream-intersections.js?v=43';
 let sim,buffers=[],accepted,stepPrevious;
 self.onmessage=({data:m})=>{
