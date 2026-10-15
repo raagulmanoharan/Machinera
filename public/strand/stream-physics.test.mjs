@@ -11,7 +11,7 @@ test('stream enters above frame, contacts floor, and stays finite while feeding'
 test('touching a floor fold moves the cloth without crossing the floor',()=>{
  const sim=new StreamPhysics();sim.hold(.5,.84,[.15,-1.6,.28]);for(let i=0;i<60;i++)sim.advance(1/90);const index=sim.grab.index*3;assert.ok(sim.positions[index+2]>.15);sim.move([.3,-1.6,-1]);for(let i=0;i<30;i++)sim.advance(1/90);assert.ok(sim.positions[index+2]>=.0249);sim.release();for(let i=0;i<60;i++)sim.advance(1/90);assert.ok(sim.positions.every(Number.isFinite));
 });
-test('long sessions bound the simulation grid and visible length',()=>{const sim=new StreamPhysics();const p=sim.positions;for(let i=0;i<30;i++)sim.setLength(6+i);assert.equal(sim.positions,p);assert.equal(sim.length,14);assert.equal(sim.positions.length,19*137*3);});
+test('long sessions bound the simulation grid and visible length',()=>{const sim=new StreamPhysics();const p=sim.positions;for(let i=0;i<30;i++)sim.setLength(6+i);assert.equal(sim.positions,p);assert.equal(sim.length,14);assert.ok(sim.positions.length<=19*137*3);});
 
 test('floor folds go to sleep instead of rendering tiny constraint jitter forever',()=>{const sim=new StreamPhysics();for(let i=0;i<1800&&sim.active;i++)sim.advance(1/90);assert.equal(sim.active,false);sim.hold(.5,.7,[.1,-.8,.25]);assert.equal(sim.active,true);});
 

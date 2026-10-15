@@ -109,3 +109,13 @@ The yarn now uses one compact, three-sided strand geometry at every zoom level, 
 Use MeshStandardMaterial instead of MeshPhysicalMaterial, a constant matte roughness, and one locally bundled 256px normal map. Remove the large wool roughness map and external normal-map request. The normal map is reduced from the existing CC0 Poly Haven scan and its tangent vectors are renormalized. Attribution/processing is recorded in `assets/yarn/provenance.json`. Combined yarn-map download goes from 2,538,716 bytes to 120,512 bytes (95% less). The reusable colour-history texture is 128×2048 instead of 256×4096 (75% fewer pixels). Zoom remains available, with deliberately reduced microscopic detail.
 
 The same five-photo, 720×1280 browser capture drops from 4,617,818 to 2,313,818 submitted scene/shadow triangles, with eight draw calls in both cases. This measures rendering workload, not phone FPS. Browser render has no shader errors; capture, successive photo feeding and floor-drag workflow are checked independently.
+
+## Full-sheet collision and safe-pose gate (v37)
+
+Fix collision holes that allowed the pile to clip: triangle contact now runs every physics step, covers raised cloth as well as floor folds, and constrains the grabbed point. Large triangles use a fallback list rather than being dropped from collision checks. Grab motion is bounded per step. A smaller 13×97 collider grid funds the additional checks while retaining the v36 yarn geometry/materials.
+
+The initial strip follows an arc-length-sampled, non-intersecting inlet/fold path instead of starting from a compressed, intersecting pile. A cached grid BVH checks the proposed displayed surface for face crossings and coplanar overlaps. Crossing faces get extra separation; unresolved moves are shortened or fall back to the last valid pose. Non-finite poses are rejected. The same gate is used during demo settling. Drag tests check both absence of accepted intersections and continued motion, to avoid solving clipping by freezing the cloth.
+
+GPU position sampling now uses the same two triangles per grid cell as the collider, instead of a bilinear patch that could bow through another fold. Normal interpolation remains smooth; yarn thickness is accommodated by the 3cm contact margin. The validator checks the finite sheet mesh, not a formal continuous-collision proof for every microscopic yarn contact.
+
+Validation: 20 tests across collision, physics and frame pacing; browser photo capture, repeated feeding, floor dragging, portrait five-photo render and 320px layout. Fast-drag regression validates each accepted surface pose; raised grabbed points and explicit crossing rejection have independent tests. No measured iPhone FPS guarantee.
