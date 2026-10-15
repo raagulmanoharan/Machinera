@@ -47,3 +47,7 @@ Interaction resets its idle clock, suppresses tap impulses during drags/pinch/ca
 ## Scanned surface relief (v27)
 
 The wood floor, wooden rail/skirting, yarns and fringe now combine their existing normal maps with verified CC0 scanned height maps. A fragment bump layer adds fine relief over the tangent-space normals; it does not displace vertices or change the simulation. Wood grain uses physical UV scale instead of stretching a narrow texture strip across the rail and skirting. Normal strengths are calibrated for the shallow scanned wood maps. Textile dye still comes exclusively from the photo.
+
+## Fibre and visibility refinement (v28)
+
+Yarn relief now blends the scanned surface at a finer physical scale with derivative-filtered longitudinal microfibres. Fine flyaway strands have softly fading tips and restrained upper-left lighting variation, preserving their photo-derived dye. The main cloth, scanned surface relief, shadow rig and physics remain unchanged. Static raised floor-cord tiles are culled against conservatively transformed geometry bounds, keeping the same detailed mesh wherever it is visible. The canvas no longer preserves its drawing buffer between frames; export renders immediately before capturing the PNG.

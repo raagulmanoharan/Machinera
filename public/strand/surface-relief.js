@@ -1,6 +1,6 @@
 // Layer a scanned height field over an existing tangent-space normal map.
 // Fragment derivatives preserve fine relief without subdividing the mesh.
-export function applySurfaceRelief(material,height,depth){
+export function applySurfaceRelief(material,height,depth,{fibres=false}={}){
  if(!height)return;
  const before=material.onBeforeCompile,key=material.customProgramCacheKey.bind(material);
  material.onBeforeCompile=function(shader,renderer){
@@ -10,6 +10,10 @@ export function applySurfaceRelief(material,height,depth){
   shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
   #if defined(USE_NORMALMAP_TANGENTSPACE)
    float relief=texture2D(surfaceHeight,vNormalMapUv).r*surfaceReliefDepth;
+   ${fibres?`// Micron-scale fibres run along each ply, rather than across the cloth.
+   float fibrePhase=vNormalMapUv.y*200.0+vNormalMapUv.x*5.0;
+   float fibreFilter=1.0-smoothstep(.18,.65,fwidth(fibrePhase));
+   relief+=.000008*sin(fibrePhase*6.2831853)*fibreFilter;`:''}
    vec3 surfaceDx=dFdx(-vViewPosition),surfaceDy=dFdy(-vViewPosition);
    vec3 reliefX=cross(surfaceDy,normal),reliefY=cross(normal,surfaceDx);
    float reliefDet=dot(surfaceDx,reliefX);
@@ -17,5 +21,5 @@ export function applySurfaceRelief(material,height,depth){
    normal=normalize(normal-reliefGradient*sign(reliefDet)/max(abs(reliefDet),1e-10));
   #endif`);
  };
- material.customProgramCacheKey=()=>key()+'-scanned-relief-v1';material.needsUpdate=true;
+ material.customProgramCacheKey=()=>key()+'-scanned-relief-v2-'+fibres;material.needsUpdate=true;
 }

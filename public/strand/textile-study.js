@@ -1,5 +1,5 @@
 import * as T from 'three';
-import { applySurfaceRelief } from './surface-relief.js?v=27';
+import { applySurfaceRelief } from './surface-relief.js?v=28';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -17,7 +17,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { loadRoomEnvironment } from './room-lighting.js?v=27';
 import { windowDaylight } from './window-daylight.js?v=27';
 const stage=document.querySelector('#stage');
-const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
+const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.AgXToneMapping;renderer.toneMappingExposure=1.1;
 renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;renderer.shadowMap.type=T.PCFShadowMap;stage.prepend(renderer.domElement);
@@ -66,7 +66,7 @@ for(let x=0;x<cloth.sim.nx;x++){const i=(cloth.sim.ny-1)*cloth.sim.nx+x;if(!clot
 
 const colours=['#3b595a','#a74730','#ae812c','#cbbb9d'],pattern=[0,0,0,3,1,2,0,0,1,1,1,3,2,2,3,0,0,0];
 const fibreNormal=surfaces.wool.nor_gl;
-const P=.0192,warpCount=10*15,mat=new T.MeshPhysicalMaterial({color:0xffffff,side:T.DoubleSide,roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.95,.95)});
+const P=.0192,warpCount=10*15,mat=new T.MeshPhysicalMaterial({color:0xffffff,side:T.DoubleSide,roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.55,.55)});
 // One reusable Blender asset; photos only change live yarn colour on the GPU.
 mat.envMapIntensity=1.3;
 const blankPhoto=new T.DataTexture(new Uint8Array([255,255,255,255]),1,1);blankPhoto.needsUpdate=true;
@@ -113,6 +113,7 @@ async function applyPhoto(file){
  }catch(error){texture?.dispose();if(request===photoRequest){status.textContent='That photo could not be opened. Try JPEG, PNG or WebP.';status.hidden=false;console.error(error)}}finally{URL.revokeObjectURL(url)}
 }
 for(const [button,input]of [['takePhoto','cameraPhoto'],['uploadPhoto','photoFile']]){document.querySelector('#'+button).onclick=()=>document.querySelector('#'+input).click();document.querySelector('#'+input).onchange=e=>{applyPhoto(e.target.files?.[0]);e.target.value='';};}
+let floorCords;
 const yarnMeshes=[],frustum=new T.Frustum(),projectionView=new T.Matrix4(),tileSphere=new T.Sphere(new T.Vector3(),.105);
 function distantGeometry(source){
  const p=source.getAttribute('position'),n=source.getAttribute('normal'),uv=source.getAttribute('uv'),positions=[],normals=[],uvs=[],indices=[];
@@ -123,6 +124,8 @@ function distantGeometry(source){
 let detailedShadowCasters=false;
 function updateYarns(forceHigh=false){
  camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projectionView.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+ // Cull static floor tiles conservatively; retain the exact authored cord mesh.
+ if(floorCords){let count=0,dirty=false;for(let i=0;i<floorCords.entries.length;i++){const entry=floorCords.entries[i];tileSphere.center.copy(entry.centre);tileSphere.radius=floorCords.radius;if(!frustum.intersectsSphere(tileSphere))continue;if(floorCords.indices[count]!==i){floorCords.indices[count]=i;floorCords.mesh.setMatrixAt(count,entry.matrix);dirty=true;}count++;}floorCords.mesh.count=count;if(dirty)floorCords.mesh.instanceMatrix.needsUpdate=true;}
  const distance=camera.position.distanceTo(controls.target);
  const wantsDetailed=distance<(detailedShadowCasters?1.12:1);
  if(detailedShadowCasters!==wantsDetailed){detailedShadowCasters=wantsDetailed;renderer.shadowMap.needsUpdate=true;}
@@ -158,16 +161,17 @@ try{
  const rugSource=gltf.scene.children.find(source=>source.isMesh&&source.name.includes('warp'));
  const rugMaterial=new T.MeshPhysicalMaterial({color:'#d5ba90',roughness:1,specularIntensity:0,normalMap:surfaces.wool.nor_gl,normalScale:new T.Vector2(.8,.8),roughnessMap:surfaces.wool.Rough});applySurfaceRelief(rugMaterial,surfaces.wool.Displacement,.0003);
  const rugGeometry=distantGeometry(rugSource.geometry),rugPositions=rugGeometry.attributes.position;for(let i=0;i<rugPositions.count;i++){const strand=Math.floor(Math.floor(i/(21*6))/3),along=rugPositions.getY(i)/(.016*1.2);rugPositions.setZ(i,rugPositions.getZ(i)+Math.cos(Math.PI*(along+strand))*.016*.32*.78*1.2);}rugGeometry.computeVertexNormals();
- const rugCords=new T.InstancedMesh(rugGeometry,rugMaterial,15*7),rugMatrix=new T.Matrix4();let rugIndex=0;
- for(let y=0;y<7;y++)for(let x=0;x<15;x++){rugMatrix.makeScale(1.25,1.25,1.3);rugMatrix.setPosition((x*8-59.5)*.024,-1.65+(y*8-27.5)*.024,.013);rugCords.setMatrixAt(rugIndex++,rugMatrix);}
- rugCords.name='Raised three-ply jute cords';rugCords.receiveShadow=true;scene.add(rugCords);
+ const rugCords=new T.InstancedMesh(rugGeometry,rugMaterial,15*7),rugMatrix=new T.Matrix4();let rugIndex=0;rugGeometry.computeBoundingSphere();floorCords={mesh:rugCords,entries:[],indices:new Int16Array(105).fill(-1),radius:rugGeometry.boundingSphere.radius*1.3};
+ for(let y=0;y<7;y++)for(let x=0;x<15;x++){rugMatrix.makeScale(1.25,1.25,1.3);rugMatrix.setPosition((x*8-59.5)*.024,-1.65+(y*8-27.5)*.024,.013);rugCords.setMatrixAt(rugIndex++,rugMatrix);floorCords.entries.push({matrix:rugMatrix.clone(),centre:rugGeometry.boundingSphere.center.clone().applyMatrix4(rugMatrix)});}
+ rugCords.frustumCulled=false;rugCords.name='Raised three-ply jute cords';rugCords.receiveShadow=true;scene.add(rugCords);
 
- const cottonMaterial=mat.clone();cottonMaterial.normalMap=surfaces.cotton.nor_gl;cottonMaterial.roughnessMap=surfaces.cotton.Rough;cottonMaterial.normalScale.set(1.8,1.8);cottonMaterial.onBeforeCompile=mat.onBeforeCompile;cottonMaterial.customProgramCacheKey=()=> 'strand-cotton-photo-v20';
+ const cottonMaterial=mat.clone();cottonMaterial.normalMap=surfaces.cotton.nor_gl;cottonMaterial.roughnessMap=surfaces.cotton.Rough;cottonMaterial.normalScale.set(.8,.8);cottonMaterial.onBeforeCompile=mat.onBeforeCompile;cottonMaterial.customProgramCacheKey=()=> 'strand-cotton-photo-v20';
  cloth.patch(mat,{yarn:true});cloth.patch(cottonMaterial,{yarn:true});
- applySurfaceRelief(mat,surfaces.wool.Displacement,.00032);applySurfaceRelief(cottonMaterial,surfaces.cotton.Displacement,.00028);
+ applySurfaceRelief(mat,surfaces.wool.Displacement,.00012,{fibres:true});applySurfaceRelief(cottonMaterial,surfaces.cotton.Displacement,.0001,{fibres:true});
  for(const source of gltf.scene.children){if(!source.isMesh)continue;const warp=source.name.includes('warp'),mesh=new T.InstancedMesh(source.geometry,warp?cottonMaterial:mat,warpCount);const entries=[];yarnMeshes.push({mesh,entries,high:source.geometry,low:distantGeometry(source.geometry),visibleIndices:new Int16Array(warpCount).fill(-1)});mesh.name=source.name;mesh.castShadow=mesh.receiveShadow=true;mesh.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide});cloth.patch(mesh.customDepthMaterial,{depth:true,yarn:true});mesh.frustumCulled=false;const matrix=new T.Matrix4(),rotation=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),Math.PI/2),colour=new T.Color();let index=0;for(let y=0;y<15;y++)for(let x=0;x<10;x++){matrix.compose(new T.Vector3((x*8-39.5)*P,-.014,1.8+(y*8-59.5)*P),rotation,new T.Vector3(1,1,1));mesh.setMatrixAt(index,matrix);colour.set(colours[pattern[Math.min(17,Math.floor(y*18/15))]]);if(warp)colour.multiplyScalar(.94);mesh.setColorAt(index++,colour);entries.push({matrix:matrix.clone(),colour:colour.clone(),centre:new T.Vector3((x*8-36)*P,-.014,1.8+(y*8-56)*P)})}mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
  // Fine loose fibres are sparse geometry rather than a thick fuzzy surface shell.
- let seed=24;function random(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}const fibres=[],tints=[];
+ let seed=24;function random(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}const fibres=[],tints=[],fibreShading=[],fibreCoverage=[];
+ const fibreKey=new T.Vector3(-.6,-.6,.53).normalize();
  const fibreSources=gltf.scene.children.filter(source=>source.isMesh),root=new T.Vector3(),normal=new T.Vector3(),tangent=new T.Vector3(),vertex=new T.Vector3(),axis=new T.Vector3(1,0,0);
  const turnToWall=new T.Quaternion().setFromAxisAngle(axis,Math.PI/2);
  for(let i=0;i<24000;i++){
@@ -177,9 +181,15 @@ try{
   const tx=Math.floor(random()*10),ty=Math.floor(random()*15);root.applyQuaternion(turnToWall).add(new T.Vector3((tx*8-39.5)*P,-.014,1.8+(ty*8-59.5)*P));normal.applyQuaternion(turnToWall);root.addScaledVector(normal,.0008);
   tangent.crossVectors(normal,axis).normalize().applyAxisAngle(normal,random()*Math.PI*2);
   const len=.001+random()*.003,angle=random()*Math.PI*2,row=T.MathUtils.clamp(Math.floor((root.z-.648)/.128),0,17),c=new T.Color(colours[pattern[row]]);
-  for(let j=0;j<2;j++)for(const t of [j/2,(j+1)/2]){vertex.copy(root).addScaledVector(tangent,len*t).addScaledVector(normal,len*(.25*t+.2*Math.sin(t*Math.PI)));fibres.push(vertex.x,vertex.y,vertex.z);tints.push(c.r,c.g,c.b);}
+  for(let j=0;j<2;j++)for(const t of [j/2,(j+1)/2]){vertex.copy(root).addScaledVector(tangent,len*t).addScaledVector(normal,len*(.25*t+.2*Math.sin(t*Math.PI)));fibres.push(vertex.x,vertex.y,vertex.z);tints.push(c.r,c.g,c.b);fibreShading.push(.65+.8*Math.max(0,normal.dot(fibreKey)));fibreCoverage.push(1.-.8*t);}
+
  }
- const fg=new T.BufferGeometry();fg.setAttribute('position',new T.Float32BufferAttribute(fibres,3));fg.setAttribute('color',new T.Float32BufferAttribute(tints,3));fibreMesh=new T.LineSegments(fg,new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.3,depthWrite:false}));cloth.attach(fibreMesh,{line:true});scene.add(fibreMesh);
+ const fg=new T.BufferGeometry();fg.setAttribute('position',new T.Float32BufferAttribute(fibres,3));fg.setAttribute('color',new T.Float32BufferAttribute(tints,3));fibreMesh=new T.LineSegments(fg,new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.3,depthWrite:false}));cloth.attach(fibreMesh,{line:true});
+ // Matte flyaways respond to the upper-left key and fade toward their fine tips.
+ fg.setAttribute('fibreShade',new T.Float32BufferAttribute(fibreShading,1));fg.setAttribute('fibreCoverage',new T.Float32BufferAttribute(fibreCoverage,1));
+ const fibreCompile=fibreMesh.material.onBeforeCompile;
+ fibreMesh.material.onBeforeCompile=(shader,renderer)=>{fibreCompile.call(fibreMesh.material,shader,renderer);shader.vertexShader='attribute float fibreShade;attribute float fibreCoverage;varying float vFibreShade;varying float vFibreCoverage;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvFibreShade=fibreShade;vFibreCoverage=fibreCoverage;');shader.fragmentShader='varying float vFibreShade;varying float vFibreCoverage;\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=vFibreShade;diffuseColor.a*=vFibreCoverage;');};
+ fibreMesh.material.customProgramCacheKey=()=> 'strand-matte-flyaways-v28';scene.add(fibreMesh);
  fringeMaterial=new T.MeshPhysicalMaterial({color:'#eee0c5',roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.95,.95)});fringeMaterial.normalScale.set(.65,.65);cloth.patch(fringeMaterial);applySurfaceRelief(fringeMaterial,surfaces.wool.Displacement,.00012);
  const fringeGeometry=new T.BufferGeometry(),fp=[],fn=[],fu=[],fi=[],shadowPoints=[],shadowNormals=[],shadowIndices=[];
  for(let i=0;i<176;i++){
