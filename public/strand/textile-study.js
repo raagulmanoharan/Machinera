@@ -5,16 +5,16 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { installClothInteraction } from './cloth-interaction.js?v=25';
-import { HangingCloth } from './hanging-cloth.js?v=25';
-import { repairWeaveGeometry } from './weave-model.js?v=25';
-import { bakeWeave } from './weave-bake.js?v=25';
-import { loadSurfaceMaterials } from './surface-materials.js?v=25';
+import { installClothInteraction } from './cloth-interaction.js?v=26';
+import { HangingCloth } from './hanging-cloth.js?v=26';
+import { repairWeaveGeometry } from './weave-model.js?v=26';
+import { bakeWeave } from './weave-bake.js?v=26';
+import { loadSurfaceMaterials } from './surface-materials.js?v=26';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { loadRoomEnvironment } from './room-lighting.js?v=25';
-import { windowDaylight } from './window-daylight.js?v=25';
+import { loadRoomEnvironment } from './room-lighting.js?v=26';
+import { windowDaylight } from './window-daylight.js?v=26';
 const stage=document.querySelector('#stage');
 const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
@@ -23,7 +23,7 @@ renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap
 const scene=new T.Scene();scene.background=new T.Color('#d5c8b4');
 const hdrStatus=document.querySelector('#photoStatus');hdrStatus.hidden=false;hdrStatus.textContent='Lighting the room…';
 try{scene.environment=await loadRoomEnvironment(renderer);}catch(error){hdrStatus.textContent='The room lighting could not load. Please reload.';throw error;}scene.environmentIntensity=.16;scene.environmentRotation.set(Math.PI/2,0,.35);
-const camera=new T.PerspectiveCamera(25,innerWidth/innerHeight,.01,40);camera.up.set(0,0,1);
+const camera=new T.PerspectiveCamera(25,innerWidth/innerHeight,.03,40);camera.up.set(0,0,1);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableRotate=false;controls.screenSpacePanning=true;controls.minDistance=.16;controls.maxDistance=14;controls.mouseButtons.LEFT=T.MOUSE.PAN;controls.touches.ONE=T.TOUCH.PAN;controls.touches.TWO=T.TOUCH.DOLLY_PAN;
 const target=new T.Vector3(0,0,1.47),home=new T.Vector3(0,-8.65,1.47);
 function fit(){controls.target.copy(target);camera.position.copy(target).add(home.clone().sub(target).multiplyScalar(Math.max(1,.57/camera.aspect)));controls.update();render()}
@@ -118,10 +118,28 @@ function distantGeometry(source){
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));g.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));g.setIndex(indices);return g;
 }
 let detailedShadowCasters=false;
-function updateYarns(forceHigh=false){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projectionView.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));const distance=camera.position.distanceTo(controls.target),near=true;if(detailedShadowCasters!==(distance<1)){detailedShadowCasters=distance<1;renderer.shadowMap.needsUpdate=true;}microShadowUniform.value=distance>=1?1:0;if(farFabric)farFabric.visible=!near;if(fibreMesh){fibreMesh.visible=true;fibreMesh.material.opacity=Math.min(.4,.4/Math.pow(distance,1.2));}for(const item of yarnMeshes){item.mesh.visible=near;item.mesh.receiveShadow=true;if(!near)continue;item.mesh.geometry=forceHigh||distance<1.0?item.high:item.low;item.mesh.castShadow=distance<1.0;let count=0;for(const entry of item.entries){cloth.sample(entry.centre.x/1.536+.5,(entry.centre.z-.648)/2.304,tileSphere.center);tileSphere.radius=cloth.sim.active?.20:.16;if(!frustum.intersectsSphere(tileSphere))continue;item.mesh.setMatrixAt(count,entry.matrix);item.mesh.setColorAt(count++,entry.colour)}item.mesh.count=count;item.mesh.instanceMatrix.needsUpdate=true;item.mesh.instanceColor.needsUpdate=true;}}
+function updateYarns(forceHigh=false){
+ camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projectionView.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+ const distance=camera.position.distanceTo(controls.target);
+ const wantsDetailed=distance<(detailedShadowCasters?1.12:1);
+ if(detailedShadowCasters!==wantsDetailed){detailedShadowCasters=wantsDetailed;renderer.shadowMap.needsUpdate=true;}
+ microShadowUniform.value=detailedShadowCasters?0:1;if(farFabric)farFabric.visible=false;
+ if(fibreMesh){fibreMesh.visible=true;fibreMesh.material.opacity=Math.min(.4,.4/Math.pow(distance,1.2));}
+ for(const item of yarnMeshes){
+  item.mesh.visible=true;item.mesh.receiveShadow=true;item.mesh.geometry=forceHigh||detailedShadowCasters?item.high:item.low;item.mesh.castShadow=detailedShadowCasters;
+  let count=0,dirty=false;
+  for(let index=0;index<item.entries.length;index++){
+   const entry=item.entries[index];cloth.sample(entry.centre.x/1.536+.5,(entry.centre.z-.648)/2.304,tileSphere.center);tileSphere.radius=cloth.sim.active?.20:.16;
+   if(!frustum.intersectsSphere(tileSphere))continue;
+   if(item.visibleIndices[count]!==index){item.visibleIndices[count]=index;item.mesh.setMatrixAt(count,entry.matrix);item.mesh.setColorAt(count,entry.colour);dirty=true;}count++;
+  }
+  if(item.mesh.castShadow&&(dirty||item.mesh.count!==count))renderer.shadowMap.needsUpdate=true;
+  item.mesh.count=count;if(dirty)item.mesh.instanceMatrix.needsUpdate=item.mesh.instanceColor.needsUpdate=true;
+ }
+}
 let pending=false,ready=false,lastFrame=0;
 function render(){if(pending)return;pending=true;requestAnimationFrame(frame)}
-function frame(time){const frameStart=performance.now();pending=false;const dt=lastFrame?Math.min((time-lastFrame)/1000,.05):1/60;lastFrame=time;const moved=cloth.update(dt);if(moved)renderer.shadowMap.needsUpdate=true;updateYarns();renderer.info.reset();composer.render();if(ready){stage.dataset.frameCpuMs=(performance.now()-frameStart).toFixed(2);stage.dataset.ready='true';stage.dataset.triangles=String(renderer.info.render.triangles);stage.dataset.drawCalls=String(renderer.info.render.calls);stage.dataset.cameraDistance=camera.position.distanceTo(controls.target).toFixed(4);stage.dataset.lod=farFabric?.visible?'baked-surface':'yarns';stage.dataset.photoVersion=String(photoVersion);stage.dataset.clothActive=String(cloth.sim.active);stage.dataset.clothCentreY=cloth.sim.positions[(Math.floor(cloth.sim.ny/2)*cloth.sim.nx+Math.floor(cloth.sim.nx/2))*3+1].toFixed(5);}if(cloth.sim.active)render();}
+function frame(time){const frameStart=performance.now();pending=false;const dt=lastFrame?Math.min((time-lastFrame)/1000,.05):1/60;lastFrame=time;const moved=cloth.update(dt),physicsEnd=performance.now();if(moved)renderer.shadowMap.needsUpdate=true;updateYarns();renderer.info.reset();composer.render();if(ready){stage.dataset.physicsMs=(physicsEnd-frameStart).toFixed(2);stage.dataset.frameDtMs=(dt*1000).toFixed(2);stage.dataset.frameCpuMs=(performance.now()-frameStart).toFixed(2);stage.dataset.ready='true';stage.dataset.triangles=String(renderer.info.render.triangles);stage.dataset.drawCalls=String(renderer.info.render.calls);stage.dataset.cameraDistance=camera.position.distanceTo(controls.target).toFixed(4);stage.dataset.lod=farFabric?.visible?'baked-surface':'yarns';stage.dataset.photoVersion=String(photoVersion);stage.dataset.clothActive=String(cloth.sim.active);stage.dataset.clothCentreY=cloth.sim.positions[(Math.floor(cloth.sim.ny/2)*cloth.sim.nx+Math.floor(cloth.sim.nx/2))*3+1].toFixed(5);}if(cloth.sim.active)render();else lastFrame=0;}
 try{
  const gltf=await new GLTFLoader().loadAsync('./assets/blender-poc/weave-tile.gltf?v=13');
  let seamGap=0;for(const source of gltf.scene.children)if(source.isMesh){seamGap=Math.max(seamGap,repairWeaveGeometry(source.geometry,source.name.includes('warp')));source.geometry.scale(1,1,.78);}
@@ -143,7 +161,7 @@ try{
 
  const cottonMaterial=mat.clone();cottonMaterial.normalMap=surfaces.cotton.nor_gl;cottonMaterial.roughnessMap=surfaces.cotton.Rough;cottonMaterial.normalScale.set(2.6,2.6);cottonMaterial.onBeforeCompile=mat.onBeforeCompile;cottonMaterial.customProgramCacheKey=()=> 'strand-cotton-photo-v20';
  cloth.patch(mat,{yarn:true});cloth.patch(cottonMaterial,{yarn:true});
- for(const source of gltf.scene.children){if(!source.isMesh)continue;const warp=source.name.includes('warp'),mesh=new T.InstancedMesh(source.geometry,warp?cottonMaterial:mat,warpCount);const entries=[];yarnMeshes.push({mesh,entries,high:source.geometry,low:distantGeometry(source.geometry)});mesh.name=source.name;mesh.castShadow=mesh.receiveShadow=true;mesh.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide});cloth.patch(mesh.customDepthMaterial,{depth:true,yarn:true});mesh.frustumCulled=false;const matrix=new T.Matrix4(),rotation=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),Math.PI/2),colour=new T.Color();let index=0;for(let y=0;y<15;y++)for(let x=0;x<10;x++){matrix.compose(new T.Vector3((x*8-39.5)*P,-.014,1.8+(y*8-59.5)*P),rotation,new T.Vector3(1,1,1));mesh.setMatrixAt(index,matrix);colour.set(colours[pattern[Math.min(17,Math.floor(y*18/15))]]);if(warp)colour.multiplyScalar(.94);mesh.setColorAt(index++,colour);entries.push({matrix:matrix.clone(),colour:colour.clone(),centre:new T.Vector3((x*8-36)*P,-.014,1.8+(y*8-56)*P)})}mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
+ for(const source of gltf.scene.children){if(!source.isMesh)continue;const warp=source.name.includes('warp'),mesh=new T.InstancedMesh(source.geometry,warp?cottonMaterial:mat,warpCount);const entries=[];yarnMeshes.push({mesh,entries,high:source.geometry,low:distantGeometry(source.geometry),visibleIndices:new Int16Array(warpCount).fill(-1)});mesh.name=source.name;mesh.castShadow=mesh.receiveShadow=true;mesh.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide});cloth.patch(mesh.customDepthMaterial,{depth:true,yarn:true});mesh.frustumCulled=false;const matrix=new T.Matrix4(),rotation=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),Math.PI/2),colour=new T.Color();let index=0;for(let y=0;y<15;y++)for(let x=0;x<10;x++){matrix.compose(new T.Vector3((x*8-39.5)*P,-.014,1.8+(y*8-59.5)*P),rotation,new T.Vector3(1,1,1));mesh.setMatrixAt(index,matrix);colour.set(colours[pattern[Math.min(17,Math.floor(y*18/15))]]);if(warp)colour.multiplyScalar(.94);mesh.setColorAt(index++,colour);entries.push({matrix:matrix.clone(),colour:colour.clone(),centre:new T.Vector3((x*8-36)*P,-.014,1.8+(y*8-56)*P)})}mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
  // Fine loose fibres are sparse geometry rather than a thick fuzzy surface shell.
  let seed=24;function random(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}const fibres=[],tints=[];
  const fibreSources=gltf.scene.children.filter(source=>source.isMesh),root=new T.Vector3(),normal=new T.Vector3(),tangent=new T.Vector3(),vertex=new T.Vector3(),axis=new T.Vector3(1,0,0);
@@ -159,19 +177,24 @@ try{
  }
  const fg=new T.BufferGeometry();fg.setAttribute('position',new T.Float32BufferAttribute(fibres,3));fg.setAttribute('color',new T.Float32BufferAttribute(tints,3));fibreMesh=new T.LineSegments(fg,new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.3,depthWrite:false}));cloth.attach(fibreMesh,{line:true});scene.add(fibreMesh);
  fringeMaterial=new T.MeshPhysicalMaterial({color:'#eee0c5',roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(1.3,1.3)});fringeMaterial.normalScale.set(.12,.12);cloth.patch(fringeMaterial);
- const fringeGeometry=new T.BufferGeometry(),fp=[],fn=[],fu=[],fi=[];
+ const fringeGeometry=new T.BufferGeometry(),fp=[],fn=[],fu=[],fi=[],shadowPoints=[],shadowNormals=[],shadowIndices=[];
  for(let i=0;i<176;i++){
   const length=.105*(.9+random()*.2),curl=(random()-.5)*.008,phase=random()*Math.PI*2;
+  // Shadow texels are wider than individual plies: cast the stable strand envelope.
+  const centre=[];for(let j=0;j<=6;j++){const t=j/6;centre.push(new T.Vector3((i-87.5)*(1.536/176)+.0015*Math.sin(t*4+i)+curl*t*t,-.014-.003*Math.sin(t*2+i*.2),.648-length*t));}
+  const envelope=new T.TubeGeometry(new T.CatmullRomCurve3(centre),6,.0028,4,false),base=shadowPoints.length/3;shadowPoints.push(...envelope.attributes.position.array);shadowNormals.push(...envelope.attributes.normal.array);for(const k of envelope.index.array)shadowIndices.push(k+base);envelope.dispose();
   for(let ply=0;ply<3;ply++){
    const points=[];for(let j=0;j<=24;j++){const t=j/24,turn=phase+ply*Math.PI*2/3+t*Math.PI*12;points.push(new T.Vector3((i-87.5)*(1.536/176)+.0013*Math.cos(turn)+.0015*Math.sin(t*4+i)+curl*t*t,-.014+.0013*Math.sin(turn)-.003*Math.sin(t*2+i*.2),.648-length*t));}
    const tube=new T.TubeGeometry(new T.CatmullRomCurve3(points),24,.0015*(.94+random()*.12),5,false),offset=fp.length/3;fp.push(...tube.attributes.position.array);fn.push(...tube.attributes.normal.array);fu.push(...tube.attributes.uv.array);for(const k of tube.index.array)fi.push(k+offset);tube.dispose();
   }
  }
- fringeGeometry.setAttribute('position',new T.Float32BufferAttribute(fp,3));fringeGeometry.setAttribute('normal',new T.Float32BufferAttribute(fn,3));fringeGeometry.setAttribute('uv',new T.Float32BufferAttribute(fu,2));fringeGeometry.setIndex(fi);const fringe=new T.Mesh(fringeGeometry,fringeMaterial);cloth.attach(fringe);fringe.castShadow=true;scene.add(fringe);
+ fringeGeometry.setAttribute('position',new T.Float32BufferAttribute(fp,3));fringeGeometry.setAttribute('normal',new T.Float32BufferAttribute(fn,3));fringeGeometry.setAttribute('uv',new T.Float32BufferAttribute(fu,2));fringeGeometry.setIndex(fi);const fringe=new T.Mesh(fringeGeometry,fringeMaterial);cloth.attach(fringe);fringe.castShadow=false;scene.add(fringe);
+ const shadowGeometry=new T.BufferGeometry();shadowGeometry.setAttribute('position',new T.Float32BufferAttribute(shadowPoints,3));shadowGeometry.setAttribute('normal',new T.Float32BufferAttribute(shadowNormals,3));shadowGeometry.setIndex(shadowIndices);
+ const fringeShadow=new T.Mesh(shadowGeometry,new T.MeshStandardMaterial({colorWrite:false,depthWrite:false,side:T.DoubleSide,roughness:1}));fringeShadow.name='Soft fringe shadow envelopes';cloth.attach(fringeShadow);fringeShadow.castShadow=true;scene.add(fringeShadow);
  installClothInteraction({canvas:renderer.domElement,camera,controls,cloth,render,onInteraction:type=>{stage.dataset.lastInteraction=type;}});
  materialStatus.hidden=true;stage.dataset.materials='polyhaven-cc0';stage.dataset.lighting='1k-hdri';stage.dataset.shadows='deformed-mesh';ready=true;document.querySelector('#takePhoto').disabled=false;document.querySelector('#uploadPhoto').disabled=false;fit();
 }catch(error){stage.dataset.error=error.message;const msg=document.createElement('p');msg.textContent='The textile model could not load. Please reload.';msg.style.cssText='position:fixed;top:30%;width:100%;text-align:center;color:#514633';stage.append(msg);console.error(error)}
-controls.addEventListener('change',()=>{if(camera.position.distanceTo(controls.target)<3.1)renderer.shadowMap.needsUpdate=true;render()});
+controls.addEventListener('change',render);
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();composer.setSize(innerWidth,innerHeight);updateAntialias(innerWidth,innerHeight);render()});
 function zoom(f){const offset=camera.position.clone().sub(controls.target);offset.multiplyScalar(f);offset.clampLength(.16,14);camera.position.copy(controls.target).add(offset);controls.update();render()}
 document.querySelector('#zoomIn').onclick=()=>zoom(1/1.5);document.querySelector('#zoomOut').onclick=()=>zoom(1.5);document.querySelector('#fitFabric').onclick=fit;
