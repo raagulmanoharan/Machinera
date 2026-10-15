@@ -51,3 +51,7 @@ The wood floor, wooden rail/skirting, yarns and fringe now combine their existin
 ## Fibre and visibility refinement (v28)
 
 Yarn relief now blends the scanned surface at a finer physical scale with derivative-filtered longitudinal microfibres. Fine flyaway strands have softly fading tips and restrained upper-left lighting variation, preserving their photo-derived dye. The main cloth, scanned surface relief, shadow rig and physics remain unchanged. Static raised floor-cord tiles are culled against conservatively transformed geometry bounds, keeping the same detailed mesh wherever it is visible. The canvas no longer preserves its drawing buffer between frames; export renders immediately before capturing the PNG.
+
+## Soft daylight and wood cavities (v29)
+
+Static room surfaces use a world-anchored, baked-style illumination field with broad Gaussian daylight streaks. It multiplies existing shaded radiance, preserving the moving cloth's shadow rather than placing an overlay above it. This is an art-directed approximation, not volumetric ray tracing or a Blender lightmap. The projector is retargeted with a lower energy and higher-contrast soft cookie. Wood now includes height-derived cavity shading over its scanned normal/bump detail, with less environment fill and calibrated roughness. No additional meshes, texture requests, shadow maps or full-screen passes are added; photo dye and cloth physics are unchanged.
