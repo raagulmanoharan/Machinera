@@ -5,16 +5,16 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { installClothInteraction } from './cloth-interaction.js?v=24';
-import { HangingCloth } from './hanging-cloth.js?v=24';
-import { repairWeaveGeometry } from './weave-model.js?v=24';
-import { bakeWeave } from './weave-bake.js?v=24';
-import { loadSurfaceMaterials } from './surface-materials.js?v=24';
+import { installClothInteraction } from './cloth-interaction.js?v=25';
+import { HangingCloth } from './hanging-cloth.js?v=25';
+import { repairWeaveGeometry } from './weave-model.js?v=25';
+import { bakeWeave } from './weave-bake.js?v=25';
+import { loadSurfaceMaterials } from './surface-materials.js?v=25';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { loadRoomEnvironment } from './room-lighting.js?v=24';
-import { windowDaylight } from './window-daylight.js?v=24';
+import { loadRoomEnvironment } from './room-lighting.js?v=25';
+import { windowDaylight } from './window-daylight.js?v=25';
 const stage=document.querySelector('#stage');
 const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
@@ -22,7 +22,7 @@ renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.AgXToneMapping
 renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;renderer.shadowMap.type=T.PCFShadowMap;stage.prepend(renderer.domElement);
 const scene=new T.Scene();scene.background=new T.Color('#d5c8b4');
 const hdrStatus=document.querySelector('#photoStatus');hdrStatus.hidden=false;hdrStatus.textContent='Lighting the room…';
-try{scene.environment=await loadRoomEnvironment(renderer);}catch(error){hdrStatus.textContent='The room lighting could not load. Please reload.';throw error;}scene.environmentIntensity=.20;scene.environmentRotation.set(Math.PI/2,0,.35);
+try{scene.environment=await loadRoomEnvironment(renderer);}catch(error){hdrStatus.textContent='The room lighting could not load. Please reload.';throw error;}scene.environmentIntensity=.16;scene.environmentRotation.set(Math.PI/2,0,.35);
 const camera=new T.PerspectiveCamera(25,innerWidth/innerHeight,.01,40);camera.up.set(0,0,1);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableRotate=false;controls.screenSpacePanning=true;controls.minDistance=.16;controls.maxDistance=14;controls.mouseButtons.LEFT=T.MOUSE.PAN;controls.touches.ONE=T.TOUCH.PAN;controls.touches.TWO=T.TOUCH.DOLLY_PAN;
 const target=new T.Vector3(0,0,1.47),home=new T.Vector3(0,-8.65,1.47);
@@ -34,8 +34,8 @@ RectAreaLightUniformsLib.init();
 const windowLight=new T.RectAreaLight(0xfff1de,.8,3.5,4.5);
 windowLight.position.set(-2.8,-2.7,4.8);windowLight.lookAt(0,-.014,1.8);scene.add(windowLight);
 const daylight=windowDaylight();scene.add(daylight,daylight.target);
-const highWindowBounce=new T.RectAreaLight('#ffedd8',3.0,3,1);highWindowBounce.position.set(-1,-2,4.3);highWindowBounce.lookAt(0,.03,3.4);scene.add(highWindowBounce);
-const floorSun=new T.SpotLight('#ffdfac',24,0,.28,1,2);floorSun.position.copy(daylight.position);floorSun.target.position.set(-.8,-.3,0);scene.add(floorSun,floorSun.target);
+const highWindowBounce=new T.RectAreaLight('#ffedd8',10,3,1);highWindowBounce.position.set(-1,-2,4.3);highWindowBounce.lookAt(0,.03,3.4);scene.add(highWindowBounce);
+const floorSun=new T.SpotLight('#fff0d7',85,0,.28,1,2);floorSun.position.copy(daylight.position);floorSun.target.position.set(-.7,-.6,0);scene.add(floorSun,floorSun.target);
 // HDR supplies the softer room bounce.
 const composer=new EffectComposer(renderer,new T.WebGLRenderTarget(innerWidth,innerHeight,{type:T.HalfFloatType}));
 composer.addPass(new RenderPass(scene,camera));
@@ -45,12 +45,13 @@ function updateAntialias(w,h,ratio=renderer.getPixelRatio()){antialias.uniforms.
 const materialStatus=document.querySelector('#photoStatus');materialStatus.hidden=false;materialStatus.textContent='Preparing the room and yarn…';
 let surfaces;
 try{surfaces=await loadSurfaceMaterials(renderer);}catch(error){materialStatus.textContent='The surface materials could not load. Please reload.';throw error;}
-const plaster=surfaces.wall;plaster.envMapIntensity=1.5;surfaces.floor.envMapIntensity=3.5;
+const plaster=surfaces.wall;plaster.envMapIntensity=2.0;surfaces.floor.envMapIntensity=1.8;
 plaster.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
- float pigment=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));diffuseColor.rgb=vec3(.87,.76,.64)*(.94+.12*pigment);`);};
+ float pigment=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));diffuseColor.rgb=vec3(.87,.78,.67)*(.87+.25*pigment);`);};
 function box(name,xyz,size,material){const m=new T.Mesh(new T.BoxGeometry(...size),material);m.name=name;m.position.set(...xyz);m.castShadow=m.receiveShadow=true;scene.add(m);return m;}
 box('Warm lime-plaster wall',[0,.12,2.3],[8,.18,4.6],plaster);
 box('Oak floor',[0,-1.7,-.05],[8,4,.1],surfaces.floor);
+const roomRug=new T.Mesh(new T.PlaneGeometry(2.8,1.3),surfaces.rug);roomRug.position.set(0,-1.65,.003);roomRug.receiveShadow=true;scene.add(roomRug);
 const wood=surfaces.wood;
 const skirting=new T.Mesh(new RoundedBoxGeometry(8,.045,.15,3,.007),wood);skirting.position.set(0,.002,.075);skirting.castShadow=skirting.receiveShadow=true;scene.add(skirting);
 const rail=new T.Mesh(new RoundedBoxGeometry(1.7,.045,.038,4,.007),wood);rail.position.set(0,-.018,2.985);rail.castShadow=rail.receiveShadow=true;scene.add(rail);
@@ -62,13 +63,14 @@ for(let x=0;x<cloth.sim.nx;x++){const i=(cloth.sim.ny-1)*cloth.sim.nx+x;if(!clot
 
 const colours=['#3b595a','#a74730','#ae812c','#cbbb9d'],pattern=[0,0,0,3,1,2,0,0,1,1,1,3,2,2,3,0,0,0];
 const fibreNormal=surfaces.wool.nor_gl;
-const P=.016,warpCount=12*18,mat=new T.MeshPhysicalMaterial({color:0xffffff,side:T.DoubleSide,roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.32,.32)});
+const P=.0192,warpCount=10*15,mat=new T.MeshPhysicalMaterial({color:0xffffff,side:T.DoubleSide,roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.10,.10)});
 // One reusable Blender asset; photos only change live yarn colour on the GPU.
+mat.envMapIntensity=1.3;
 const blankPhoto=new T.DataTexture(new Uint8Array([255,255,255,255]),1,1);blankPhoto.needsUpdate=true;
 const photoUniform={value:blankPhoto},hasPhotoUniform={value:0},weaveAOUniform={value:blankPhoto},weaveLightUniform={value:blankPhoto},microShadowUniform={value:0};
 mat.onBeforeCompile=shader=>{
- shader.fragmentShader=shader.fragmentShader.replace('#include <lights_fragment_begin>',T.ShaderChunk.lights_fragment_begin.replace('directLight.color * spotColor.rgb','directLight.color * mix(vec3(1.),spotColor.rgb,.45)'));
- shader.uniforms.strandPhoto=photoUniform;shader.uniforms.strandHasPhoto=hasPhotoUniform;shader.uniforms.strandWeaveAO=weaveAOUniform;shader.uniforms.strandWeaveLight=weaveLightUniform;shader.uniforms.strandMicroShadow=microShadowUniform;
+ shader.fragmentShader=shader.fragmentShader.replace('#include <lights_fragment_begin>',T.ShaderChunk.lights_fragment_begin.replace('directLight.color * spotColor.rgb','directLight.color * spotColor.rgb * .2'));
+ shader.uniforms.strandBands={value:pattern.map(i=>new T.Color(colours[i]))};shader.uniforms.strandPhoto=photoUniform;shader.uniforms.strandHasPhoto=hasPhotoUniform;shader.uniforms.strandWeaveAO=weaveAOUniform;shader.uniforms.strandWeaveLight=weaveLightUniform;shader.uniforms.strandMicroShadow=microShadowUniform;
  shader.vertexShader='varying vec2 vStrandPhotoUV;\n'+shader.vertexShader;
  shader.vertexShader=shader.vertexShader.replace('#include <project_vertex>',`#include <project_vertex>
  vec4 strandPosition=vec4(transformed,1.0);
@@ -77,15 +79,15 @@ mat.onBeforeCompile=shader=>{
  #endif
  strandPosition=modelMatrix*strandPosition;
  vStrandPhotoUV=vec2(strandPosition.x/1.536+0.5,(strandPosition.z-0.648)/2.304);`);
- shader.fragmentShader='uniform sampler2D strandPhoto;uniform sampler2D strandWeaveLight;uniform float strandMicroShadow;uniform sampler2D strandWeaveAO;uniform float strandHasPhoto;varying vec2 vStrandPhotoUV;\n'+shader.fragmentShader;
+ shader.fragmentShader='uniform vec3 strandBands[18];uniform sampler2D strandPhoto;uniform sampler2D strandWeaveLight;uniform float strandMicroShadow;uniform sampler2D strandWeaveAO;uniform float strandHasPhoto;varying vec2 vStrandPhotoUV;\n'+shader.fragmentShader;
  shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
- if(strandHasPhoto>0.5){diffuseColor.rgb=texture2D(strandPhoto,clamp(vStrandPhotoUV,0.0,1.0)).rgb;}`);
+ if(strandHasPhoto>0.5){diffuseColor.rgb=texture2D(strandPhoto,clamp(vStrandPhotoUV,0.0,1.0)).rgb;}else{int stripe=int(clamp(floor(vStrandPhotoUV.y*18.),0.,17.));diffuseColor.rgb=strandBands[stripe];}`);
  shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
  roughnessFactor*=.975+.025*sin(vStrandPhotoUV.x*231.0+vStrandPhotoUV.y*593.0);
  float strandDye=.97+.03*sin(vStrandPhotoUV.x*423.0+sin(vStrandPhotoUV.y*83.0)*2.0)*sin(vStrandPhotoUV.y*521.0+vStrandPhotoUV.x*31.0);diffuseColor.rgb*=strandDye;`);
  shader.fragmentShader=shader.fragmentShader.replace('#include <lights_physical_fragment>',`#include <lights_physical_fragment>\n#ifdef USE_SHEEN\n material.sheenColor*=diffuseColor.rgb;\n#endif`);
  shader.fragmentShader=shader.fragmentShader.replace('#include <aomap_fragment>',`#include <aomap_fragment>
- float strandAO=mix(1.0,texture2D(strandWeaveAO,vStrandPhotoUV*vec2(12.,18.)).r,.42);reflectedLight.indirectDiffuse*=strandAO;reflectedLight.indirectSpecular*=strandAO;reflectedLight.directDiffuse*=mix(1.,strandAO,.5);float yarnVisibility=1.-texture2D(strandWeaveLight,vStrandPhotoUV*vec2(12.,18.)).r;reflectedLight.directDiffuse*=mix(1.,yarnVisibility,.8*strandMicroShadow);`);
+ float strandAO=mix(1.0,texture2D(strandWeaveAO,vStrandPhotoUV*vec2(10.,15.)).r,.42);reflectedLight.indirectDiffuse*=strandAO;reflectedLight.indirectSpecular*=strandAO;reflectedLight.directDiffuse*=mix(1.,strandAO,.5);float yarnVisibility=1.-texture2D(strandWeaveLight,vStrandPhotoUV*vec2(10.,15.)).r;reflectedLight.directDiffuse*=mix(1.,yarnVisibility,.4*strandMicroShadow);`);
 };
 mat.customProgramCacheKey=()=> 'strand-live-photo-v2';
 let fibreMesh,fringeMaterial,farFabric,photoVersion=0,photoRequest=0;
@@ -116,7 +118,7 @@ function distantGeometry(source){
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));g.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));g.setIndex(indices);return g;
 }
 let detailedShadowCasters=false;
-function updateYarns(forceHigh=false){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projectionView.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));const distance=camera.position.distanceTo(controls.target),near=true;if(detailedShadowCasters!==(distance<1)){detailedShadowCasters=distance<1;renderer.shadowMap.needsUpdate=true;}microShadowUniform.value=distance>=1?1:0;if(farFabric)farFabric.visible=!near;if(fibreMesh)fibreMesh.visible=true;for(const item of yarnMeshes){item.mesh.visible=near;item.mesh.receiveShadow=true;if(!near)continue;item.mesh.geometry=forceHigh||distance<1.0?item.high:item.low;item.mesh.castShadow=distance<1.0;let count=0;for(const entry of item.entries){cloth.sample(entry.centre.x/1.536+.5,(entry.centre.z-.648)/2.304,tileSphere.center);tileSphere.radius=cloth.sim.active?.18:.14;if(!frustum.intersectsSphere(tileSphere))continue;item.mesh.setMatrixAt(count,entry.matrix);item.mesh.setColorAt(count++,entry.colour)}item.mesh.count=count;item.mesh.instanceMatrix.needsUpdate=true;item.mesh.instanceColor.needsUpdate=true;}}
+function updateYarns(forceHigh=false){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projectionView.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));const distance=camera.position.distanceTo(controls.target),near=true;if(detailedShadowCasters!==(distance<1)){detailedShadowCasters=distance<1;renderer.shadowMap.needsUpdate=true;}microShadowUniform.value=distance>=1?1:0;if(farFabric)farFabric.visible=!near;if(fibreMesh)fibreMesh.visible=true;for(const item of yarnMeshes){item.mesh.visible=near;item.mesh.receiveShadow=true;if(!near)continue;item.mesh.geometry=forceHigh||distance<1.0?item.high:item.low;item.mesh.castShadow=distance<1.0;let count=0;for(const entry of item.entries){cloth.sample(entry.centre.x/1.536+.5,(entry.centre.z-.648)/2.304,tileSphere.center);tileSphere.radius=cloth.sim.active?.20:.16;if(!frustum.intersectsSphere(tileSphere))continue;item.mesh.setMatrixAt(count,entry.matrix);item.mesh.setColorAt(count++,entry.colour)}item.mesh.count=count;item.mesh.instanceMatrix.needsUpdate=true;item.mesh.instanceColor.needsUpdate=true;}}
 let pending=false,ready=false,lastFrame=0;
 function render(){if(pending)return;pending=true;requestAnimationFrame(frame)}
 function frame(time){const frameStart=performance.now();pending=false;const dt=lastFrame?Math.min((time-lastFrame)/1000,.05):1/60;lastFrame=time;const moved=cloth.update(dt);if(moved)renderer.shadowMap.needsUpdate=true;updateYarns();renderer.info.reset();composer.render();if(ready){stage.dataset.frameCpuMs=(performance.now()-frameStart).toFixed(2);stage.dataset.ready='true';stage.dataset.triangles=String(renderer.info.render.triangles);stage.dataset.drawCalls=String(renderer.info.render.calls);stage.dataset.cameraDistance=camera.position.distanceTo(controls.target).toFixed(4);stage.dataset.lod=farFabric?.visible?'baked-surface':'yarns';stage.dataset.photoVersion=String(photoVersion);stage.dataset.clothActive=String(cloth.sim.active);stage.dataset.clothCentreY=cloth.sim.positions[(Math.floor(cloth.sim.ny/2)*cloth.sim.nx+Math.floor(cloth.sim.nx/2))*3+1].toFixed(5);}if(cloth.sim.active)render();}
@@ -125,20 +127,36 @@ try{
  let seamGap=0;for(const source of gltf.scene.children)if(source.isMesh){seamGap=Math.max(seamGap,repairWeaveGeometry(source.geometry,source.name.includes('warp')));source.geometry.scale(1,1,.78);}
  stage.dataset.weaveSeamGap=String(seamGap);
  const baked=bakeWeave(renderer,gltf.scene);weaveAOUniform.value=baked.ao;weaveLightUniform.value=baked.light;microShadowUniform.value=1;
- const farMaterial=mat.clone();farMaterial.normalMap=baked.normal;farMaterial.normalMap.repeat.set(12,18);farMaterial.normalScale.set(.88,.88);
- farMaterial.bumpMap=null;farMaterial.roughnessMap=null;farMaterial.roughness=.95;const photoCompile=mat.onBeforeCompile;farMaterial.onBeforeCompile=shader=>{photoCompile(shader);shader.uniforms.strandRole={value:baked.role};shader.uniforms.strandBands={value:pattern.map(i=>new T.Color(colours[i]))};shader.uniforms.strandWarp={value:new T.Color(colours[0])};shader.fragmentShader='uniform sampler2D strandRole;uniform vec3 strandBands[18];uniform vec3 strandWarp;\n'+shader.fragmentShader;
+ const farMaterial=mat.clone();farMaterial.normalMap=baked.normal;farMaterial.normalMap.repeat.set(10,15);farMaterial.normalScale.set(.88,.88);
+ farMaterial.bumpMap=null;farMaterial.roughnessMap=null;farMaterial.roughness=.95;const photoCompile=mat.onBeforeCompile;farMaterial.onBeforeCompile=shader=>{photoCompile(shader);shader.uniforms.strandRole={value:baked.role};shader.uniforms.strandBands={value:pattern.map(i=>new T.Color(colours[i]))};shader.uniforms.strandWarp={value:new T.Color(colours[0])};shader.fragmentShader='uniform sampler2D strandRole;uniform vec3 strandWarp;\n'+shader.fragmentShader;
  shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
- vec4 strandMask=texture2D(strandRole,vStrandPhotoUV*vec2(12.,18.));if(strandMask.a<.12)discard;if(strandHasPhoto<.5){int stripe=int(clamp(floor(vStrandPhotoUV.y*18.),0.,17.));diffuseColor.rgb=mix(strandBands[stripe]*.94,strandBands[stripe],strandMask.r);}`);};farMaterial.customProgramCacheKey=()=> 'strand-far-baked-v1';
+ vec4 strandMask=texture2D(strandRole,vStrandPhotoUV*vec2(10.,15.));if(strandMask.a<.12)discard;if(strandHasPhoto<.5){int stripe=int(clamp(floor(vStrandPhotoUV.y*18.),0.,17.));diffuseColor.rgb=mix(strandBands[stripe]*.94,strandBands[stripe],strandMask.r);}`);};farMaterial.customProgramCacheKey=()=> 'strand-far-baked-v1';
  const farGeometry=new T.PlaneGeometry(1.536,2.304,48,72);farGeometry.rotateX(Math.PI/2);farGeometry.translate(0,-.014,1.8);farFabric=new T.Mesh(farGeometry,farMaterial);farFabric.name='Deformed full-view cloth with baked real-yarn normals';cloth.attach(farFabric);scene.add(farFabric);
- const cottonMaterial=mat.clone();cottonMaterial.normalMap=surfaces.cotton.nor_gl;cottonMaterial.roughnessMap=surfaces.cotton.Rough;cottonMaterial.normalScale.set(.25,.25);cottonMaterial.onBeforeCompile=mat.onBeforeCompile;cottonMaterial.customProgramCacheKey=()=> 'strand-cotton-photo-v20';
+ for(const source of gltf.scene.children)if(source.isMesh)source.geometry.scale(1.2,1.2,1.2);
+ // Reuse the authored three-ply yarn geometry for genuinely raised jute cords.
+ const rugSource=gltf.scene.children.find(source=>source.isMesh&&source.name.includes('warp'));
+ const rugMaterial=new T.MeshPhysicalMaterial({color:'#d5ba90',roughness:1,specularIntensity:0,normalMap:surfaces.wool.nor_gl,normalScale:new T.Vector2(.08,.08)});
+ const rugGeometry=distantGeometry(rugSource.geometry),rugPositions=rugGeometry.attributes.position;for(let i=0;i<rugPositions.count;i++){const strand=Math.floor(Math.floor(i/(21*6))/3),along=rugPositions.getY(i)/(.016*1.2);rugPositions.setZ(i,rugPositions.getZ(i)+Math.cos(Math.PI*(along+strand))*.016*.32*.78*1.2);}rugGeometry.computeVertexNormals();
+ const rugCords=new T.InstancedMesh(rugGeometry,rugMaterial,15*7),rugMatrix=new T.Matrix4();let rugIndex=0;
+ for(let y=0;y<7;y++)for(let x=0;x<15;x++){rugMatrix.makeScale(1.25,1.25,1.3);rugMatrix.setPosition((x*8-59.5)*.024,-1.65+(y*8-27.5)*.024,.013);rugCords.setMatrixAt(rugIndex++,rugMatrix);}
+ rugCords.name='Raised three-ply jute cords';rugCords.receiveShadow=true;scene.add(rugCords);
+
+ const cottonMaterial=mat.clone();cottonMaterial.normalMap=surfaces.cotton.nor_gl;cottonMaterial.roughnessMap=surfaces.cotton.Rough;cottonMaterial.normalScale.set(.08,.08);cottonMaterial.onBeforeCompile=mat.onBeforeCompile;cottonMaterial.customProgramCacheKey=()=> 'strand-cotton-photo-v20';
  cloth.patch(mat,{yarn:true});cloth.patch(cottonMaterial,{yarn:true});
- for(const source of gltf.scene.children){if(!source.isMesh)continue;const warp=source.name.includes('warp'),mesh=new T.InstancedMesh(source.geometry,warp?cottonMaterial:mat,warpCount);const entries=[];yarnMeshes.push({mesh,entries,high:source.geometry,low:distantGeometry(source.geometry)});mesh.name=source.name;mesh.castShadow=mesh.receiveShadow=true;mesh.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide});cloth.patch(mesh.customDepthMaterial,{depth:true,yarn:true});mesh.frustumCulled=false;const matrix=new T.Matrix4(),rotation=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),Math.PI/2),colour=new T.Color();let index=0;for(let y=0;y<18;y++)for(let x=0;x<12;x++){matrix.compose(new T.Vector3((x*8-47.5)*P,-.014,1.8+(y*8-71.5)*P),rotation,new T.Vector3(1,1,1));mesh.setMatrixAt(index,matrix);colour.set(colours[pattern[y]]);if(warp)colour.multiplyScalar(.94);mesh.setColorAt(index++,colour);entries.push({matrix:matrix.clone(),colour:colour.clone(),centre:new T.Vector3((x*8-44)*P,-.014,1.8+(y*8-68)*P)})}mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
+ for(const source of gltf.scene.children){if(!source.isMesh)continue;const warp=source.name.includes('warp'),mesh=new T.InstancedMesh(source.geometry,warp?cottonMaterial:mat,warpCount);const entries=[];yarnMeshes.push({mesh,entries,high:source.geometry,low:distantGeometry(source.geometry)});mesh.name=source.name;mesh.castShadow=mesh.receiveShadow=true;mesh.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide});cloth.patch(mesh.customDepthMaterial,{depth:true,yarn:true});mesh.frustumCulled=false;const matrix=new T.Matrix4(),rotation=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),Math.PI/2),colour=new T.Color();let index=0;for(let y=0;y<15;y++)for(let x=0;x<10;x++){matrix.compose(new T.Vector3((x*8-39.5)*P,-.014,1.8+(y*8-59.5)*P),rotation,new T.Vector3(1,1,1));mesh.setMatrixAt(index,matrix);colour.set(colours[pattern[Math.min(17,Math.floor(y*18/15))]]);if(warp)colour.multiplyScalar(.94);mesh.setColorAt(index++,colour);entries.push({matrix:matrix.clone(),colour:colour.clone(),centre:new T.Vector3((x*8-36)*P,-.014,1.8+(y*8-56)*P)})}mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
  // Fine loose fibres are sparse geometry rather than a thick fuzzy surface shell.
  let seed=24;function random(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}const fibres=[],tints=[];
  for(let i=0;i<18000;i++){const x=(random()-.5)*1.52,z=.65+random()*2.3,len=.001+random()*.004,angle=random()*Math.PI*2,row=T.MathUtils.clamp(Math.floor((z-.648)/.128),0,17),c=new T.Color(colours[pattern[row]]);for(let j=0;j<2;j++){const a=j/2,b=(j+1)/2;for(const t of [a,b]){fibres.push(x+Math.cos(angle)*len*t,-.024-Math.sin(t*2)*len*.5,z+Math.sin(angle)*len*t);tints.push(c.r,c.g,c.b)}}}
  const fg=new T.BufferGeometry();fg.setAttribute('position',new T.Float32BufferAttribute(fibres,3));fg.setAttribute('color',new T.Float32BufferAttribute(tints,3));fibreMesh=new T.LineSegments(fg,new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.3,depthWrite:false}));cloth.attach(fibreMesh,{line:true});scene.add(fibreMesh);
- fringeMaterial=new T.MeshPhysicalMaterial({color:'#e8d9b9',roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.32,.32)});cloth.patch(fringeMaterial);
- const fringeGeometry=new T.BufferGeometry(),fp=[],fn=[],fu=[],fi=[];for(let i=0;i<192;i++){const points=[],length=.10*(.87+random()*.26),curl=(random()-.5)*.008;for(let j=0;j<=12;j++){const t=j/12;points.push(new T.Vector3((i-95.5)*P*.5+.002*Math.sin(t*4+i)+curl*t*t,-.014-.003*Math.sin(t*2+i*.2),.648-length*t))}const tube=new T.TubeGeometry(new T.CatmullRomCurve3(points),16,.0018*(.9+random()*.2),5,false),offset=fp.length/3;fp.push(...tube.attributes.position.array);fn.push(...tube.attributes.normal.array);fu.push(...tube.attributes.uv.array);for(const k of tube.index.array)fi.push(k+offset);tube.dispose();}
+ fringeMaterial=new T.MeshPhysicalMaterial({color:'#eee0c5',roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.10,.10)});fringeMaterial.normalScale.set(.12,.12);cloth.patch(fringeMaterial);
+ const fringeGeometry=new T.BufferGeometry(),fp=[],fn=[],fu=[],fi=[];
+ for(let i=0;i<176;i++){
+  const length=.105*(.9+random()*.2),curl=(random()-.5)*.008,phase=random()*Math.PI*2;
+  for(let ply=0;ply<3;ply++){
+   const points=[];for(let j=0;j<=24;j++){const t=j/24,turn=phase+ply*Math.PI*2/3+t*Math.PI*12;points.push(new T.Vector3((i-87.5)*(1.536/176)+.0013*Math.cos(turn)+.0015*Math.sin(t*4+i)+curl*t*t,-.014+.0013*Math.sin(turn)-.003*Math.sin(t*2+i*.2),.648-length*t));}
+   const tube=new T.TubeGeometry(new T.CatmullRomCurve3(points),24,.0015*(.94+random()*.12),5,false),offset=fp.length/3;fp.push(...tube.attributes.position.array);fn.push(...tube.attributes.normal.array);fu.push(...tube.attributes.uv.array);for(const k of tube.index.array)fi.push(k+offset);tube.dispose();
+  }
+ }
  fringeGeometry.setAttribute('position',new T.Float32BufferAttribute(fp,3));fringeGeometry.setAttribute('normal',new T.Float32BufferAttribute(fn,3));fringeGeometry.setAttribute('uv',new T.Float32BufferAttribute(fu,2));fringeGeometry.setIndex(fi);const fringe=new T.Mesh(fringeGeometry,fringeMaterial);cloth.attach(fringe);fringe.castShadow=true;scene.add(fringe);
  installClothInteraction({canvas:renderer.domElement,camera,controls,cloth,render,onInteraction:type=>{stage.dataset.lastInteraction=type;}});
  materialStatus.hidden=true;stage.dataset.materials='polyhaven-cc0';stage.dataset.lighting='1k-hdri';stage.dataset.shadows='deformed-mesh';ready=true;document.querySelector('#takePhoto').disabled=false;document.querySelector('#uploadPhoto').disabled=false;fit();
@@ -149,3 +167,4 @@ function zoom(f){const offset=camera.position.clone().sub(controls.target);offse
 document.querySelector('#zoomIn').onclick=()=>zoom(1/1.5);document.querySelector('#zoomOut').onclick=()=>zoom(1.5);document.querySelector('#fitFabric').onclick=fit;
 document.querySelector('#light').value='1.1';document.querySelector('#light').oninput=e=>{renderer.toneMappingExposure=Number(e.target.value);render()};
 document.querySelector('#saveFabric').onclick=()=>{const size=new T.Vector2();renderer.getSize(size);const aspect=size.x/size.y,h=Math.min(4096,renderer.capabilities.maxTextureSize),w=Math.round(h*aspect),pixelRatio=renderer.getPixelRatio();renderer.setPixelRatio(1);renderer.setSize(w,h,false);composer.setPixelRatio(1);composer.setSize(w,h);updateAntialias(w,h,1);updateYarns(true);composer.render();renderer.domElement.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='strand-photo-carpet.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)});renderer.setPixelRatio(pixelRatio);renderer.setSize(size.x,size.y,false);composer.setPixelRatio(pixelRatio);composer.setSize(size.x,size.y);updateAntialias(size.x,size.y,pixelRatio);render()};
+
