@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {paintPalette} from './palette-strands.js?v=44';
 import {createStreamPerformance} from './stream-performance.js?v=42';
-import {createStreamPipeline} from './stream-render-pipeline.js?v=47';
+import {createStreamPipeline} from './stream-render-pipeline.js?v=48';
 import { loadRoomEnvironment } from './room-lighting.js?v=27';
 import { addTextileLights } from './textile-light-rig.js?v=45';
 import { addStreamRoom } from './stream-room.js?v=46';
