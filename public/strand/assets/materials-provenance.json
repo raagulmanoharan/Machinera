@@ -139,5 +139,36 @@
     "resolution": "1k",
     "usage": "base colour, OpenGL normal and roughness",
     "delivery": "Poly Haven CDN; no uploaded photos are sent to this host"
+  },
+  "hessian_230": {
+    "source": "https://polyhaven.com/a/hessian_230",
+    "license": "CC0-1.0",
+    "authors": {
+      "colormass": "Photography",
+      "Rico Cilliers": "Processing"
+    },
+    "usage": "Existing woven hessian surface on the foreground room rug; hanging dye continues to come only from the photo.",
+    "maps": {
+      "Diffuse": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg",
+        "md5": "6d2cee5fb9e5584b7a202ab27e1a6dcc",
+        "size": 1062404,
+        "sha256": "ef9ac1a0129b6d0f44b6d5beb68db7be7a0adf11e09fe52fd2cdc9370b27d4ba"
+      },
+      "nor_gl": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg",
+        "md5": "468a884ffa63d912053840b110674c0a",
+        "size": 1030521,
+        "sha256": "6d5a6d23c880dbaae98477ed33dbd5d7c0eeda910a39319aec2d0014892974aa"
+      },
+      "Rough": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg",
+        "md5": "8d3a20d7cc91d00de7d5980d471b3c59",
+        "size": 923890,
+        "sha256": "469ea3c219147ba83d7a650d7769cc43f25b5e3d8ea8ae4e5e89e7226a32658a"
+      }
+    },
+    "resolution": "1k",
+    "delivery": "Poly Haven CDN; no uploaded photos are sent to this host"
   }
 }
