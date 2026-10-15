@@ -5,22 +5,23 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { installClothInteraction } from './cloth-interaction.js?v=20';
-import { HangingCloth } from './hanging-cloth.js?v=20';
-import { repairWeaveGeometry } from './weave-model.js?v=20';
-import { bakeWeave } from './weave-bake.js?v=20';
-import { loadSurfaceMaterials } from './surface-materials.js?v=20';
+import { installClothInteraction } from './cloth-interaction.js?v=21';
+import { HangingCloth } from './hanging-cloth.js?v=21';
+import { repairWeaveGeometry } from './weave-model.js?v=21';
+import { bakeWeave } from './weave-bake.js?v=21';
+import { loadSurfaceMaterials } from './surface-materials.js?v=21';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { studioEnvironment } from './studio-environment.js?v=10';
+import { loadRoomEnvironment } from './room-lighting.js?v=21';
 const stage=document.querySelector('#stage');
 const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.AgXToneMapping;renderer.toneMappingExposure=1.1;
 renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;renderer.shadowMap.type=T.VSMShadowMap;stage.prepend(renderer.domElement);
 const scene=new T.Scene();scene.background=new T.Color('#d5c8b4');
-scene.environment=studioEnvironment(renderer);scene.environmentIntensity=.14;scene.environmentRotation.set(Math.PI/2,0,.35);
+const hdrStatus=document.querySelector('#photoStatus');hdrStatus.hidden=false;hdrStatus.textContent='Lighting the room…';
+try{scene.environment=await loadRoomEnvironment(renderer);}catch(error){hdrStatus.textContent='The room lighting could not load. Please reload.';throw error;}scene.environmentIntensity=.45;scene.environmentRotation.set(Math.PI/2,0,.35);
 const camera=new T.PerspectiveCamera(25,innerWidth/innerHeight,.01,40);camera.up.set(0,0,1);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableRotate=false;controls.screenSpacePanning=true;controls.minDistance=.16;controls.maxDistance=14;controls.mouseButtons.LEFT=T.MOUSE.PAN;controls.touches.ONE=T.TOUCH.PAN;controls.touches.TWO=T.TOUCH.DOLLY_PAN;
 const target=new T.Vector3(0,0,1.65),home=new T.Vector3(0,-7.9,1.65);
@@ -29,11 +30,9 @@ const key=new T.DirectionalLight(0xfff1de,1.35);key.position.set(-3,-3.5,5.8);ke
 Object.assign(key.shadow.camera,{left:-2.3,right:2.3,top:2.7,bottom:-2.7,near:.1,far:15});key.shadow.mapSize.set(1024,1024);key.shadow.radius=8;key.shadow.blurSamples=20;key.shadow.bias=-.000008;key.shadow.normalBias=.00025;scene.add(key,key.target);
 // Broad photographic window light; the aligned directional key casts the wall shadow.
 RectAreaLightUniformsLib.init();
-const windowLight=new T.RectAreaLight(0xfff1de,2.3,3.5,4.5);
+const windowLight=new T.RectAreaLight(0xfff1de,.6,3.5,4.5);
 windowLight.position.set(-2.8,-2.7,4.8);windowLight.lookAt(0,-.014,1.8);scene.add(windowLight);
-// A feathered pool of window illumination gives the plaster a spatial light gradient.
-const daylight=new T.SpotLight(0xffefda,30,0,.60,1,2);daylight.position.set(-2,-2,4.3);daylight.target.position.set(-.6,.03,2.25);scene.add(daylight,daylight.target);
-const bounce=new T.HemisphereLight(0xf3f4f5,0xa58a68,.12);bounce.position.set(0,0,1);scene.add(bounce);
+// The HDR environment supplies ambient and bounce illumination.
 const composer=new EffectComposer(renderer,new T.WebGLRenderTarget(innerWidth,innerHeight,{type:T.HalfFloatType}));
 composer.addPass(new RenderPass(scene,camera));
 composer.addPass(new OutputPass());
@@ -134,7 +133,7 @@ try{
  const fringeGeometry=new T.BufferGeometry(),fp=[],fn=[],fi=[];for(let i=0;i<96;i++){const points=[],length=.055*(.87+random()*.26),curl=(random()-.5)*.008;for(let j=0;j<=12;j++){const t=j/12;points.push(new T.Vector3((i-47.5)*P+.002*Math.sin(t*4+i)+curl*t*t,-.014-.003*Math.sin(t*2+i*.2),.648-length*t))}const tube=new T.TubeGeometry(new T.CatmullRomCurve3(points),16,.0018*(.9+random()*.2),5,false),offset=fp.length/3;fp.push(...tube.attributes.position.array);fn.push(...tube.attributes.normal.array);for(const k of tube.index.array)fi.push(k+offset);tube.dispose();}
  fringeGeometry.setAttribute('position',new T.Float32BufferAttribute(fp,3));fringeGeometry.setAttribute('normal',new T.Float32BufferAttribute(fn,3));fringeGeometry.setIndex(fi);const fringe=new T.Mesh(fringeGeometry,fringeMaterial);cloth.attach(fringe);fringe.castShadow=true;scene.add(fringe);
  installClothInteraction({canvas:renderer.domElement,camera,controls,cloth,render,onInteraction:type=>{stage.dataset.lastInteraction=type;}});
- materialStatus.hidden=true;stage.dataset.materials='polyhaven-cc0';ready=true;document.querySelector('#takePhoto').disabled=false;document.querySelector('#uploadPhoto').disabled=false;fit();
+ materialStatus.hidden=true;stage.dataset.materials='polyhaven-cc0';stage.dataset.lighting='1k-hdri';ready=true;document.querySelector('#takePhoto').disabled=false;document.querySelector('#uploadPhoto').disabled=false;fit();
 }catch(error){stage.dataset.error=error.message;const msg=document.createElement('p');msg.textContent='The textile model could not load. Please reload.';msg.style.cssText='position:fixed;top:30%;width:100%;text-align:center;color:#514633';stage.append(msg);console.error(error)}
 controls.addEventListener('change',()=>{if(camera.position.distanceTo(controls.target)<3.1)renderer.shadowMap.needsUpdate=true;render()});
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();composer.setSize(innerWidth,innerHeight);updateAntialias(innerWidth,innerHeight);render()});
