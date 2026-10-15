@@ -1,0 +1,126 @@
+{
+  "scenario": "720 worker ticks at 1/60s with continuously changing drag targets, 390x844 CSS viewport; three diagnostic render submissions. This is 12 seconds of simulated time, not a sustained phone rendering/FPS benchmark.",
+  "environment": "Headless Chromium, software rendering. Baseline and candidate ran sequentially; another validation browser overlapped part of candidate run, so round-trip and submission times are not an apples-to-apples speed comparison.",
+  "changes": {
+    "phoneYarnSides": [
+      6,
+      4
+    ],
+    "curveSamplesPerCrossing": [
+      5,
+      5
+    ],
+    "msaaSamples": [
+      0,
+      2
+    ],
+    "fullPhysicsPreserved": true
+  },
+  "baseline": {
+    "windows": [
+      {
+        "physicsMs": 4.663749999739229,
+        "guardMs": 3.104166666107873,
+        "roundTripMs": 7.977083333333334,
+        "submissionMs": 1.7000000029802322,
+        "triangles": 1542962,
+        "drawCalls": 13,
+        "memory": {
+          "geometries": 9,
+          "textures": 18
+        },
+        "heap": 12700000,
+        "requests": 243,
+        "commands": 0,
+        "blocked": 1
+      },
+      {
+        "physicsMs": 3.6116666664058963,
+        "guardMs": 2.8374999995653827,
+        "roundTripMs": 17.221666666803262,
+        "submissionMs": 1.2000000029802322,
+        "triangles": 1540634,
+        "drawCalls": 10,
+        "memory": {
+          "geometries": 9,
+          "textures": 18
+        },
+        "heap": 12700000,
+        "requests": 483,
+        "commands": 0,
+        "blocked": 1
+      },
+      {
+        "physicsMs": 3.591666666666667,
+        "guardMs": 3.019583333780368,
+        "roundTripMs": 17.12000000036011,
+        "submissionMs": 1.2000000029802322,
+        "triangles": 1540634,
+        "drawCalls": 10,
+        "memory": {
+          "geometries": 9,
+          "textures": 18
+        },
+        "heap": 12700000,
+        "requests": 723,
+        "commands": 0,
+        "blocked": 2
+      }
+    ],
+    "errors": []
+  },
+  "candidate": {
+    "windows": [
+      {
+        "physicsMs": 4.522499999155601,
+        "guardMs": 3.224583333482345,
+        "roundTripMs": 7.987500000124176,
+        "submissionMs": 1.5999999940395355,
+        "triangles": 1030962,
+        "drawCalls": 13,
+        "memory": {
+          "geometries": 9,
+          "textures": 18
+        },
+        "heap": 10600000,
+        "requests": 243,
+        "commands": 0,
+        "blocked": 1
+      },
+      {
+        "physicsMs": 3.8420833332464097,
+        "guardMs": 2.9258333328490456,
+        "roundTripMs": 29.699166665909193,
+        "submissionMs": 5.4000000059604645,
+        "triangles": 1028634,
+        "drawCalls": 10,
+        "memory": {
+          "geometries": 9,
+          "textures": 18
+        },
+        "heap": 10600000,
+        "requests": 483,
+        "commands": 0,
+        "blocked": 1
+      },
+      {
+        "physicsMs": 3.5829166668777663,
+        "guardMs": 2.965416666989525,
+        "roundTripMs": 25.288749999987584,
+        "submissionMs": 1.7999999970197678,
+        "triangles": 1028634,
+        "drawCalls": 10,
+        "memory": {
+          "geometries": 9,
+          "textures": 18
+        },
+        "heap": 10600000,
+        "requests": 723,
+        "commands": 0,
+        "blocked": 2
+      }
+    ],
+    "errors": []
+  },
+  "conclusion": "Rendered triangles fall about 33%; resources remain stable in this bounded scenario. Does not establish iPhone frame rate, thermal behaviour or a fix for sustained slowdown."
+}
