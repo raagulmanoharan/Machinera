@@ -1,0 +1,8 @@
+// Every opaque source pixel contributes to a weighted colour distribution.
+// Spatial coordinates are discarded: the result can never reproduce the photo.
+export function colourStrands(rgba,rows=256){
+ const bins=new Map();for(let i=0;i<rgba.length;i+=4){const a=rgba[i+3]/255;if(a===0)continue;const r=rgba[i],g=rgba[i+1],b=rgba[i+2],key=(r>>4)*256+(g>>4)*16+(b>>4);let v=bins.get(key);if(!v)bins.set(key,v=[0,0,0,0]);v[0]+=r*a;v[1]+=g*a;v[2]+=b*a;v[3]+=a;}
+ const colours=[...bins.values()].map(v=>{const rgb=v.slice(0,3).map(x=>x/v[3]),[r,g,b]=rgb,max=Math.max(...rgb),min=Math.min(...rgb),d=max-min;let h=d===0?0:max===r?(g-b)/d+(g<b?6:0):max===g?(b-r)/d+2:(r-g)/d+4;return{rgb,weight:v[3],key:d<18?10+max/255:h+max/255*.04};}).sort((a,b)=>a.key-b.key||a.rgb[0]-b.rgb[0]||a.rgb[1]-b.rgb[1]||a.rgb[2]-b.rgb[2]);
+ if(!colours.length)return Array.from({length:rows},()=>[180,170,150]);const total=colours.reduce((n,v)=>n+v.weight,0),out=[];let cursor=0,cumulative=colours[0].weight;for(let y=0;y<rows;y++){const t=(y+.5)/rows*total;while(cursor<colours.length-1&&t>cumulative)cumulative+=colours[++cursor].weight;out.push(colours[cursor].rgb.map(Math.round));}return out;
+}
+export function paintPalette(canvas,image){const source=document.createElement('canvas');source.width=256;source.height=384;const c=source.getContext('2d',{willReadFrequently:true});c.drawImage(image,0,0,source.width,source.height);const strands=colourStrands(c.getImageData(0,0,source.width,source.height).data,192),ctx=canvas.getContext('2d');for(let y=0;y<strands.length;y++){ctx.fillStyle=`rgb(${strands[y].join(',')})`;const start=Math.round(y/strands.length*canvas.height),end=Math.round((y+1)/strands.length*canvas.height);ctx.fillRect(0,start,canvas.width,end-start);}return strands;}
