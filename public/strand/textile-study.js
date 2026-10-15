@@ -5,11 +5,11 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { installClothInteraction } from './cloth-interaction.js?v=19';
-import { HangingCloth } from './hanging-cloth.js?v=19';
-import { repairWeaveGeometry } from './weave-model.js?v=19';
-import { bakeWeave } from './weave-bake.js?v=19';
-import { woodMaterial } from './room-wood.js?v=19';
+import { installClothInteraction } from './cloth-interaction.js?v=20';
+import { HangingCloth } from './hanging-cloth.js?v=20';
+import { repairWeaveGeometry } from './weave-model.js?v=20';
+import { bakeWeave } from './weave-bake.js?v=20';
+import { loadSurfaceMaterials } from './surface-materials.js?v=20';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
@@ -39,30 +39,25 @@ composer.addPass(new RenderPass(scene,camera));
 composer.addPass(new OutputPass());
 const antialias=new ShaderPass(FXAAShader);composer.addPass(antialias);
 function updateAntialias(w,h,ratio=renderer.getPixelRatio()){antialias.uniforms.resolution.value.set(1/(w*ratio),1/(h*ratio))}updateAntialias(innerWidth,innerHeight);
-// Reproducible multiscale plaster maps; pigment and surface relief are independent.
-function noiseTexture(kind){const n=512,data=new Uint8Array(n*n*4);function hash(x,y){return ((Math.sin(x*127.1+y*311.7)*43758.5453)%1+1)%1}function noise(x,y){const a=Math.floor(x),b=Math.floor(y),u=x-a,v=y-b,s=u*u*(3-2*u),t=v*v*(3-2*v);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b),hash(a+1,b),s),T.MathUtils.lerp(hash(a,b+1),hash(a+1,b+1),s),t)}for(let y=0;y<n;y++)for(let x=0;x<n;x++){const grain=hash(x,y),cloud=noise(x/50,y/50)*.6+noise(x/13,y/13)*.3+noise(x/3,y/3)*.1,j=(y*n+x)*4;if(kind==='colour'){const v=.94+cloud*.035;data.set([249*v,242*v,229*v,255],j)}else{const v=100+cloud*70+grain*35;data.set([v,v,v,255],j)}}const tex=new T.DataTexture(data,n,n);tex.needsUpdate=true;tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(3,2);tex.magFilter=T.LinearFilter;tex.minFilter=T.LinearMipmapLinearFilter;tex.generateMipmaps=true;tex.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());if(kind==='colour')tex.colorSpace=T.SRGBColorSpace;return tex;}
-const plaster=new T.MeshStandardMaterial({map:noiseTexture('colour'),bumpMap:noiseTexture('height'),bumpScale:.0014,roughness:.96});
+const materialStatus=document.querySelector('#photoStatus');materialStatus.hidden=false;materialStatus.textContent='Preparing the room and yarn…';
+let surfaces;
+try{surfaces=await loadSurfaceMaterials(renderer);}catch(error){materialStatus.textContent='The surface materials could not load. Please reload.';throw error;}
+const plaster=surfaces.wall;
 function box(name,xyz,size,material){const m=new T.Mesh(new T.BoxGeometry(...size),material);m.name=name;m.position.set(...xyz);m.castShadow=m.receiveShadow=true;scene.add(m);return m;}
 box('Warm lime-plaster wall',[0,.12,2.3],[8,.18,4.6],plaster);
 // Out-of-frame window mullions break the upper-left daylight into soft diagonal bands.
 const windowFrame=new T.MeshBasicMaterial({colorWrite:false,depthWrite:false});
 for(const x of [-2.15,-1.55]){const mullion=box('Window-frame shadow caster',[x,-.9,2.0],[.075,.06,4.2],windowFrame);mullion.rotation.y=-.48;mullion.receiveShadow=false;}
 
-box('Oak floor',[0,-1.7,-.05],[8,4,.1],woodMaterial({floor:true}));
-const wood=woodMaterial();
+box('Oak floor',[0,-1.7,-.05],[8,4,.1],surfaces.floor);
+const wood=surfaces.wood;
 const skirting=new T.Mesh(new RoundedBoxGeometry(8,.045,.15,3,.007),wood);skirting.position.set(0,.002,.075);skirting.castShadow=skirting.receiveShadow=true;scene.add(skirting);
 const rail=new T.Mesh(new RoundedBoxGeometry(1.7,.045,.038,4,.007),wood);rail.position.set(0,-.018,2.985);rail.castShadow=rail.receiveShadow=true;scene.add(rail);
 for(const x of [-.73,.73]){const pin=new T.Mesh(new T.CylinderGeometry(.0055,.0055,.009,16),new T.MeshPhysicalMaterial({color:'#a28042',metalness:.8,roughness:.32}));pin.position.set(x,-.045,2.985);pin.castShadow=true;scene.add(pin);}
 const cloth=new HangingCloth(scene,renderer);
 const colours=['#174650','#a93e28','#b98720','#d5c6a7'],pattern=[0,0,0,3,1,2,0,0,1,1,1,3,2,2,3,0,0,0];
-function yarnBump(){const w=512,h=256,data=new Uint8Array(w*h*4);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const phase=y/h*Math.PI*48+.16*Math.sin(x*.12),v=128+60*Math.sin(phase)+10*Math.sin(x*23.7+y*13.1),i=(y*w+x)*4;data.set([v,v,v,255],i)}const t=new T.DataTexture(data,w,h);t.wrapS=t.wrapT=T.RepeatWrapping;t.magFilter=T.LinearFilter;t.minFilter=T.LinearMipmapLinearFilter;t.generateMipmaps=true;t.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());t.needsUpdate=true;return t;}
-const fibreTexture=yarnBump(),roughData=new Uint8Array(fibreTexture.image.data.length);
-for(let i=0;i<roughData.length;i+=4){const r=240+Math.round(fibreTexture.image.data[i]/255*15);roughData.set([r,r,r,255],i)}
-const fibreRoughness=new T.DataTexture(roughData,512,256);fibreRoughness.wrapS=fibreRoughness.wrapT=T.RepeatWrapping;fibreRoughness.generateMipmaps=true;fibreRoughness.minFilter=T.LinearMipmapLinearFilter;fibreRoughness.magFilter=T.LinearFilter;fibreRoughness.needsUpdate=true;
-const fibreNormalData=new Uint8Array(1024*512*4);
-for(let y=0;y<512;y++)for(let x=0;x<1024;x++){const phase=y/512*Math.PI*96+.22*Math.sin(x*.027),grain=((Math.sin(x*127.1+y*311.7)*43758.5453)%1+1)%1*2-1,nx=.13*Math.sin(x*.11+y*.07)+grain*.30,ny=.25*Math.cos(phase)+grain*.28,nz=Math.sqrt(Math.max(.01,1-nx*nx-ny*ny)),i=(y*1024+x)*4;fibreNormalData.set([(nx*.5+.5)*255,(ny*.5+.5)*255,(nz*.5+.5)*255,255],i)}
-const fibreNormal=new T.DataTexture(fibreNormalData,1024,512);fibreNormal.wrapS=fibreNormal.wrapT=T.RepeatWrapping;fibreNormal.generateMipmaps=true;fibreNormal.minFilter=T.LinearMipmapLinearFilter;fibreNormal.magFilter=T.LinearFilter;fibreNormal.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());fibreNormal.needsUpdate=true;
-const P=.016,warpCount=12*18,mat=new T.MeshPhysicalMaterial({color:0xffffff,side:T.DoubleSide,roughness:1,roughnessMap:fibreRoughness,sheen:0,specularIntensity:0,sheenColor:'#c5ad8c',sheenRoughness:.9,normalMap:fibreNormal,normalScale:new T.Vector2(1.15,1.15),bumpMap:fibreTexture,bumpScale:.0003});
+const fibreNormal=surfaces.wool.nor_gl;
+const P=.016,warpCount=12*18,mat=new T.MeshPhysicalMaterial({color:0xffffff,side:T.DoubleSide,roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.32,.32)});
 // One reusable Blender asset; photos only change live yarn colour on the GPU.
 const blankPhoto=new T.DataTexture(new Uint8Array([255,255,255,255]),1,1);blankPhoto.needsUpdate=true;
 const photoUniform={value:blankPhoto},hasPhotoUniform={value:0},weaveAOUniform={value:blankPhoto};
@@ -81,7 +76,7 @@ mat.onBeforeCompile=shader=>{
  if(strandHasPhoto>0.5){diffuseColor.rgb=texture2D(strandPhoto,clamp(vStrandPhotoUV,0.0,1.0)).rgb;}`);
  shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
  roughnessFactor*=.975+.025*sin(vStrandPhotoUV.x*231.0+vStrandPhotoUV.y*593.0);
- float strandDye=.97+.03*sin(vStrandPhotoUV.x*423.0+sin(vStrandPhotoUV.y*83.0)*2.0)*sin(vStrandPhotoUV.y*521.0+vStrandPhotoUV.x*31.0);float fleck=fract(sin(dot(floor(vStrandPhotoUV*vec2(2450.,3675.)),vec2(127.1,311.7)))*43758.5453);diffuseColor.rgb*=strandDye*(.89+.15*fleck);`);
+ float strandDye=.97+.03*sin(vStrandPhotoUV.x*423.0+sin(vStrandPhotoUV.y*83.0)*2.0)*sin(vStrandPhotoUV.y*521.0+vStrandPhotoUV.x*31.0);diffuseColor.rgb*=strandDye;`);
  shader.fragmentShader=shader.fragmentShader.replace('#include <lights_physical_fragment>',`#include <lights_physical_fragment>\n#ifdef USE_SHEEN\n material.sheenColor*=diffuseColor.rgb;\n#endif`);
  shader.fragmentShader=shader.fragmentShader.replace('#include <aomap_fragment>',`#include <aomap_fragment>
  float strandAO=mix(1.0,texture2D(strandWeaveAO,vStrandPhotoUV*vec2(12.,18.)).r,.42);reflectedLight.indirectDiffuse*=strandAO;reflectedLight.indirectSpecular*=strandAO;reflectedLight.directDiffuse*=mix(1.,strandAO,.5);`);
@@ -128,17 +123,18 @@ try{
  shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
  vec4 strandMask=texture2D(strandRole,vStrandPhotoUV*vec2(12.,18.));if(strandMask.a<.12)discard;if(strandHasPhoto<.5){int stripe=int(clamp(floor(vStrandPhotoUV.y*18.),0.,17.));diffuseColor.rgb=mix(strandBands[stripe]*.94,strandBands[stripe],strandMask.r);}`);};farMaterial.customProgramCacheKey=()=> 'strand-far-baked-v1';
  const farGeometry=new T.PlaneGeometry(1.536,2.304,48,72);farGeometry.rotateX(Math.PI/2);farGeometry.translate(0,-.014,1.8);farFabric=new T.Mesh(farGeometry,farMaterial);farFabric.name='Deformed full-view cloth with baked real-yarn normals';cloth.attach(farFabric);scene.add(farFabric);
- cloth.patch(mat,{yarn:true});
- for(const source of gltf.scene.children){if(!source.isMesh)continue;const warp=source.name.includes('warp'),mesh=new T.InstancedMesh(source.geometry,mat,warpCount);const entries=[];yarnMeshes.push({mesh,entries,high:source.geometry,low:distantGeometry(source.geometry)});mesh.name=source.name;mesh.castShadow=mesh.receiveShadow=true;mesh.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide});cloth.patch(mesh.customDepthMaterial,{depth:true,yarn:true});mesh.frustumCulled=false;const matrix=new T.Matrix4(),rotation=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),Math.PI/2),colour=new T.Color();let index=0;for(let y=0;y<18;y++)for(let x=0;x<12;x++){matrix.compose(new T.Vector3((x*8-47.5)*P,-.014,1.8+(y*8-71.5)*P),rotation,new T.Vector3(1,1,1));mesh.setMatrixAt(index,matrix);colour.set(colours[pattern[y]]);if(warp)colour.multiplyScalar(.94);mesh.setColorAt(index++,colour);entries.push({matrix:matrix.clone(),colour:colour.clone(),centre:new T.Vector3((x*8-44)*P,-.014,1.8+(y*8-68)*P)})}mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
+ const cottonMaterial=mat.clone();cottonMaterial.normalMap=surfaces.cotton.nor_gl;cottonMaterial.roughnessMap=surfaces.cotton.Rough;cottonMaterial.normalScale.set(.25,.25);cottonMaterial.onBeforeCompile=mat.onBeforeCompile;cottonMaterial.customProgramCacheKey=()=> 'strand-cotton-photo-v20';
+ cloth.patch(mat,{yarn:true});cloth.patch(cottonMaterial,{yarn:true});
+ for(const source of gltf.scene.children){if(!source.isMesh)continue;const warp=source.name.includes('warp'),mesh=new T.InstancedMesh(source.geometry,warp?cottonMaterial:mat,warpCount);const entries=[];yarnMeshes.push({mesh,entries,high:source.geometry,low:distantGeometry(source.geometry)});mesh.name=source.name;mesh.castShadow=mesh.receiveShadow=true;mesh.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide});cloth.patch(mesh.customDepthMaterial,{depth:true,yarn:true});mesh.frustumCulled=false;const matrix=new T.Matrix4(),rotation=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),Math.PI/2),colour=new T.Color();let index=0;for(let y=0;y<18;y++)for(let x=0;x<12;x++){matrix.compose(new T.Vector3((x*8-47.5)*P,-.014,1.8+(y*8-71.5)*P),rotation,new T.Vector3(1,1,1));mesh.setMatrixAt(index,matrix);colour.set(colours[pattern[y]]);if(warp)colour.multiplyScalar(.94);mesh.setColorAt(index++,colour);entries.push({matrix:matrix.clone(),colour:colour.clone(),centre:new T.Vector3((x*8-44)*P,-.014,1.8+(y*8-68)*P)})}mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
  // Fine loose fibres are sparse geometry rather than a thick fuzzy surface shell.
  let seed=24;function random(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}const fibres=[],tints=[];
  for(let i=0;i<18000;i++){const x=(random()-.5)*1.52,z=.65+random()*2.3,len=.001+random()*.004,angle=random()*Math.PI*2,row=T.MathUtils.clamp(Math.floor((z-.648)/.128),0,17),c=new T.Color(colours[pattern[row]]);for(let j=0;j<2;j++){const a=j/2,b=(j+1)/2;for(const t of [a,b]){fibres.push(x+Math.cos(angle)*len*t,-.024-Math.sin(t*2)*len*.5,z+Math.sin(angle)*len*t);tints.push(c.r,c.g,c.b)}}}
  const fg=new T.BufferGeometry();fg.setAttribute('position',new T.Float32BufferAttribute(fibres,3));fg.setAttribute('color',new T.Float32BufferAttribute(tints,3));fibreMesh=new T.LineSegments(fg,new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.3,depthWrite:false}));cloth.attach(fibreMesh,{line:true});scene.add(fibreMesh);
- fringeMaterial=new T.MeshPhysicalMaterial({color:colours[3],roughness:1,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(1,1)});cloth.patch(fringeMaterial);
+ fringeMaterial=new T.MeshPhysicalMaterial({color:colours[3],roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.32,.32)});cloth.patch(fringeMaterial);
  const fringeGeometry=new T.BufferGeometry(),fp=[],fn=[],fi=[];for(let i=0;i<96;i++){const points=[],length=.055*(.87+random()*.26),curl=(random()-.5)*.008;for(let j=0;j<=12;j++){const t=j/12;points.push(new T.Vector3((i-47.5)*P+.002*Math.sin(t*4+i)+curl*t*t,-.014-.003*Math.sin(t*2+i*.2),.648-length*t))}const tube=new T.TubeGeometry(new T.CatmullRomCurve3(points),16,.0018*(.9+random()*.2),5,false),offset=fp.length/3;fp.push(...tube.attributes.position.array);fn.push(...tube.attributes.normal.array);for(const k of tube.index.array)fi.push(k+offset);tube.dispose();}
  fringeGeometry.setAttribute('position',new T.Float32BufferAttribute(fp,3));fringeGeometry.setAttribute('normal',new T.Float32BufferAttribute(fn,3));fringeGeometry.setIndex(fi);const fringe=new T.Mesh(fringeGeometry,fringeMaterial);cloth.attach(fringe);fringe.castShadow=true;scene.add(fringe);
  installClothInteraction({canvas:renderer.domElement,camera,controls,cloth,render,onInteraction:type=>{stage.dataset.lastInteraction=type;}});
- ready=true;document.querySelector('#takePhoto').disabled=false;document.querySelector('#uploadPhoto').disabled=false;fit();
+ materialStatus.hidden=true;stage.dataset.materials='polyhaven-cc0';ready=true;document.querySelector('#takePhoto').disabled=false;document.querySelector('#uploadPhoto').disabled=false;fit();
 }catch(error){stage.dataset.error=error.message;const msg=document.createElement('p');msg.textContent='The textile model could not load. Please reload.';msg.style.cssText='position:fixed;top:30%;width:100%;text-align:center;color:#514633';stage.append(msg);console.error(error)}
 controls.addEventListener('change',()=>{if(camera.position.distanceTo(controls.target)<3.1)renderer.shadowMap.needsUpdate=true;render()});
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();composer.setSize(innerWidth,innerHeight);updateAntialias(innerWidth,innerHeight);render()});
