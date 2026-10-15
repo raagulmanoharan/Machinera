@@ -52,6 +52,7 @@ export function acceptClothPose(sim,display){
  if(!display.every(Number.isFinite)){display.set(sim.renderSafe);sim.positions.set(display);sim.previous.set(display);sim.blockedPoses=(sim.blockedPoses??0)+1;return false;}
  let hits=findClothIntersections(display,sim.nx,sim.ny,12);
  if(!hits.length){sim.renderSafe.set(display);return true;}
+ for(const pair of hits)for(const face of pair)for(const v of face){const row=Math.floor(v/sim.nx);if(sim.rowSleeping?.[row])sim.wakeRow(row,1);}
  // Resolve actual crossing faces as well as point contacts: long edges can
  // cross between vertices, where particle-only contact cannot detect them.
  for(let pass=0;pass<4&&hits.length;pass++){resolveCrossings(display,sim.renderSafe,sim.nx,hits);hits=findClothIntersections(display,sim.nx,sim.ny,12);}

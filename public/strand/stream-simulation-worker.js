@@ -1,5 +1,5 @@
-import {StreamPhysics} from './stream-physics.js?v=42';
-import {acceptClothPose} from './stream-intersections.js?v=42';
+import {StreamPhysics} from './stream-physics.js?v=43';
+import {acceptClothPose} from './stream-intersections.js?v=43';
 let sim,buffers=[],accepted,stepPrevious;
 self.onmessage=({data:m})=>{
  try{
@@ -8,7 +8,7 @@ self.onmessage=({data:m})=>{
   }
   if(m.type==='recycle'){buffers.push(m.buffer);return;}
   if(m.type!=='tick')return;
-  const started=performance.now();sim.feed=m.feed;sim.setLength(m.length);
+  const started=performance.now();sim.feed=m.feed;sim.setLength(m.length);if(m.visibleRows)sim.setViewportRows(m.visibleRows);
   for(const c of m.commands){if(c.type==='hold')sim.hold(c.u,c.v,c.target);else if(c.type==='move')sim.move(c.target);else if(c.type==='release')sim.release();else if(c.type==='impulse')sim.impulse(c.u,c.v,c.amount);}
   // Keep integrator velocity history separate from published render snapshots.
   sim.accumulator+=sim.active?Math.min(m.dt,.05):0;
@@ -18,8 +18,8 @@ self.onmessage=({data:m})=>{
   for(let i=0;i<accepted.length;i++)accepted[i]=sim.active?stepPrevious[i]+(sim.positions[i]-stepPrevious[i])*alpha:sim.positions[i];
   // Validate every published interpolated pose in the worker; never interpolate
   // unchecked snapshots on the UI thread or queue historical touch targets.
-  if(!acceptClothPose(sim,accepted))stepPrevious.set(accepted);
+  if(!acceptClothPose(sim,accepted)){stepPrevious.set(accepted);}
   const buffer=buffers.pop();if(!buffer)throw Error('Simulation buffer pool exhausted');new Float32Array(buffer).set(accepted);
-  self.postMessage({type:'state',buffer,length:sim.length,active:sim.active,physicsMs,guardMs:performance.now()-guardStart,blocked:sim.blockedPoses??0},[buffer]);
+  self.postMessage({type:'state',buffer,length:sim.length,active:sim.active,physicsMs,guardMs:performance.now()-guardStart,blocked:sim.blockedPoses??0,sleepingRows:sim.rowSleeping.reduce((a,b)=>a+b,0)},[buffer]);
  }catch(error){self.postMessage({type:'error',message:error.message});}
 };
