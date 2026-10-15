@@ -1,16 +1,27 @@
-# Strand — textile material study
-The default page now opens directly on the full-length textile. Camera capture and cloth simulation are paused while lighting, yarn scale and the supplied embroidery reference are studied. The previous camera entry is preserved at `camera.html`.
+# Strand — Blender textile room proof of concept
 
-The study uses an original striped Jamakkalam-inspired weft-faced plain weave, rather than copying the reference motifs. Fine teal warp alternates over and under closely packed terracotta, teal, ochre and ivory weft. Each yarn contains three geometrically twisted plies, with fine flyaway fibres and a micro-bump material. There is no backing cloth or opaque fill sheet; the neutral plane behind the textile is the studio wall.
+The default page is a hanging, striped cotton carpet on warm lime plaster, with a limestone floor, oak rail, skirting and small brass fixings. Upper-left directional sunlight is the main illumination; weak environmental light keeps the yarn cavities readable. Camera capture and cloth simulation remain paused while material quality is evaluated.
 
-The flat textile has a 1:1.55 aspect ratio and thin loose warp ends. Camera and cloth deformation remain paused; dragging pans and pinch/wheel zooms up to 12×. The weave and its shadows are real geometry, not a photograph pasted on a plane.
+## Blender source and rendering
 
-A warm upper-left directional key supplies the main illumination, with weak HDR and hemisphere fill. The light slider adjusts exposure. Save exports the full textile at approximately 2643×4096 on GPUs supporting 4096 textures. Physical-phone performance and photographic fidelity remain unverified; this procedural material is not an exact reconstruction of the reference.
+`blender/build_textile.py` authors a reusable 8×8 plain-weave tile. Both warp and weft contain three geometrically twisted plies, actual alternating over-under crossings and UVs following the yarn surface. Blender materials add fine directional fibre grooves, matte roughness and cotton sheen. The full room uses linked tile meshes and fine loose fibre curves.
+
+Run with Blender 4.3+: `blender -b -t 5 --python blender/build_textile.py`. The script currently writes into `/workspace`; change `OUT` and the `.blend` save path for another workspace. It produces the editable scene, a self-contained glTF weave tile and two 96-sample Cycles renders. The installed Blender build lacks OpenImageDenoise, so denoising is disabled.
+
+## Browser proof of concept
+
+Three.js loads the actual Blender-exported tile, using two instanced yarn meshes and per-instance stripe dyes. The distant view uses a reduced mesh derived from the exported topology; close-ups use the full authored geometry, with offscreen tiles culled. Fine fibres and fringe remain separate geometry. Directional fibre bump and plaster maps are generated in the browser; Blender's procedural shader nodes are not exported by glTF. The browser is a real-time approximation of the Cycles scene, not an identical path-traced render.
+
+Drag to pan; pinch/wheel or the +/− controls to inspect. Rotation is disabled. Fit returns to the full hanging carpet. The light control adjusts exposure. Save exports the current room view at up to 4096 pixels high, subject to GPU limits. Rendering runs on interaction, and stationary shadow maps are cached. Physical-phone frame rates and final photorealistic fidelity remain unverified.
+
+`blender-preview.html` presents the offline room and yarn-detail renders for comparison and clearly labels them as offline Cycles output. `assets/blender-poc/provenance.json` records geometry hashes and checks.
 
 Run `npm run dev` and open http://localhost:3000. Live: https://raagulmanoharan.github.io/Machinera/strand/.
 
 ## Camera work (paused)
-The previous capture, optical viewfinder and attached-cloth experience remains at `camera.html` for returning to it after the material study. Its brown backing has also been removed. The camera is neither loaded nor rendered by the default study entry.
+
+The earlier capture, optical viewfinder and attached-cloth experience remains at `camera.html`. The default entry does not load the camera or run cloth simulation. No server rendering service or paid infrastructure has been deployed.
 
 ## Assets
-Studio lighting uses [Poly Haven Studio Small 08](https://polyhaven.com/a/studio_small_08) by Sergej Majboroda, CC0, bundled as linear-light-downsampled RGBE radiance in studio-environment.js. Provenance and checksum are in assets/studio-license.json. The paused camera uses Poly Haven Camera 01 by Rajil Jose Macatangay, CC0; see assets/camera-license.json. Three.js 0.170.0 and addons load from unpkg. The geometry and fibre bump texture in the study are generated locally in the browser.
+
+The Blender weave, room geometry and procedural textures are original assets authored for this project. No image-generation service or extracted reference photograph is used. Studio fill uses [Poly Haven Studio Small 08](https://polyhaven.com/a/studio_small_08) by Sergej Majboroda, CC0, bundled in `studio-environment.js`; see `assets/studio-license.json`. The paused camera uses Poly Haven Camera 01 by Rajil Jose Macatangay, CC0; see `assets/camera-license.json`. Three.js 0.170.0 and addons load from unpkg.
