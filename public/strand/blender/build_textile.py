@@ -1,4 +1,4 @@
-import bpy, math, random, os, json
+import bpy, math, random, os, json, re, base64
 from mathutils import Vector
 random.seed(24)
 OUT='/workspace/public/assets/blender-poc'
@@ -8,7 +8,14 @@ scene=bpy.context.scene
 scene.render.engine='CYCLES';scene.cycles.samples=96;scene.cycles.use_denoising=False
 scene.cycles.max_bounces=6
 scene.render.resolution_x=900;scene.render.resolution_y=1200;scene.render.resolution_percentage=100
-scene.world.color=(.22,.22,.22)
+# Use the same real HDR radiance as the browser, packed into the editable scene.
+hdr_module=open('/workspace/public/studio-environment.js').read()
+hdr_bytes=base64.b64decode(re.search(r"const data='([^']+)'",hdr_module).group(1))
+hdr_path='/workspace/blender/studio-small08.hdr';open(hdr_path,'wb').write(hdr_bytes)
+scene.world.use_nodes=True
+wn=scene.world.node_tree.nodes;wl=scene.world.node_tree.links
+bg=wn.get('Background');bg.inputs['Strength'].default_value=.28
+env=wn.new('ShaderNodeTexEnvironment');env.image=bpy.data.images.load(hdr_path);env.image.pack();wl.new(env.outputs['Color'],bg.inputs['Color'])
 scene.view_settings.view_transform='AgX'
 P=.016; L=P*8
 def linear(v):return v/12.92 if v<=.04045 else ((v+.055)/1.055)**2.4
@@ -113,12 +120,12 @@ for i in range(96):
   t=j/8;sp.points[j].co=((i-47.5)*P+.002*math.sin(t*3+i),-.014-.003*math.sin(t*2),.648-.055*t,1)
 ob=bpy.data.objects.new('Fine bottom fringe',fringe);scene.collection.objects.link(ob);ob.data.materials.append(materials[3])
 def aim(ob,at):ob.rotation_euler=(Vector(at)-ob.location).to_track_quat('-Z','Y').to_euler()
-bpy.ops.object.light_add(type='SUN',location=(-3,-4,6));sun=bpy.context.object;sun.name='Upper-left afternoon sun';sun.data.energy=2.4;sun.data.angle=.075;sun.data.color=(1,.91,.78);aim(sun,(0,0,1.5))
-bpy.ops.object.light_add(type='AREA',location=(-1,-3,3.8));fill=bpy.context.object;fill.name='Soft room bounce';fill.data.energy=65;fill.data.shape='DISK';fill.data.size=4;aim(fill,(0,0,1.6))
-bpy.ops.object.camera_add(location=(2.3,-6.2,2.65));cam=bpy.context.object;cam.data.lens=57;aim(cam,(0,0,1.68));scene.camera=cam
+bpy.ops.object.light_add(type='SUN',location=(-3,-2.5,5.5));sun=bpy.context.object;sun.name='Upper-left afternoon sun';sun.data.energy=2.7;sun.data.angle=.16;sun.data.color=(1,.91,.78);aim(sun,(0,0,1.5))
+bpy.ops.object.light_add(type='AREA',location=(-1,-3,3.8));fill=bpy.context.object;fill.name='Soft room bounce';fill.data.energy=35;fill.data.shape='DISK';fill.data.size=4;aim(fill,(0,0,1.6))
+bpy.ops.object.camera_add(location=(0,-5.8,1.8));cam=bpy.context.object;cam.data.lens=57;aim(cam,(0,0,1.8));scene.camera=cam
 scene.render.image_settings.file_format='PNG'
 bpy.ops.wm.save_as_mainfile(filepath='/workspace/blender/strand-room.blend')
 scene.render.filepath=OUT+'/room.png';bpy.ops.render.render(write_still=True)
-cam.location=(.42,-.75,1.88);aim(cam,(.05,-.015,1.8));cam.data.lens=62;cam.data.dof.use_dof=True;cam.data.dof.focus_distance=(cam.location-Vector((.05,-.015,1.8))).length;cam.data.dof.aperture_fstop=8
+cam.location=(.05,-.78,1.8);aim(cam,(.05,-.015,1.8));cam.data.lens=62;cam.data.dof.use_dof=True;cam.data.dof.focus_distance=(cam.location-Vector((.05,-.015,1.8))).length;cam.data.dof.aperture_fstop=8
 scene.render.resolution_x=1100;scene.render.resolution_y=850;scene.render.filepath=OUT+'/detail.png';bpy.ops.render.render(write_still=True)
 print('BLENDER_POC_COMPLETE',flush=True)
