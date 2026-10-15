@@ -57,10 +57,30 @@ export function acceptClothPose(sim,display){
  // cross between vertices, where particle-only contact cannot detect them.
  for(let pass=0;pass<4&&hits.length;pass++){resolveCrossings(display,sim.renderSafe,sim.nx,hits);hits=findClothIntersections(display,sim.nx,sim.ny,12);}
  let accepted=!hits.length,fraction=1;
- if(!accepted){const candidate=sim.poseCandidate??(sim.poseCandidate=new Float32Array(display.length));candidate.set(display);
-  for(let attempt=0;attempt<7;attempt++){fraction*=.5;for(let i=0;i<display.length;i++)display[i]=sim.renderSafe[i]+(candidate[i]-sim.renderSafe[i])*fraction;if(!findClothIntersections(display,sim.nx,sim.ny).length){accepted=true;break;}}
-  if(!accepted){display.set(sim.renderSafe);fraction=0;}
+ if(!accepted){
+  // A collision in a floor fold must not rewind an unrelated hanging grab.
+  // Restrict rollback to the colliding rows first, preserving the grabbed
+  // side where possible. Revalidate the complete sheet after each correction.
+  const candidate=sim.poseCandidate??(sim.poseCandidate=new Float32Array(display.length));candidate.set(display);
+  const weights=sim.poseWeights??(sim.poseWeights=new Float32Array(sim.ny));weights.fill(1);
+  const grabRow=sim.grab?Math.floor(sim.grab.index/sim.nx):-1;
+  for(let pass=0;pass<8&&hits.length;pass++){
+   for(const [A,B]of hits){
+    let chosen=null;
+    if(grabRow>=0&&pass<4){let da=Infinity,db=Infinity;for(const v of A)da=Math.min(da,Math.abs(Math.floor(v/sim.nx)-grabRow));for(const v of B)db=Math.min(db,Math.abs(Math.floor(v/sim.nx)-grabRow));chosen=da<=db?B:A;}
+    for(const face of chosen?[chosen]:[A,B])for(const vertex of face){const row=Math.floor(vertex/sim.nx),radius=pass>=4?1:0;for(let y=Math.max(0,row-radius);y<=Math.min(sim.ny-1,row+radius);y++)weights[y]=pass>=4?0:Math.min(weights[y],Math.pow(.25,pass+1));}
+   }
+   for(let y=0;y<sim.ny;y++)if(weights[y]<1)for(let j=y*sim.nx*3;j<(y+1)*sim.nx*3;j++)display[j]=sim.renderSafe[j]+(candidate[j]-sim.renderSafe[j])*weights[y];
+   hits=findClothIntersections(display,sim.nx,sim.ny,12);
+  }
+  accepted=!hits.length;
+  if(!accepted){
+   // Last-resort global line search remains fail-closed for extreme drags.
+   for(let attempt=0;attempt<7;attempt++){fraction*=.5;for(let i=0;i<display.length;i++)display[i]=sim.renderSafe[i]+(candidate[i]-sim.renderSafe[i])*fraction;if(!findClothIntersections(display,sim.nx,sim.ny).length){accepted=true;break;}}
+   if(!accepted){display.set(sim.renderSafe);fraction=0;}
+  }
  }
+
  for(let i=0;i<display.length;i++){const velocity=sim.positions[i]-sim.previous[i];sim.positions[i]=display[i];sim.previous[i]=display[i]-velocity*fraction*.5;}
  if(sim.grab){const j=sim.grab.index*3;sim.grab.target[0]=display[j];sim.grab.target[1]=display[j+1];sim.grab.target[2]=display[j+2];}
  sim.renderSafe.set(display);sim.blockedPoses=(sim.blockedPoses??0)+1;return false;
