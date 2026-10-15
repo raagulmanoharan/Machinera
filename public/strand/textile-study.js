@@ -5,11 +5,11 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { installClothInteraction } from './cloth-interaction.js?v=17';
-import { HangingCloth } from './hanging-cloth.js?v=17';
-import { repairWeaveGeometry } from './weave-model.js?v=17';
-import { bakeWeave } from './weave-bake.js?v=17';
-import { woodMaterial } from './room-wood.js?v=17';
+import { installClothInteraction } from './cloth-interaction.js?v=18';
+import { HangingCloth } from './hanging-cloth.js?v=18';
+import { repairWeaveGeometry } from './weave-model.js?v=18';
+import { bakeWeave } from './weave-bake.js?v=18';
+import { woodMaterial } from './room-wood.js?v=18';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
@@ -20,19 +20,19 @@ renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth
 renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.AgXToneMapping;renderer.toneMappingExposure=1.1;
 renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;renderer.shadowMap.type=T.VSMShadowMap;stage.prepend(renderer.domElement);
 const scene=new T.Scene();scene.background=new T.Color('#d5c8b4');
-scene.environment=studioEnvironment(renderer);scene.environmentIntensity=.20;scene.environmentRotation.set(Math.PI/2,0,.35);
+scene.environment=studioEnvironment(renderer);scene.environmentIntensity=.14;scene.environmentRotation.set(Math.PI/2,0,.35);
 const camera=new T.PerspectiveCamera(25,innerWidth/innerHeight,.01,40);camera.up.set(0,0,1);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableRotate=false;controls.screenSpacePanning=true;controls.minDistance=.16;controls.maxDistance=14;controls.mouseButtons.LEFT=T.MOUSE.PAN;controls.touches.ONE=T.TOUCH.PAN;controls.touches.TWO=T.TOUCH.DOLLY_PAN;
 const target=new T.Vector3(0,0,1.65),home=new T.Vector3(0,-7.9,1.65);
 function fit(){controls.target.copy(target);camera.position.copy(target).add(home.clone().sub(target).multiplyScalar(Math.max(1,.57/camera.aspect)));controls.update();render()}
-const key=new T.DirectionalLight(0xfff1de,.85);key.position.set(-3,-4,5.5);key.target.position.set(0,0,1.5);key.castShadow=true;
-Object.assign(key.shadow.camera,{left:-2.3,right:2.3,top:2.7,bottom:-2.7,near:.1,far:15});key.shadow.mapSize.set(2048,2048);key.shadow.radius=5;key.shadow.blurSamples=12;key.shadow.bias=-.000008;key.shadow.normalBias=.00025;scene.add(key,key.target);
+const key=new T.DirectionalLight(0xfff1de,.65);key.position.set(-3,-3.5,5.8);key.target.position.set(0,0,1.5);key.castShadow=true;
+Object.assign(key.shadow.camera,{left:-2.3,right:2.3,top:2.7,bottom:-2.7,near:.1,far:15});key.shadow.mapSize.set(1024,1024);key.shadow.radius=10;key.shadow.blurSamples=24;key.shadow.bias=-.000008;key.shadow.normalBias=.00025;scene.add(key,key.target);
 // Broad photographic window light; the aligned directional key casts the wall shadow.
 RectAreaLightUniformsLib.init();
-const windowLight=new T.RectAreaLight(0xfff1de,4.2,2.5,3.2);
-windowLight.position.set(-2.3,-2.7,4.5);windowLight.lookAt(0,-.014,1.8);scene.add(windowLight);
+const windowLight=new T.RectAreaLight(0xfff1de,5.0,3.5,4.5);
+windowLight.position.set(-2.8,-2.7,4.8);windowLight.lookAt(0,-.014,1.8);scene.add(windowLight);
 // A feathered pool of window illumination gives the plaster a spatial light gradient.
-const daylight=new T.SpotLight(0xffe9cb,18,0,.72,1,2);daylight.position.set(-2,-2,4.3);daylight.target.position.set(-.45,.03,1.4);scene.add(daylight,daylight.target);
+const daylight=new T.SpotLight(0xffefda,30,0,.60,1,2);daylight.position.set(-2,-2,4.3);daylight.target.position.set(-.6,.03,2.25);scene.add(daylight,daylight.target);
 const bounce=new T.HemisphereLight(0xf3f4f5,0xa58a68,.12);bounce.position.set(0,0,1);scene.add(bounce);
 const composer=new EffectComposer(renderer,new T.WebGLRenderTarget(innerWidth,innerHeight,{type:T.HalfFloatType}));
 composer.addPass(new RenderPass(scene,camera));
@@ -56,9 +56,9 @@ const fibreTexture=yarnBump(),roughData=new Uint8Array(fibreTexture.image.data.l
 for(let i=0;i<roughData.length;i+=4){const r=240+Math.round(fibreTexture.image.data[i]/255*15);roughData.set([r,r,r,255],i)}
 const fibreRoughness=new T.DataTexture(roughData,512,256);fibreRoughness.wrapS=fibreRoughness.wrapT=T.RepeatWrapping;fibreRoughness.generateMipmaps=true;fibreRoughness.minFilter=T.LinearMipmapLinearFilter;fibreRoughness.magFilter=T.LinearFilter;fibreRoughness.needsUpdate=true;
 const fibreNormalData=new Uint8Array(1024*512*4);
-for(let y=0;y<512;y++)for(let x=0;x<1024;x++){const phase=y/512*Math.PI*96+.22*Math.sin(x*.027),grain=Math.sin(x*17.17+y*13.71),nx=.06*Math.sin(x*.11+y*.07)+grain*.09,ny=.32*Math.cos(phase)+grain*.13,nz=Math.sqrt(Math.max(.01,1-nx*nx-ny*ny)),i=(y*1024+x)*4;fibreNormalData.set([(nx*.5+.5)*255,(ny*.5+.5)*255,(nz*.5+.5)*255,255],i)}
+for(let y=0;y<512;y++)for(let x=0;x<1024;x++){const phase=y/512*Math.PI*96+.22*Math.sin(x*.027),grain=((Math.sin(x*127.1+y*311.7)*43758.5453)%1+1)%1*2-1,nx=.13*Math.sin(x*.11+y*.07)+grain*.30,ny=.25*Math.cos(phase)+grain*.28,nz=Math.sqrt(Math.max(.01,1-nx*nx-ny*ny)),i=(y*1024+x)*4;fibreNormalData.set([(nx*.5+.5)*255,(ny*.5+.5)*255,(nz*.5+.5)*255,255],i)}
 const fibreNormal=new T.DataTexture(fibreNormalData,1024,512);fibreNormal.wrapS=fibreNormal.wrapT=T.RepeatWrapping;fibreNormal.generateMipmaps=true;fibreNormal.minFilter=T.LinearMipmapLinearFilter;fibreNormal.magFilter=T.LinearFilter;fibreNormal.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());fibreNormal.needsUpdate=true;
-const P=.016,warpCount=12*18,mat=new T.MeshPhysicalMaterial({color:0xffffff,side:T.DoubleSide,roughness:.98,roughnessMap:fibreRoughness,sheen:.12,sheenColor:'#c5ad8c',sheenRoughness:.9,normalMap:fibreNormal,normalScale:new T.Vector2(.8,.8),bumpMap:fibreTexture,bumpScale:.0003});
+const P=.016,warpCount=12*18,mat=new T.MeshPhysicalMaterial({color:0xffffff,side:T.DoubleSide,roughness:1,roughnessMap:fibreRoughness,sheen:0,specularIntensity:0,sheenColor:'#c5ad8c',sheenRoughness:.9,normalMap:fibreNormal,normalScale:new T.Vector2(1.15,1.15),bumpMap:fibreTexture,bumpScale:.0003});
 // One reusable Blender asset; photos only change live yarn colour on the GPU.
 const blankPhoto=new T.DataTexture(new Uint8Array([255,255,255,255]),1,1);blankPhoto.needsUpdate=true;
 const photoUniform={value:blankPhoto},hasPhotoUniform={value:0},weaveAOUniform={value:blankPhoto};
@@ -77,7 +77,7 @@ mat.onBeforeCompile=shader=>{
  if(strandHasPhoto>0.5){diffuseColor.rgb=texture2D(strandPhoto,clamp(vStrandPhotoUV,0.0,1.0)).rgb;}`);
  shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
  roughnessFactor*=.975+.025*sin(vStrandPhotoUV.x*231.0+vStrandPhotoUV.y*593.0);
- float strandDye=.97+.03*sin(vStrandPhotoUV.x*423.0+sin(vStrandPhotoUV.y*83.0)*2.0)*sin(vStrandPhotoUV.y*521.0+vStrandPhotoUV.x*31.0);diffuseColor.rgb*=strandDye;`);
+ float strandDye=.97+.03*sin(vStrandPhotoUV.x*423.0+sin(vStrandPhotoUV.y*83.0)*2.0)*sin(vStrandPhotoUV.y*521.0+vStrandPhotoUV.x*31.0);float fleck=fract(sin(dot(floor(vStrandPhotoUV*vec2(2450.,3675.)),vec2(127.1,311.7)))*43758.5453);diffuseColor.rgb*=strandDye*(.89+.15*fleck);`);
  shader.fragmentShader=shader.fragmentShader.replace('#include <lights_physical_fragment>',`#include <lights_physical_fragment>\n#ifdef USE_SHEEN\n material.sheenColor*=diffuseColor.rgb;\n#endif`);
  shader.fragmentShader=shader.fragmentShader.replace('#include <aomap_fragment>',`#include <aomap_fragment>
  float strandAO=mix(1.0,texture2D(strandWeaveAO,vStrandPhotoUV*vec2(12.,18.)).r,.42);reflectedLight.indirectDiffuse*=strandAO;reflectedLight.indirectSpecular*=strandAO;reflectedLight.directDiffuse*=mix(1.,strandAO,.5);`);
@@ -130,7 +130,7 @@ try{
  let seed=24;function random(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}const fibres=[],tints=[];
  for(let i=0;i<18000;i++){const x=(random()-.5)*1.52,z=.65+random()*2.3,len=.001+random()*.004,angle=random()*Math.PI*2,row=T.MathUtils.clamp(Math.floor((z-.648)/.128),0,17),c=new T.Color(colours[pattern[row]]);for(let j=0;j<2;j++){const a=j/2,b=(j+1)/2;for(const t of [a,b]){fibres.push(x+Math.cos(angle)*len*t,-.024-Math.sin(t*2)*len*.5,z+Math.sin(angle)*len*t);tints.push(c.r,c.g,c.b)}}}
  const fg=new T.BufferGeometry();fg.setAttribute('position',new T.Float32BufferAttribute(fibres,3));fg.setAttribute('color',new T.Float32BufferAttribute(tints,3));fibreMesh=new T.LineSegments(fg,new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.3,depthWrite:false}));cloth.attach(fibreMesh,{line:true});scene.add(fibreMesh);
- fringeMaterial=new T.MeshPhysicalMaterial({color:colours[3],roughness:.95,sheen:.4});cloth.patch(fringeMaterial);
+ fringeMaterial=new T.MeshPhysicalMaterial({color:colours[3],roughness:1,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(1,1)});cloth.patch(fringeMaterial);
  const fringeGeometry=new T.BufferGeometry(),fp=[],fn=[],fi=[];for(let i=0;i<96;i++){const points=[],length=.055*(.87+random()*.26),curl=(random()-.5)*.008;for(let j=0;j<=12;j++){const t=j/12;points.push(new T.Vector3((i-47.5)*P+.002*Math.sin(t*4+i)+curl*t*t,-.014-.003*Math.sin(t*2+i*.2),.648-length*t))}const tube=new T.TubeGeometry(new T.CatmullRomCurve3(points),16,.0018*(.9+random()*.2),5,false),offset=fp.length/3;fp.push(...tube.attributes.position.array);fn.push(...tube.attributes.normal.array);for(const k of tube.index.array)fi.push(k+offset);tube.dispose();}
  fringeGeometry.setAttribute('position',new T.Float32BufferAttribute(fp,3));fringeGeometry.setAttribute('normal',new T.Float32BufferAttribute(fn,3));fringeGeometry.setIndex(fi);const fringe=new T.Mesh(fringeGeometry,fringeMaterial);cloth.attach(fringe);fringe.castShadow=true;scene.add(fringe);
  installClothInteraction({canvas:renderer.domElement,camera,controls,cloth,render,onInteraction:type=>{stage.dataset.lastInteraction=type;}});
