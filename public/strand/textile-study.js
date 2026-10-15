@@ -1,20 +1,21 @@
 import * as T from 'three';
+import { applySurfaceRelief } from './surface-relief.js?v=27';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { installClothInteraction } from './cloth-interaction.js?v=26';
-import { HangingCloth } from './hanging-cloth.js?v=26';
-import { repairWeaveGeometry } from './weave-model.js?v=26';
-import { bakeWeave } from './weave-bake.js?v=26';
-import { loadSurfaceMaterials } from './surface-materials.js?v=26';
+import { installClothInteraction } from './cloth-interaction.js?v=27';
+import { HangingCloth } from './hanging-cloth.js?v=27';
+import { repairWeaveGeometry } from './weave-model.js?v=27';
+import { bakeWeave } from './weave-bake.js?v=27';
+import { loadSurfaceMaterials } from './surface-materials.js?v=27';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { loadRoomEnvironment } from './room-lighting.js?v=26';
-import { windowDaylight } from './window-daylight.js?v=26';
+import { loadRoomEnvironment } from './room-lighting.js?v=27';
+import { windowDaylight } from './window-daylight.js?v=27';
 const stage=document.querySelector('#stage');
 const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
@@ -53,8 +54,10 @@ box('Warm lime-plaster wall',[0,.12,2.3],[8,.18,4.6],plaster);
 box('Oak floor',[0,-1.7,-.05],[8,4,.1],surfaces.floor);
 const roomRug=new T.Mesh(new T.PlaneGeometry(2.8,1.3),surfaces.rug);roomRug.position.set(0,-1.65,.003);roomRug.receiveShadow=true;scene.add(roomRug);
 const wood=surfaces.wood;
-const skirting=new T.Mesh(new RoundedBoxGeometry(8,.045,.15,3,.007),wood);skirting.position.set(0,.002,.075);skirting.castShadow=skirting.receiveShadow=true;scene.add(skirting);
-const rail=new T.Mesh(new RoundedBoxGeometry(1.7,.045,.038,4,.007),wood);rail.position.set(0,-.018,2.985);rail.castShadow=rail.receiveShadow=true;scene.add(rail);
+function woodGrainUV(mesh){const g=mesh.geometry,p=g.attributes.position,n=g.attributes.normal,uv=g.attributes.uv;for(let i=0;i<p.count;i++){const nx=Math.abs(n.getX(i)),ny=Math.abs(n.getY(i)),nz=Math.abs(n.getZ(i));if(nx>ny&&nx>nz)uv.setXY(i,p.getY(i)/.22,p.getZ(i)/.22);else uv.setXY(i,(ny>nz?p.getZ(i):p.getY(i))/.22,p.getX(i)/.7);}uv.needsUpdate=true;}
+
+const skirting=new T.Mesh(new RoundedBoxGeometry(8,.045,.15,3,.007),wood);skirting.position.set(0,.002,.075);skirting.castShadow=skirting.receiveShadow=true;woodGrainUV(skirting);scene.add(skirting);
+const rail=new T.Mesh(new RoundedBoxGeometry(1.7,.045,.038,4,.007),wood);rail.position.set(0,-.018,2.985);rail.castShadow=rail.receiveShadow=true;woodGrainUV(rail);scene.add(rail);
 for(const x of [-.73,.73]){const pin=new T.Mesh(new T.CylinderGeometry(.0055,.0055,.009,16),new T.MeshPhysicalMaterial({color:'#a28042',metalness:.8,roughness:.32}));pin.position.set(x,-.045,2.985);pin.castShadow=true;scene.add(pin);}
 const cloth=new HangingCloth(scene,renderer);
 // Small linen loops make the five load-bearing attachment points visible.
@@ -63,7 +66,7 @@ for(let x=0;x<cloth.sim.nx;x++){const i=(cloth.sim.ny-1)*cloth.sim.nx+x;if(!clot
 
 const colours=['#3b595a','#a74730','#ae812c','#cbbb9d'],pattern=[0,0,0,3,1,2,0,0,1,1,1,3,2,2,3,0,0,0];
 const fibreNormal=surfaces.wool.nor_gl;
-const P=.0192,warpCount=10*15,mat=new T.MeshPhysicalMaterial({color:0xffffff,side:T.DoubleSide,roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(1.3,1.3)});
+const P=.0192,warpCount=10*15,mat=new T.MeshPhysicalMaterial({color:0xffffff,side:T.DoubleSide,roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.95,.95)});
 // One reusable Blender asset; photos only change live yarn colour on the GPU.
 mat.envMapIntensity=1.3;
 const blankPhoto=new T.DataTexture(new Uint8Array([255,255,255,255]),1,1);blankPhoto.needsUpdate=true;
@@ -153,14 +156,15 @@ try{
  for(const source of gltf.scene.children)if(source.isMesh)source.geometry.scale(1.2,1.2,1.2);
  // Reuse the authored three-ply yarn geometry for genuinely raised jute cords.
  const rugSource=gltf.scene.children.find(source=>source.isMesh&&source.name.includes('warp'));
- const rugMaterial=new T.MeshPhysicalMaterial({color:'#d5ba90',roughness:1,specularIntensity:0,normalMap:surfaces.wool.nor_gl,normalScale:new T.Vector2(.08,.08)});
+ const rugMaterial=new T.MeshPhysicalMaterial({color:'#d5ba90',roughness:1,specularIntensity:0,normalMap:surfaces.wool.nor_gl,normalScale:new T.Vector2(.8,.8),roughnessMap:surfaces.wool.Rough});applySurfaceRelief(rugMaterial,surfaces.wool.Displacement,.0003);
  const rugGeometry=distantGeometry(rugSource.geometry),rugPositions=rugGeometry.attributes.position;for(let i=0;i<rugPositions.count;i++){const strand=Math.floor(Math.floor(i/(21*6))/3),along=rugPositions.getY(i)/(.016*1.2);rugPositions.setZ(i,rugPositions.getZ(i)+Math.cos(Math.PI*(along+strand))*.016*.32*.78*1.2);}rugGeometry.computeVertexNormals();
  const rugCords=new T.InstancedMesh(rugGeometry,rugMaterial,15*7),rugMatrix=new T.Matrix4();let rugIndex=0;
  for(let y=0;y<7;y++)for(let x=0;x<15;x++){rugMatrix.makeScale(1.25,1.25,1.3);rugMatrix.setPosition((x*8-59.5)*.024,-1.65+(y*8-27.5)*.024,.013);rugCords.setMatrixAt(rugIndex++,rugMatrix);}
  rugCords.name='Raised three-ply jute cords';rugCords.receiveShadow=true;scene.add(rugCords);
 
- const cottonMaterial=mat.clone();cottonMaterial.normalMap=surfaces.cotton.nor_gl;cottonMaterial.roughnessMap=surfaces.cotton.Rough;cottonMaterial.normalScale.set(2.6,2.6);cottonMaterial.onBeforeCompile=mat.onBeforeCompile;cottonMaterial.customProgramCacheKey=()=> 'strand-cotton-photo-v20';
+ const cottonMaterial=mat.clone();cottonMaterial.normalMap=surfaces.cotton.nor_gl;cottonMaterial.roughnessMap=surfaces.cotton.Rough;cottonMaterial.normalScale.set(1.8,1.8);cottonMaterial.onBeforeCompile=mat.onBeforeCompile;cottonMaterial.customProgramCacheKey=()=> 'strand-cotton-photo-v20';
  cloth.patch(mat,{yarn:true});cloth.patch(cottonMaterial,{yarn:true});
+ applySurfaceRelief(mat,surfaces.wool.Displacement,.00032);applySurfaceRelief(cottonMaterial,surfaces.cotton.Displacement,.00028);
  for(const source of gltf.scene.children){if(!source.isMesh)continue;const warp=source.name.includes('warp'),mesh=new T.InstancedMesh(source.geometry,warp?cottonMaterial:mat,warpCount);const entries=[];yarnMeshes.push({mesh,entries,high:source.geometry,low:distantGeometry(source.geometry),visibleIndices:new Int16Array(warpCount).fill(-1)});mesh.name=source.name;mesh.castShadow=mesh.receiveShadow=true;mesh.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide});cloth.patch(mesh.customDepthMaterial,{depth:true,yarn:true});mesh.frustumCulled=false;const matrix=new T.Matrix4(),rotation=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),Math.PI/2),colour=new T.Color();let index=0;for(let y=0;y<15;y++)for(let x=0;x<10;x++){matrix.compose(new T.Vector3((x*8-39.5)*P,-.014,1.8+(y*8-59.5)*P),rotation,new T.Vector3(1,1,1));mesh.setMatrixAt(index,matrix);colour.set(colours[pattern[Math.min(17,Math.floor(y*18/15))]]);if(warp)colour.multiplyScalar(.94);mesh.setColorAt(index++,colour);entries.push({matrix:matrix.clone(),colour:colour.clone(),centre:new T.Vector3((x*8-36)*P,-.014,1.8+(y*8-56)*P)})}mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
  // Fine loose fibres are sparse geometry rather than a thick fuzzy surface shell.
  let seed=24;function random(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}const fibres=[],tints=[];
@@ -176,7 +180,7 @@ try{
   for(let j=0;j<2;j++)for(const t of [j/2,(j+1)/2]){vertex.copy(root).addScaledVector(tangent,len*t).addScaledVector(normal,len*(.25*t+.2*Math.sin(t*Math.PI)));fibres.push(vertex.x,vertex.y,vertex.z);tints.push(c.r,c.g,c.b);}
  }
  const fg=new T.BufferGeometry();fg.setAttribute('position',new T.Float32BufferAttribute(fibres,3));fg.setAttribute('color',new T.Float32BufferAttribute(tints,3));fibreMesh=new T.LineSegments(fg,new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.3,depthWrite:false}));cloth.attach(fibreMesh,{line:true});scene.add(fibreMesh);
- fringeMaterial=new T.MeshPhysicalMaterial({color:'#eee0c5',roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(1.3,1.3)});fringeMaterial.normalScale.set(.12,.12);cloth.patch(fringeMaterial);
+ fringeMaterial=new T.MeshPhysicalMaterial({color:'#eee0c5',roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.95,.95)});fringeMaterial.normalScale.set(.65,.65);cloth.patch(fringeMaterial);applySurfaceRelief(fringeMaterial,surfaces.wool.Displacement,.00012);
  const fringeGeometry=new T.BufferGeometry(),fp=[],fn=[],fu=[],fi=[],shadowPoints=[],shadowNormals=[],shadowIndices=[];
  for(let i=0;i<176;i++){
   const length=.105*(.9+random()*.2),curl=(random()-.5)*.008,phase=random()*Math.PI*2;
