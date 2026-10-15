@@ -1,10 +1,11 @@
-import {StreamFloorPile} from './stream-floor-pile.js?v=54';
-import {LIVE_WINDOW,splitMaterialPose} from './stream-material-window.js?v=54';
+import {wovenSurfaceGLSL} from './stream-weave-shader.js?v=55';
+import {StreamFloorPile} from './stream-floor-pile.js?v=55';
+import {LIVE_WINDOW,splitMaterialPose} from './stream-material-window.js?v=55';
 import {acceptClothPose,findClothIntersections} from './stream-intersections.js?v=54';
 import {StreamWorkerClient} from './stream-worker-client.js?v=54';
 import * as T from 'three';
 import {paintPalette} from './palette-strands.js?v=44';
-import {addRaisedYarn} from './stream-yarn.js?v=54';
+import {addRaisedYarn} from './stream-yarn.js?v=55';
 import { StreamPhysics } from './stream-physics.js?v=54';
 export class StreamCloth {
  constructor(scene,renderer){this.scene=scene;this.renderer=renderer;this.sim=new StreamPhysics();this.display=new Float32Array(this.sim.positions.length);this.sim.renderSafe=this.sim.positions.slice();this.uniforms={streamGrid:{value:new T.Vector2(this.sim.nx,this.sim.ny)},streamLength:{value:this.sim.length}};this.meshes=[];this.version=0;this.pile=new StreamFloorPile(scene);
@@ -17,20 +18,18 @@ export class StreamCloth {
   const mat=new T.MeshStandardMaterial({color:'#ffffff',side:T.DoubleSide,roughness:1});
   mat.onBeforeCompile=shader=>{Object.assign(shader.uniforms,this.story,this.uniforms);shader.vertexShader='varying vec2 vClothUV;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\nvClothUV=uv;');
    shader.fragmentShader=`uniform sampler2D streamStory;uniform float streamLength;uniform float streamHistoryLength;uniform float streamRemaining;varying vec2 vClothUV;
-float yarnRelief(vec2 p){vec2 f=fract(p);float a=pow(max(0.,sin(f.x*3.14159265)),.65),b=pow(max(0.,sin(f.y*3.14159265)),.65);float over=mod(floor(p.x)+floor(p.y),2.);return mix(max(a*.48,b),max(a,b*.48),over);}
+${wovenSurfaceGLSL}
 `+shader.fragmentShader;
    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
 vec2 weave=vec2(vClothUV.x*80.,vClothUV.y*streamLength*52.083333);
-float footprint=max(fwidth(weave.x),fwidth(weave.y)),detail=1.-smoothstep(.65,2.,footprint);
-float relief=yarnRelief(weave),grain=sin(weave.x*31.+sin(weave.y*7.))*sin(weave.y*29.)*(1.-smoothstep(.3,1.,max(fwidth(weave.x*31.),fwidth(weave.y*29.))));
-float fiberHeight=(relief*.0026+grain*.00006)*detail;
+vec2 weaveSample=wovenSurface(weave);float fiberHeight=weaveSample.x;
 vec3 dye=texture2D(streamStory,vec2(vClothUV.x,clamp(1.-(vClothUV.y*streamLength+streamRemaining)/streamHistoryLength,0.,1.))).rgb;float dyeLuma=dot(dye,vec3(.2126,.7152,.0722));diffuseColor.rgb*=max(vec3(0.),mix(vec3(dyeLuma),dye,1.12))*1.10;
-diffuseColor.rgb*=mix(.94,.78+.22*relief,detail)*(1.+grain*.025*detail);`);
+diffuseColor.rgb*=weaveSample.y;`);
    shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
 vec3 q0=dFdx(-vViewPosition),q1=dFdy(-vViewPosition),r1=cross(q1,normal),r2=cross(normal,q0);
 float determinant=dot(q0,r1);
 normal=normalize(abs(determinant)*normal-sign(determinant)*(dFdx(fiberHeight)*r1+dFdy(fiberHeight)*r2));`);
-  shader.fragmentShader=shader.fragmentShader.replace('#include <lights_physical_fragment>','#include <lights_physical_fragment>\nmaterial.specularColor*=.2;');};mat.customProgramCacheKey=()=> 'continuous-woven-surface-v51';
+  shader.fragmentShader=shader.fragmentShader.replace('#include <lights_physical_fragment>','#include <lights_physical_fragment>\nmaterial.specularColor*=.2;');};mat.customProgramCacheKey=()=> 'continuous-woven-surface-v55';
   this.surfaceGeometry=new T.BufferGeometry();for(const key of ['position','normal','uv'])this.surfaceGeometry.setAttribute(key,this.hit.geometry.attributes[key]);this.surfaceGeometry.setIndex(this.hit.geometry.index.clone());this.surfaceGeometry.setDrawRange(0,this.hit.geometry.index.count);this.viewportTick=0;this.viewportMask=new Uint8Array(this.sim.ny).fill(1);this.nextViewportMask=new Uint8Array(this.sim.ny);this.clipPoint=new T.Vector3();this.rowBounds=new Float32Array(this.sim.ny*4);this.surface=new T.Mesh(this.surfaceGeometry,mat);this.surface.frustumCulled=false;this.surface.receiveShadow=true;this.scene.add(this.surface);this.yarn=await addRaisedYarn(this);this.yarn.update();
  }
  get totalLength(){return this.pile.length+this.sim.length;}

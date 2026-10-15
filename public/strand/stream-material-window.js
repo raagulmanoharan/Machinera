@@ -5,3 +5,8 @@ export function splitMaterialPose(positions,nx,ny,length,cutRow){
  for(let y=0;y<ny;y++){const source=y/(ny-1)*cutRow,a=Math.floor(source),b=Math.min(cutRow,a+1),t=source-a;for(let x=0;x<nx;x++)for(let k=0;k<3;k++){const j=(y*nx+x)*3+k;retained[j]=positions[(a*nx+x)*3+k]*(1-t)+positions[(b*nx+x)*3+k]*t;}}
  return {length:keep,retained,tail:positions.slice(cutRow*nx*3),rows:ny-cutRow,archivedLength:length-keep};
 }
+
+// Match the live shader's 1 - materialDistance/historyLength convention.
+export function paletteHistoryRow(distance,length,height){
+ return Math.max(0,Math.min(height-1,Math.floor((1-distance/length)*height)));
+}

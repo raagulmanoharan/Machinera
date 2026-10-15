@@ -5,11 +5,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 
-// Keep the initial CSS-resolution scene target stable when Safari resizes its
-// viewport. Canvas DPR is independent: no accidental 4x target growth at DPR 2.
+// Scale the scene target explicitly; never multiply by canvas DPR a second time.
 // Preserve OutputPass before FXAA. Fusing AgX into every FXAA neighbour would
 // repeat expensive tone mapping and change nonlinear bilinear filtering.
-export function createStreamPipeline(renderer, scene, camera,profile={samples:profile.samples}) {
+export function createStreamPipeline(renderer, scene, camera,profile={samples:0,renderScale:1}) {
  const composer = new EffectComposer(renderer, new T.WebGLRenderTarget(1, 1, {type:T.HalfFloatType,samples:profile.samples}));
  composer.setPixelRatio(1);
  composer.addPass(new RenderPass(scene, camera));
@@ -23,9 +22,9 @@ export function createStreamPipeline(renderer, scene, camera,profile={samples:pr
    gl_FragColor.rgb=clamp(gl_FragColor.rgb+vec3(outputNoise/255.),0.,1.);`)};
  const aa = new ShaderPass(outputAA);
  composer.addPass(aa);
- const metrics = {width:1, height:1, renderScale:1, canvasDpr:renderer.getPixelRatio(),deviceProfile:profile.name??'standard', samples:profile.samples, outputDither:true, postPasses:2};
+ const metrics = {width:1, height:1, renderScale:profile.renderScale??1, canvasDpr:renderer.getPixelRatio(),deviceProfile:profile.name??'standard', samples:profile.samples, outputDither:true, postPasses:2};
  function resize(width, height) {
-  const w = Math.max(1, Math.round(width)), h = Math.max(1, Math.round(height));
+  const w = Math.max(1, Math.round(width*metrics.renderScale)), h = Math.max(1, Math.round(height*metrics.renderScale));
   composer.setSize(w, h);
   aa.uniforms.resolution.value.set(1 / w, 1 / h);
   metrics.width = w; metrics.height = h;
