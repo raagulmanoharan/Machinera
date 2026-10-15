@@ -20,13 +20,19 @@
         "md5": "36146634f1dbd1bc30cd071857584c10",
         "size": 527754,
         "sha256": "061f1e1293251b2d28c76e3fac1ea9452b0e8648bb8f9b3728e09db386166e5c"
+      },
+      "Displacement": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_disp_1k.jpg",
+        "md5": "0bd892af0a41211131dd4921feab4561",
+        "size": 683385,
+        "sha256": "5a81da4f2f5347159e43d3923a99799cf2414c853d34964a95656a0d7744062d"
       }
     },
     "authors": {
       "Dimitrios Savva": "All"
     },
     "resolution": "1k",
-    "usage": "base colour, OpenGL normal and roughness",
+    "usage": "base colour, OpenGL normal and roughness; scanned height used for fragment bump relief, without vertex displacement",
     "delivery": "Poly Haven CDN; no uploaded photos are sent to this host"
   },
   "cotton_jersey": {
@@ -44,6 +50,12 @@
         "md5": "ac691d215d3aca34dcd6ea2d03937286",
         "size": 865264,
         "sha256": "89bed18f5c3f03fc7b4c2382446891629716278e521e06e8b7f6c8f02dd22590"
+      },
+      "Displacement": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cotton_jersey/cotton_jersey_disp_1k.jpg",
+        "md5": "8e96aa47c6a18443322789155b2f6d7c",
+        "size": 877257,
+        "sha256": "9a7811526bcf2c55ff4fc5ce3e3d4a1ee0ad2c6885197a1b823660fb63e17fb7"
       }
     },
     "authors": {
@@ -51,7 +63,7 @@
       "Rico Cilliers": "Processing"
     },
     "resolution": "1k",
-    "usage": "normal and roughness only; photo provides dye",
+    "usage": "normal and roughness only; photo provides dye; scanned height used for fragment bump relief, without vertex displacement",
     "delivery": "Poly Haven CDN; no uploaded photos are sent to this host"
   },
   "wool_boucle": {
@@ -69,6 +81,12 @@
         "md5": "48bfe3aac53735ada81add2f1054a3f5",
         "size": 1272361,
         "sha256": "f09f24bd26378b03bb798d4b75010ac8cc0fd1e4b858959e97e6d8d74fa3f6d8"
+      },
+      "Displacement": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wool_boucle/wool_boucle_disp_1k.jpg",
+        "md5": "6b8a996acfa96c5f3b223455ddedd6bd",
+        "size": 836173,
+        "sha256": "d3c4a5dc4869cb63a57a38839879c992666531d32d2b3a5676a2b13f292c0239"
       }
     },
     "authors": {
@@ -76,7 +94,7 @@
       "Rico Cilliers": "Processing"
     },
     "resolution": "1k",
-    "usage": "normal and roughness only; photo provides dye",
+    "usage": "normal and roughness only; photo provides dye; scanned height used for fragment bump relief, without vertex displacement",
     "delivery": "Poly Haven CDN; no uploaded photos are sent to this host"
   },
   "painted_plaster_wall": {
@@ -130,6 +148,12 @@
         "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_table_worn/wood_table_worn_rough_1k.jpg",
         "md5": "1e068051a440933d9d054dc6614f950f",
         "sha256": "ebc4a15d7d3495ee1b67ba18f67bffcefac3f93881d1394fa3e22a25f9fe5c72"
+      },
+      "Displacement": {
+        "size": 541626,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_table_worn/wood_table_worn_disp_1k.jpg",
+        "md5": "14928e7895d7a1236e933d3301ff750d",
+        "sha256": "bb182635bae4ec31957622e51713dd0bb2c9d671bfffc8a9ef99bb38e78a3c97"
       }
     },
     "authors": {
@@ -137,7 +161,7 @@
       "Rico Cilliers": "Processing"
     },
     "resolution": "1k",
-    "usage": "base colour, OpenGL normal and roughness",
+    "usage": "base colour, OpenGL normal and roughness; scanned height used for fragment bump relief, without vertex displacement",
     "delivery": "Poly Haven CDN; no uploaded photos are sent to this host"
   },
   "hessian_230": {
