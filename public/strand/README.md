@@ -1,6 +1,6 @@
 # Strand — Blender textile room proof of concept
 
-The default page is a hanging, striped cotton carpet on warm lime plaster, with a limestone floor, oak rail, skirting and small brass fixings. A centred, straight-on portrait camera views the hanging carpet. Upper-left directional sunlight is the main illumination, with variance-filtered soft shadows, screen-space ambient occlusion at millimetre-to-centimetre scales and a Z-up-aligned studio HDR environment. Weak hemisphere bounce keeps cavities readable. Camera capture and cloth simulation remain paused while material quality is evaluated.
+The default page is a hanging, striped cotton carpet on warm lime plaster, with a limestone floor, oak rail, skirting and small brass fixings. A centred, straight-on portrait camera views the hanging carpet. Upper-left directional sunlight and a broad window-like source with physical distance falloff supply the main illumination, with variance-filtered soft shadows, screen-space ambient occlusion at millimetre-to-centimetre scales and a Z-up-aligned studio HDR environment. Weak hemisphere bounce keeps cavities readable. Camera capture and cloth simulation remain paused while material quality is evaluated.
 
 ## Blender source and rendering
 
@@ -12,7 +12,7 @@ Run with Blender 4.3+: `blender -b -t 5 --python blender/build_textile.py`. The 
 
 Three.js loads the actual Blender-exported tile, using two instanced yarn meshes and per-instance stripe dyes. The distant view uses a reduced mesh derived from the exported topology; close-ups use the full authored geometry, with offscreen tiles culled. Fine fibres and fringe remain separate geometry. Directional fibre bump and plaster maps are generated in the browser; Blender's procedural shader nodes are not exported by glTF. The browser is a real-time approximation of the Cycles scene, not an identical path-traced render.
 
-Drag to pan; pinch/wheel or the +/− controls to inspect. Rotation is disabled. Fit returns to the full hanging carpet. The light control adjusts exposure. Save exports the current room view at up to 4096 pixels high, subject to GPU limits. Rendering runs on interaction, and stationary shadow maps are cached. The browser uses a linear half-float postprocessing chain with AO before tone mapping. Physical-phone frame rates and final photorealistic fidelity remain unverified.
+Drag to pan; pinch/wheel or the +/− controls to inspect. Rotation is disabled. Fit returns to the full hanging carpet. The light control adjusts exposure. Save exports the current room view at up to 4096 pixels high, subject to GPU limits. Rendering runs on interaction, and stationary shadow maps are cached. The browser uses a linear half-float postprocessing chain with AO before tone mapping and FXAA after output conversion. Physical-phone frame rates and final photorealistic fidelity remain unverified.
 
 `blender-preview.html` presents the offline room and yarn-detail renders for comparison and clearly labels them as offline Cycles output. `assets/blender-poc/provenance.json` records geometry hashes and checks.
 
