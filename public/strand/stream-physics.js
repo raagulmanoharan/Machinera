@@ -1,4 +1,4 @@
-import {separateFoldSurfaces} from './stream-contact.js?v=41';
+import {separateFoldSurfaces} from './stream-contact.js?v=42';
 // Broad, arc-length sampled floor folds: keep layer rise low and allow depth
 // to extend beyond the framing rather than building a tall stack of rolls.
 function feedPath(){const points=[],distance=[];let total=0,last=null;const add=(y,z)=>{if(last)total+=Math.hypot(y-last[0],z-last[1]);points.push(y,z);distance.push(total);last=[y,z];};for(let z=4.35;z>.8;z-=.01)add(-.19,z);add(-.19,.8);for(let angle=.008;angle<Math.PI/2;angle+=.008)add(-.19-.7*(1-Math.cos(angle)),.8-.755*Math.sin(angle));add(-.89,.045);for(let q=.006;q<30;q+=.006)add(-.89-.62*(1-Math.cos(q*2.4)),.045+.065*(q-(1-Math.exp(-q*3))/3)+.008*(1-Math.cos(q*2.4)));return {points,distance};}

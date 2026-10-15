@@ -7,28 +7,33 @@ function crossEdge(p,a,b,c,d,e){
  const sx=ax-cx,sy=ay-cy,sz=az-cz,u=(sx*hx+sy*hy+sz*hz)/det;if(u< -1e-6||u>1.000001)return false;const qx=sy*uz-sz*uy,qy=sz*ux-sx*uz,qz=sx*uy-sy*ux,v=(dx*qx+dy*qy+dz*qz)/det;if(v< -1e-6||u+v>1.000001)return false;
  const t=(vx*qx+vy*qy+vz*qz)/det;return t>1e-5&&t<1-1e-5;
 }
-function coplanarOverlap(p,A,B){const[a,b,c]=A,ax=p[b*3]-p[a*3],ay=p[b*3+1]-p[a*3+1],az=p[b*3+2]-p[a*3+2],bx=p[c*3]-p[a*3],by=p[c*3+1]-p[a*3+1],bz=p[c*3+2]-p[a*3+2],n=[ay*bz-az*by,az*bx-ax*bz,ax*by-ay*bx],m=Math.hypot(...n);if(m<1e-9)return false;for(const i of B)if(Math.abs((p[i*3]-p[a*3])*n[0]+(p[i*3+1]-p[a*3+1])*n[1]+(p[i*3+2]-p[a*3+2])*n[2])>m*1e-6)return false;
- const drop=Math.abs(n[0])>Math.abs(n[1])?(Math.abs(n[0])>Math.abs(n[2])?0:2):(Math.abs(n[1])>Math.abs(n[2])?1:2),x=(drop+1)%3,y=(drop+2)%3;
- const orient=(a,b,c)=>(p[b*3+x]-p[a*3+x])*(p[c*3+y]-p[a*3+y])-(p[b*3+y]-p[a*3+y])*(p[c*3+x]-p[a*3+x]);
- const inside=(i,T)=>{if(T.includes(i))return false;const u=orient(T[0],T[1],i),v=orient(T[1],T[2],i),w=orient(T[2],T[0],i);return u>1e-9&&v>1e-9&&w>1e-9||u< -1e-9&&v< -1e-9&&w< -1e-9;};
- if(A.some(i=>inside(i,B))||B.some(i=>inside(i,A)))return true;
- for(let i=0;i<3;i++)for(let j=0;j<3;j++){const a=A[i],b=A[(i+1)%3],c=B[j],d=B[(j+1)%3];if(orient(a,b,c)*orient(a,b,d)< -1e-16&&orient(c,d,a)*orient(c,d,b)< -1e-16)return true;}return false;
+function orient2(p,a,b,c,x,y){return (p[b*3+x]-p[a*3+x])*(p[c*3+y]-p[a*3+y])-(p[b*3+y]-p[a*3+y])*(p[c*3+x]-p[a*3+x]);}
+function inside2(p,i,a,b,c,x,y){if(i===a||i===b||i===c)return false;const u=orient2(p,a,b,i,x,y),v=orient2(p,b,c,i,x,y),w=orient2(p,c,a,i,x,y);return u>1e-9&&v>1e-9&&w>1e-9||u< -1e-9&&v< -1e-9&&w< -1e-9;}
+// Scalar narrow phase: retain the original tolerances without allocating
+// normals, callbacks or per-pair closures in the coplanar hot path.
+function coplanarOverlap(p,A,B){const a=A[0],b=A[1],c=A[2],ax=p[b*3]-p[a*3],ay=p[b*3+1]-p[a*3+1],az=p[b*3+2]-p[a*3+2],bx=p[c*3]-p[a*3],by=p[c*3+1]-p[a*3+1],bz=p[c*3+2]-p[a*3+2],n0=ay*bz-az*by,n1=az*bx-ax*bz,n2=ax*by-ay*bx,m=Math.hypot(n0,n1,n2);if(m<1e-9)return false;for(let k=0;k<3;k++){const i=B[k];if(Math.abs((p[i*3]-p[a*3])*n0+(p[i*3+1]-p[a*3+1])*n1+(p[i*3+2]-p[a*3+2])*n2)>m*1e-6)return false;}
+ const drop=Math.abs(n0)>Math.abs(n1)?(Math.abs(n0)>Math.abs(n2)?0:2):(Math.abs(n1)>Math.abs(n2)?1:2),x=(drop+1)%3,y=(drop+2)%3;
+ for(let k=0;k<3;k++)if(inside2(p,A[k],B[0],B[1],B[2],x,y)||inside2(p,B[k],a,b,c,x,y))return true;
+ for(let i=0;i<3;i++)for(let j=0;j<3;j++){const a=A[i],b=A[(i+1)%3],c=B[j],d=B[(j+1)%3];if(orient2(p,a,b,c,x,y)*orient2(p,a,b,d,x,y)< -1e-16&&orient2(p,c,d,a,x,y)*orient2(p,c,d,b,x,y)< -1e-16)return true;}return false;
 }
 const trees=new Map();
 function treeFor(nx,ny){const key=nx+':'+ny;if(trees.has(key))return trees.get(key);const nodes=[],faces=[];
- function build(x0,x1,y0,y1){const id=nodes.length,node={left:-1,right:-1,faces:null,count:(x1-x0)*(y1-y0)};nodes.push(node);if(node.count===1){const a=y0*nx+x0;node.faces=[[a,a+nx,a+1],[a+nx,a+nx+1,a+1]];node.vertices=[a,a+1,a+nx,a+nx+1];}else if(y1-y0>=x1-x0){const m=(y0+y1)>>1;node.left=build(x0,x1,y0,m);node.right=build(x0,x1,m,y1);}else{const m=(x0+x1)>>1;node.left=build(x0,m,y0,y1);node.right=build(m,x1,y0,y1);}return id;}
- build(0,nx-1,0,ny-1);const tree={nodes,bounds:new Float64Array(nodes.length*6),stack:[]};trees.set(key,tree);return tree;
+ function build(x0,x1,y0,y1){const id=nodes.length,node={left:-1,right:-1,faces:null,count:(x1-x0)*(y1-y0)};nodes.push(node);if(node.count===1){const a=y0*nx+x0;node.faces=[[a,a+nx,a+1],[a+nx,a+nx+1,a+1]];for(const face of node.faces){Object.defineProperty(face,"boundsOffset",{value:faces.length*6});faces.push(face);}node.vertices=[a,a+1,a+nx,a+nx+1];}else if(y1-y0>=x1-x0){const m=(y0+y1)>>1;node.left=build(x0,x1,y0,m);node.right=build(x0,x1,m,y1);}else{const m=(x0+x1)>>1;node.left=build(x0,m,y0,y1);node.right=build(m,x1,y0,y1);}return id;}
+ build(0,nx-1,0,ny-1);const tree={nodes,faces,faceBounds:new Float64Array(faces.length*6),bounds:new Float64Array(nodes.length*6),stack:[]};trees.set(key,tree);return tree;
 }
 export function findClothIntersections(p,nx,ny,limit=1){
- const {nodes,bounds:b,stack}=treeFor(nx,ny),hits=[];
+ const {nodes,faces,faceBounds:fb,bounds:b,stack}=treeFor(nx,ny),hits=[];
+ // Refit exact per-triangle bounds alongside the node bounds. A conservative
+ // pad retains the edge test's barycentric tolerance for near-boundary hits.
+ for(let i=0;i<faces.length;i++){const f=faces[i],o=i*6;for(let k=0;k<3;k++){fb[o+k]=Math.min(p[f[0]*3+k],p[f[1]*3+k],p[f[2]*3+k]);fb[o+3+k]=Math.max(p[f[0]*3+k],p[f[1]*3+k],p[f[2]*3+k]);}}
  for(let i=nodes.length-1;i>=0;i--){const n=nodes[i],o=i*6;if(n.faces){for(let k=0;k<3;k++){const v=n.vertices;b[o+k]=Math.min(p[v[0]*3+k],p[v[1]*3+k],p[v[2]*3+k],p[v[3]*3+k]);b[o+3+k]=Math.max(p[v[0]*3+k],p[v[1]*3+k],p[v[2]*3+k],p[v[3]*3+k]);}}else{const a=n.left*6,c=n.right*6;for(let k=0;k<3;k++){b[o+k]=Math.min(b[a+k],b[c+k]);b[o+3+k]=Math.max(b[a+3+k],b[c+3+k]);}}}
  stack.length=0;stack.push(0,0);
  while(stack.length){const j=stack.pop(),i=stack.pop(),A=nodes[i],B=nodes[j];if(i===j){if(A.faces)continue;stack.push(A.left,A.left,A.left,A.right,A.right,A.right);continue;}
   const a=i*6,c=j*6;if(b[a]>b[c+3]+1e-7||b[c]>b[a+3]+1e-7||b[a+1]>b[c+4]+1e-7||b[c+1]>b[a+4]+1e-7||b[a+2]>b[c+5]+1e-7||b[c+2]>b[a+5]+1e-7)continue;
   if(!A.faces||!B.faces){if(!A.faces&&(B.faces||A.count>=B.count))stack.push(A.left,j,A.right,j);else stack.push(i,B.left,i,B.right);continue;}
-  for(const T of A.faces)for(const U of B.faces){let common=0;for(const v of T)if(U.includes(v))common++;if(common>=2)continue;let hit=false;
- if(common===1){const shared=U.includes(T[0])?T[0]:U.includes(T[1])?T[1]:T[2],ti=T.indexOf(shared),ui=U.indexOf(shared);hit=crossEdge(p,T[(ti+1)%3],T[(ti+2)%3],...U)||crossEdge(p,U[(ui+1)%3],U[(ui+2)%3],...T);}else for(let e=0;e<3&&!hit;e++)hit=crossEdge(p,T[e],T[(e+1)%3],...U)||crossEdge(p,U[e],U[(e+1)%3],...T);
- if(!hit){let axes=0;for(let k=0;k<3;k++){const lo=Math.max(Math.min(p[T[0]*3+k],p[T[1]*3+k],p[T[2]*3+k]),Math.min(p[U[0]*3+k],p[U[1]*3+k],p[U[2]*3+k])),hi=Math.min(Math.max(p[T[0]*3+k],p[T[1]*3+k],p[T[2]*3+k]),Math.max(p[U[0]*3+k],p[U[1]*3+k],p[U[2]*3+k]));if(hi-lo>1e-7)axes++;}if(axes>=2)hit=coplanarOverlap(p,T,U);}if(hit){hits.push([T,U]);if(hits.length>=limit)return hits;}}
+  for(const T of A.faces)for(const U of B.faces){const to=T.boundsOffset,uo=U.boundsOffset;let disjoint=false;for(let k=0;k<3;k++){const pad=1e-7+(fb[to+3+k]-fb[to+k]+fb[uo+3+k]-fb[uo+k])*2e-6;if(fb[to+k]>fb[uo+3+k]+pad||fb[uo+k]>fb[to+3+k]+pad){disjoint=true;break;}}if(disjoint)continue;let common=0;for(const v of T)if(U.includes(v))common++;if(common>=2)continue;let hit=false;
+ if(common===1){const shared=U.includes(T[0])?T[0]:U.includes(T[1])?T[1]:T[2],ti=T.indexOf(shared),ui=U.indexOf(shared);hit=crossEdge(p,T[(ti+1)%3],T[(ti+2)%3],U[0],U[1],U[2])||crossEdge(p,U[(ui+1)%3],U[(ui+2)%3],T[0],T[1],T[2]);}else for(let e=0;e<3&&!hit;e++)hit=crossEdge(p,T[e],T[(e+1)%3],U[0],U[1],U[2])||crossEdge(p,U[e],U[(e+1)%3],T[0],T[1],T[2]);
+ if(!hit){let axes=0;for(let k=0;k<3;k++){const lo=Math.max(fb[to+k],fb[uo+k]),hi=Math.min(fb[to+3+k],fb[uo+3+k]);if(hi-lo>1e-7)axes++;}if(axes>=2)hit=coplanarOverlap(p,T,U);}if(hit){hits.push([T,U]);if(hits.length>=limit)return hits;}}
  }
  return hits;
 }
