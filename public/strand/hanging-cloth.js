@@ -9,12 +9,9 @@ vec3 hangTangent(vec2 uv){return normalize(texture2D(uHangTangent,hangTexel(uv))
 vec3 hangDeform(vec3 rest){vec2 uv=hangUV(rest);vec3 n=hangNormal(uv),t=hangTangent(uv),b=normalize(cross(n,t));vec3 result=hangPoint(uv)+n*(-.014-rest.y)+b*min(0.0,rest.z-.648);result.y=min(result.y,.028);return result;}
 `;
 export class HangingCloth {
- constructor(scene,renderer){this.floatLinear=renderer.extensions.has('OES_texture_float_linear');this.sim=new HangingPhysics();const{nx,ny}=this.sim;const texture=()=>{const t=new T.DataTexture((this.floatLinear?new Float32Array(nx*ny*4):new Uint16Array(nx*ny*4)),nx,ny,T.RGBAFormat,this.floatLinear?T.FloatType:T.HalfFloatType);t.minFilter=t.magFilter=T.LinearFilter;t.needsUpdate=true;return t};this.position=texture();this.normal=texture();this.tangent=texture();this.display=new Float32Array(this.sim.positions.length);this.uniforms={uHangPosition:{value:this.position},uHangNormal:{value:this.normal},uHangTangent:{value:this.tangent},uHangGrid:{value:new T.Vector2(nx,ny)}};
-  const g=new T.PlaneGeometry(1.536,2.304,nx-1,ny-1);this.hit=new T.Mesh(g,new T.MeshBasicMaterial({colorWrite:false,depthWrite:false,side:T.DoubleSide}));this.hit.name='Cloth interaction and moving shadow surface';this.hit.castShadow=false;this.hit.frustumCulled=false;scene.add(this.hit);
-  // Receiver-space contact shadow: the same cloth field projected away from the upper-left light.
-  // It updates without rerendering the room or millions of yarn triangles into a shadow map.
-  this.contact=new T.Mesh(g.clone(),new T.ShaderMaterial({transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4,side:T.DoubleSide,uniforms:{ink:{value:new T.Color('#44362a')}},vertexShader:`varying vec2 shadowUV;void main(){shadowUV=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,fragmentShader:`uniform vec3 ink;varying vec2 shadowUV;void main(){vec2 edge=min(shadowUV,1.-shadowUV);float a=smoothstep(0.,.025,edge.x)*smoothstep(0.,.018,edge.y);gl_FragColor=vec4(ink,a*.40);#include <colorspace_fragment>}`.replace(';#include',';\n#include')}));
-  this.contact.name='Soft upper-left projected cloth contact shadow';this.contact.frustumCulled=false;this.contact.renderOrder=1;scene.add(this.contact);this.upload();
+ constructor(scene,renderer){this.floatLinear=renderer.extensions.has('OES_texture_float_linear');this.sim=new HangingPhysics();const{nx,ny}=this.sim;const texture=()=>{const t=new T.DataTexture((this.floatLinear?new Float32Array(nx*ny*4):new Uint16Array(nx*ny*4)),nx,ny,T.RGBAFormat,this.floatLinear?T.FloatType:T.HalfFloatType);t.minFilter=t.magFilter=T.LinearFilter;t.needsUpdate=true;return t};this.position=texture();this.normal=texture();this.tangent=texture();this.display=new Float32Array(this.sim.positions.length);this.surfaceNormals=new Float32Array(this.sim.positions.length);this.uniforms={uHangPosition:{value:this.position},uHangNormal:{value:this.normal},uHangTangent:{value:this.tangent},uHangGrid:{value:new T.Vector2(nx,ny)}};
+  const g=new T.PlaneGeometry(1.536,2.304,nx-1,ny-1);this.hit=new T.Mesh(g,new T.MeshBasicMaterial({colorWrite:false,depthWrite:false,side:T.DoubleSide}));this.hit.name='Cloth interaction and moving shadow surface';this.hit.castShadow=true;this.hit.frustumCulled=false;scene.add(this.hit);
+  this.upload();
  }
  patch(material,{line=false,depth=false,yarn=false}={}){if(material.userData.hangingPatched)return;material.userData.hangingPatched=true;const previous=material.onBeforeCompile;material.onBeforeCompile=shader=>{previous?.(shader);Object.assign(shader.uniforms,this.uniforms);shader.vertexShader=header+'\n'+shader.vertexShader;
   const bind=`vec3 hangRest=transformed;vec3 hangRestNormal=normal;
@@ -41,15 +38,15 @@ vec3 transformedTangent=normalMatrix*objectTangent;
  attach(mesh,options={}){this.patch(mesh.material,options);mesh.frustumCulled=false;if(mesh.isMesh){mesh.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide});this.patch(mesh.customDepthMaterial,{...options,depth:true});}}
  upload(){const{positions:current,previous,nx,ny,accumulator,active}=this.sim,p=this.display,alpha=active?Math.min(1,accumulator*90):1;
   for(let i=0;i<p.length;i++)p[i]=previous[i]+(current[i]-previous[i])*alpha;
-  const a=this.position.image.data,n=this.normal.image.data,tan=this.tangent.image.data,encode=this.floatLinear?v=>v:T.DataUtils.toHalfFloat;
+  const normals=this.surfaceNormals,a=this.position.image.data,n=this.normal.image.data,tan=this.tangent.image.data,encode=this.floatLinear?v=>v:T.DataUtils.toHalfFloat;
   for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){const i=y*nx+x,j=i*3,k=i*4,l=(y*nx+Math.max(x-1,0))*3,r=(y*nx+Math.min(x+1,nx-1))*3,b=(Math.max(y-1,0)*nx+x)*3,t=(Math.min(y+1,ny-1)*nx+x)*3;
    const ux=p[r]-p[l],uy=p[r+1]-p[l+1],uz=p[r+2]-p[l+2],vx=p[t]-p[b],vy=p[t+1]-p[b+1],vz=p[t+2]-p[b+2],cx=uy*vz-uz*vy,cy=uz*vx-ux*vz,cz=ux*vy-uy*vx,inv=1/(Math.hypot(cx,cy,cz)||1),ti=1/(Math.hypot(ux,uy,uz)||1);
-   for(let c=0;c<3;c++)a[k+c]=encode(p[j+c]);a[k+3]=encode(1);n[k]=encode(cx*inv);n[k+1]=encode(cy*inv);n[k+2]=encode(cz*inv);n[k+3]=encode(1);tan[k]=encode(ux*ti);tan[k+1]=encode(uy*ti);tan[k+2]=encode(uz*ti);tan[k+3]=encode(1);
+   normals[j]=cx*inv;normals[j+1]=cy*inv;normals[j+2]=cz*inv;for(let c=0;c<3;c++)a[k+c]=encode(p[j+c]);a[k+3]=encode(1);n[k]=encode(cx*inv);n[k+1]=encode(cy*inv);n[k+2]=encode(cz*inv);n[k+3]=encode(1);tan[k]=encode(ux*ti);tan[k+1]=encode(uy*ti);tan[k+2]=encode(uz*ti);tan[k+3]=encode(1);
   }
-  this.position.needsUpdate=this.normal.needsUpdate=this.tangent.needsUpdate=true;const g=this.hit.geometry,uv=g.attributes.uv,shadow=this.contact.geometry.attributes.position;
-  for(let i=0;i<uv.count;i++){const x=Math.round(uv.getX(i)*(nx-1)),y=Math.round(uv.getY(i)*(ny-1)),j=(y*nx+x)*3,gap=Math.max(.065,.029-p[j+1]);g.attributes.position.setXYZ(i,p[j],p[j+1],p[j+2]);const u=uv.getX(i),v=uv.getY(i);shadow.setXYZ(i,p[j]+gap*.75+(u-.5)*.065,.024,p[j+2]-gap*1.1+(v-.5)*.045);}
-  g.attributes.position.needsUpdate=true;shadow.needsUpdate=true;g.computeBoundingSphere();
+  this.position.needsUpdate=this.normal.needsUpdate=this.tangent.needsUpdate=true;const g=this.hit.geometry,uv=g.attributes.uv;
+  for(let i=0;i<uv.count;i++){const x=Math.round(uv.getX(i)*(nx-1)),y=Math.round(uv.getY(i)*(ny-1)),j=(y*nx+x)*3;g.attributes.position.setXYZ(i,p[j],p[j+1],p[j+2]);g.attributes.normal.setXYZ(i,normals[j],normals[j+1],normals[j+2]);}
+  g.attributes.position.needsUpdate=g.attributes.normal.needsUpdate=true;g.computeBoundingSphere();
  }
  sample(u,v,out){const{nx,ny,positions:p}=this.sim,x=Math.max(0,Math.min(nx-1,u*(nx-1))),y=Math.max(0,Math.min(ny-1,v*(ny-1))),x0=Math.floor(x),y0=Math.floor(y),x1=Math.min(nx-1,x0+1),y1=Math.min(ny-1,y0+1),fx=x-x0,fy=y-y0;for(let c=0;c<3;c++){const a=p[(y0*nx+x0)*3+c]*(1-fx)+p[(y0*nx+x1)*3+c]*fx,b=p[(y1*nx+x0)*3+c]*(1-fx)+p[(y1*nx+x1)*3+c]*fx;out.setComponent(c,a*(1-fy)+b*fy);}return out;}
- update(dt){const changed=this.sim.advance(dt);if(changed||this.sim.active)this.upload();return changed;}
+ update(dt){const changed=this.sim.advance(dt);if(changed||this.sim.active){this.upload();return true;}return false;}
 }
