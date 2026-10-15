@@ -1,6 +1,12 @@
-# Strand — Blender textile room proof of concept
+# Strand — interactive photo to cloth
 
-The default page is a hanging, striped cotton carpet on warm lime plaster, with a limestone floor, oak rail, skirting and small brass fixings. A centred, straight-on portrait camera views the hanging carpet. Upper-left directional sunlight and a broad window-like source with physical distance falloff supply the main illumination, with variance-filtered soft shadows, screen-space ambient occlusion at millimetre-to-centimetre scales and a Z-up-aligned studio HDR environment. Weak hemisphere bounce keeps cavities readable. Camera capture and cloth simulation remain paused while material quality is evaluated.
+Take or choose a photo and its pixels immediately colour the real woven yarns in the browser. The camera button opens the native capture flow on supported phones; the upload button opens the photo library. Both routes use the same local processing path. Photos are never sent to a rendering service.
+
+The reusable Blender weave is loaded once. A live GPU material projects photo colour over the warp and weft, preserving spatial colour variation instead of reducing it to a few dominant colours. Fine loose fibres and fringe are recoloured as well. Replacing the photo changes the material without rebuilding or downloading the geometry. Photos larger than the GPU-safe limit are resized to at most 4096 pixels on the longest edge; no palette clustering is used.
+
+The carpet remains in a straight-on portrait room view with warm plaster, upper-left/window lighting, HDR fill, AO and soft shadows. Pan, pinch zoom, exposure and high-resolution export continue to work after taking a photo. Export includes the live photo material and full yarn geometry. The original 3D camera animation and cloth physics remain paused; native photo capture is available directly in this scene.
+
+Blender is an authoring tool for reusable assets only. Neither Blender, an offline render nor a server is needed when the user takes a photo or interacts with the carpet.
 
 ## Blender source and rendering
 
@@ -14,13 +20,13 @@ Three.js loads the actual Blender-exported tile, using two instanced yarn meshes
 
 Drag to pan; pinch/wheel or the +/− controls to inspect. Rotation is disabled. Fit returns to the full hanging carpet. The light control adjusts exposure. Save refreshes visibility and uses full Blender yarn geometry for the current room view at up to 4096 pixels high, subject to GPU limits. Rendering runs on interaction, and stationary shadow maps are cached. The browser uses a linear half-float postprocessing chain with AO before tone mapping and FXAA after output conversion. Physical-phone frame rates and final photorealistic fidelity remain unverified.
 
-`blender-preview.html` presents the offline room and yarn-detail renders for comparison and clearly labels them as offline Cycles output. `assets/blender-poc/provenance.json` records geometry hashes and checks.
+`blender-preview.html` is an optional development comparison of offline Cycles renders, outside the photo-to-carpet workflow. `assets/blender-poc/provenance.json` records geometry hashes and checks.
 
 Run `npm run dev` and open http://localhost:3000. Live: https://raagulmanoharan.github.io/Machinera/strand/.
 
-## Camera work (paused)
+## Earlier 3D camera experience (paused)
 
-The earlier capture, optical viewfinder and attached-cloth experience remains at `camera.html`. The default entry does not load the camera or run cloth simulation. No server rendering service or paid infrastructure has been deployed.
+The earlier capture, optical viewfinder and attached-cloth experience remains at `camera.html`. The default entry uses native camera/photo selection; it does not load the earlier 3D camera scene or run cloth simulation. No server rendering service or paid infrastructure has been deployed.
 
 ## Assets
 
