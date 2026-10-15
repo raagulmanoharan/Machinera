@@ -1,7 +1,6 @@
 import * as T from 'three';
 import { applySurfaceRelief } from './surface-relief.js?v=28';
-// Only the live textile and its attachment rail need physical materials.
-// The empty wall and floor are in the shared-lighting HDR bake.
+// Legacy hanging-study materials; stream-room.js loads the active scene maps.
 export async function loadSurfaceMaterials(renderer){
  const response=await fetch('./assets/materials-provenance.json?v=27');
  if(!response.ok)throw Error('Material manifest could not load');

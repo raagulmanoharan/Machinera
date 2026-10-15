@@ -1,7 +1,7 @@
 import * as T from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { windowDaylight } from './window-daylight.js?v=29';
-// Shared by the offline room bake and the interactive textile. Z is up.
+// One physical light rig for the restored 3D room and interactive textile. Z is up.
 export function addTextileLights(scene){
  scene.environmentIntensity=.16;scene.environmentRotation.set(Math.PI/2,0,.35);
  const key=new T.DirectionalLight(0xffecd1,1.65);key.position.set(-3.6,-1.9,5.2);key.target.position.set(0,0,1.5);key.castShadow=true;
