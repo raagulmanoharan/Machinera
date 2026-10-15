@@ -29,5 +29,6 @@ export class CarpetRoll{
   // Concentric yarn edges make the ends read as tightly wound cloth.
   const lines=[];for(let end of [-1,1]){for(let k=0;k<12;k++){const r=.055+(this.radius-.055)*k/11;for(let a=0;a<64;a++){const u=a/64*Math.PI*2,v=(a+1)/64*Math.PI*2;lines.push(end*(this.width/2+.001),Math.sin(u)*r,Math.cos(u)*r,end*(this.width/2+.001),Math.sin(v)*r,Math.cos(v)*r);}}}const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(lines,3));const edges=new T.LineSegments(g,new T.LineBasicMaterial({color:'#584d3d',transparent:true,opacity:.32}));this.mesh.add(edges);
  }
+ addCollider(field){for(let y=0;y<field.height;y++){const py=field.minY+y/(field.height-1)*(field.maxY-field.minY),dy=py-this.center.y;if(Math.abs(dy)>this.radius)continue;const height=this.center.z+Math.sqrt(this.radius*this.radius-dy*dy);for(let x=0;x<field.width;x++){const px=field.minX+x/(field.width-1)*(field.maxX-field.minX);if(Math.abs(px)<=this.width/2+.02){const i=y*field.width+x;field.data[i]=Math.max(field.data[i],height);}}}}
  nudge(){this.velocity+=.16;}
 }

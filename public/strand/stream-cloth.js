@@ -3,7 +3,7 @@ import {wovenSurfaceGLSL} from './stream-weave-shader.js?v=55';
 import {StreamFloorPile} from './stream-floor-pile.js?v=56';
 import {LIVE_WINDOW,splitMaterialPose} from './stream-material-window.js?v=55';
 import {acceptClothPose,findClothIntersections} from './stream-intersections.js?v=54';
-import {StreamWorkerClient} from './stream-worker-client.js?v=54';
+import {StreamWorkerClient} from './stream-worker-client.js?v=56';
 import * as T from 'three';
 import {paintPalette} from './palette-strands.js?v=44';
 import {addRaisedYarn} from './stream-yarn.js?v=56';
@@ -56,7 +56,7 @@ normal=normalize(abs(determinant)*normal-sign(determinant)*(dFdx(fiberHeight)*r1
  sample(u,v,out){const{nx,ny}=this.sim,p=this.display,x=T.MathUtils.clamp(u*(nx-1),0,nx-1),y=T.MathUtils.clamp(v*(ny-1),0,ny-1),a=Math.floor(x),b=Math.floor(y),xx=Math.min(nx-1,a+1),yy=Math.min(ny-1,b+1),fx=x-a,fy=y-b;for(let c=0;c<3;c++)out.setComponent(c,(p[(b*nx+a)*3+c]*(1-fx)+p[(b*nx+xx)*3+c]*fx)*(1-fy)+(p[(yy*nx+a)*3+c]*(1-fx)+p[(yy*nx+xx)*3+c]*fx)*fy);return out;}
  settle(steps){for(let i=0;i<steps;i++){this.sim.step();if(i%2===1){this.display.set(this.sim.positions);acceptClothPose(this.sim,this.display);}}this.upload();}
  tearOff(){if(this.tear||this.print||this.resetting||!this.surface.visible)return false;this.sim.release();this.sim.dispose?.();this.sim.active=false;this.tear=new CarpetRoll(this);this.rolls.push(this.tear);this.surface.visible=this.hit.visible=this.pile.mesh.visible=false;this.yarn?.setVisible(false);return true;}
- resetAfterTear(){this.tear=null;this.resetting=true;const {nx,ny}=this.sim;this.sim=new StreamPhysics({nx,ny});this.sim.active=false;const old=this.pile;this.scene.remove(old.mesh);old.geometry.dispose();old.material.dispose();old.uniforms.pileColours.value.dispose();this.pile=new StreamFloorPile(this.scene);this.historyLength=6.2;this.story.streamHistoryLength.value=6.2;this.story.streamRemaining.value=0;this.uniforms.streamLength.value=6.2;this.viewportTick=0;this.upload();this.startWorker(this.wake??(()=>{})).finally(()=>{this.resetting=false;this.wake?.();});}
+ resetAfterTear(){this.tear=null;this.resetting=true;const {nx,ny}=this.sim;this.sim=new StreamPhysics({nx,ny});this.sim.active=false;const old=this.pile;this.scene.remove(old.mesh);old.geometry.dispose();old.material.dispose();old.uniforms.pileColours.value.dispose();this.pile=new StreamFloorPile(this.scene);for(const roll of this.rolls)roll.addCollider(this.pile.field);this.pile.baseField=this.pile.field.data.slice();this.sim.floorField=this.pile.field;this.historyLength=6.2;this.story.streamHistoryLength.value=6.2;this.story.streamRemaining.value=0;this.uniforms.streamLength.value=6.2;this.viewportTick=0;this.upload();this.startWorker(this.wake??(()=>{})).finally(()=>{this.resetting=false;this.wake?.();});}
  update(dt,distance=8,camera){let rollChanged=false;for(const roll of this.rolls)rollChanged=roll.update(dt)||rollChanged;if(this.tear){if(this.tear.done)this.resetAfterTear();return true;}if(this.resetting)return rollChanged;let feeding=false;if(this.print){const f=this.print;f.time+=dt;const t=Math.min(1,f.time/f.duration),ease=t*t*(3-2*t);this.sim.setLength(f.from+(f.to-f.from)*ease);this.story.streamRemaining.value=f.section*(1-ease);this.uniforms.streamLength.value=this.sim.length;feeding=true;if(t>=1){this.print=null;this.sim.feed=0;}}
  const pileChanged=this.pile.update(dt),changed=this.sim.advance(dt);if(changed||feeding)this.upload();this.refreshViewport(camera);return changed||feeding||pileChanged||rollChanged;}
 }
