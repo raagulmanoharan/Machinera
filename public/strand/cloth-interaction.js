@@ -15,5 +15,7 @@ export function installClothInteraction({canvas,camera,controls,cloth,render,onI
   if(drag?.id===e.pointerId){e.stopImmediatePropagation();move(e);}
  },true);
  const end=e=>{if(e.pointerType==='touch'){touches.delete(e.pointerId);pinch=null;e.stopImmediatePropagation();}if(drag?.id===e.pointerId||touches.size===0)finish(e.type==='pointerup');if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);};
- canvas.addEventListener('pointerup',end,true);canvas.addEventListener('pointercancel',end,true);canvas.addEventListener('lostpointercapture',e=>{if(drag?.id===e.pointerId)finish(false)});
+ canvas.addEventListener('pointerup',end,true);canvas.addEventListener('pointercancel',end,true);canvas.addEventListener('lostpointercapture',e=>{touches.delete(e.pointerId);pinch=null;if(drag?.id===e.pointerId)finish(false)});
+ const reset=()=>{touches.clear();pinch=null;finish(false);};
+ window.addEventListener('blur',reset);document.addEventListener('visibilitychange',()=>{if(document.hidden)reset();});
 }
