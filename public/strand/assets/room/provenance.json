@@ -1,0 +1,49 @@
+{
+  "name": "Heritage room furnishings",
+  "license": "CC0-1.0",
+  "mesh_author": "Original Strand procedural models",
+  "triangles": 13184,
+  "atlas_dimensions": [
+    1024,
+    1024
+  ],
+  "runtime_material": "unlit baked colour + AO + upper-left diffuse shading",
+  "source_wood": "https://polyhaven.com/a/wood_table_worn",
+  "source_wood_license": "CC0-1.0",
+  "source_wood_sha256": "092ab3465a6a24b24d092ea86865f332c3bd239b8eb2fd664b70357082031a3f",
+  "model_sha256": "ae3ca61fba5cc88419ceaf628a59373759158f3f2c951b04868b5ce5d248780a",
+  "model_bytes": 880736,
+  "bake": "Cycles CPU, 24 samples, AO 12 samples, 8px margin",
+  "excluded": [
+    "chair",
+    "paid generation",
+    "runtime furniture normal maps",
+    "additional lights"
+  ],
+  "wall_map": {
+    "path": "wall-patina.jpg",
+    "license": "CC0-1.0",
+    "source": "https://polyhaven.com/a/painted_plaster_wall",
+    "source_sha256": "440310f05af089f2c93353167573403cbc3f805948203237b5d26431eeb9e19c",
+    "bake": "Original procedural limewash patina multiplied by scanned plaster detail, Cycles emission bake",
+    "sha256": "01194e0560adc2f858a290b8649a2628c85a782ee994742e8eeb7ae14e7ea805",
+    "source_author": "Amal Kumar"
+  },
+  "source_wood_authors": {
+    "Dimitrios Savva": "Photography",
+    "Rico Cilliers": "Processing"
+  },
+  "blender_version": "4.3.2",
+  "source_scripts": {
+    "build_room_props.py": "234112b6dd17139764102e219912321719ac5a7d346e30fab2690b32d2b6d44c",
+    "bake_room_wall.py": "2302bdefd866e36ad6e885a3e6d51051834b615b8d8151b49f24d9c3b59c0e87"
+  },
+  "validation": {
+    "glb_header": "passed",
+    "accessor_bounds_and_finite_values": "passed",
+    "meshes": 1,
+    "materials": 1,
+    "embedded_images": 1,
+    "runtime_import": "Three.js GLTFLoader screenshot-reviewed"
+  }
+}
