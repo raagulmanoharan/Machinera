@@ -10,7 +10,7 @@ The supplied hyperrealism guide informed the v16 revision. [GUIDE-IMPLEMENTATION
 
 - A fixed-step position-based 25×39 cloth grid drives a shared position/normal deformation field. The surface, yarns, loose fibres, fringe and depth shaders follow that field. A CPU-deformed proxy supplies touch picking and broad moving wall shadows.
 - Full view uses a subdivided cloth surface with normal, role/coverage and local AO maps baked at startup from the actual Blender weave tile. Medium view uses reduced instanced yarn geometry. Close-up enables full geometry, nearby fibres and self-shadowing. The surface and yarn LODs never overlap.
-- Yarn materials combine real three-ply geometry, correlated thickness/dye variation, directional fibre normals, matte roughness variation and dye-tinted sheen. Fringe length and curl vary subtly.
+- Tile boundaries use matching ply twist phases and endpoint normals, avoiding disconnected yarn ends. Yarn materials combine real three-ply geometry, correlated thickness/dye variation, directional fibre normals, matte roughness variation and dye-tinted sheen. Fringe length and curl vary subtly.
 - The photographic rig uses a broad rectangular window light, an aligned directional shadow caster and the bundled real HDR environment. AgX, linear half-float composition, sRGB output and FXAA handle display. AO is local and baked, not a dark full-screen outline filter.
 - The room has off-white plaster, a beveled wooden rail, brass pins, wood-grained skirting and oak flooring. Camera rotation remains disabled.
 
