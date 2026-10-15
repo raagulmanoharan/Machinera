@@ -91,3 +91,13 @@ The existing authored three-ply yarn tile is instanced over the strip, with scan
 The simulation stays bounded to a 14-metre visible strip and one reusable 256×4096 colour-history texture. New photos continue to feed the visible colour stream; older off-view cloth is not simulated indefinitely. This avoids unbounded GPU geometry and retained photo textures. Rendering sleeps when settled using a bounded residual-motion threshold; displayed positions interpolate the 90Hz physics steps. This is not a measured iPhone frame-rate guarantee.
 
 Validation (13 tests): `node --test --test-isolation=none public/stream-physics.test.mjs public/frame-pacer.test.mjs public/hanging-physics.test.mjs`. Browser checks exercise camera/choose-photo, successive printing, hidden top entry, floor dragging and narrow layouts. The room bake tools and atlas introduced in v33 have been removed.
+
+## Five-photo mound and self-shadows (v35)
+
+Open `?demo=5&v=35` or choose **Try 5 photos**. Five bundled Unsplash photographs drive the photo-to-colour pipeline, producing a 12.95m interactive strip. Expand **Five moments · one cloth** to inspect the sources. Source URLs and license are in `assets/demo/credits.json`. The first photograph colours the starting strip too.
+
+Feeding inserts material at the inlet and advects existing positions/velocities using reusable scratch buffers. Constraints derive from actual sheet width/length, rather than the compressed floor seed. Deeper irregular folds, gravity/friction and spatially hashed point/triangle contacts between nonlocal folds form the pile. It can leave the view; the visible simulation remains bounded at 14m. Contact remains approximate rather than continuous collision detection.
+
+The moving cloth surface casts fold shadows at all distances. Close-up yarn instances use the same deformation in their shadow depth material. Zoom/pan refreshes detailed shadows. The top-left key has a 2048-square PCF shadow map and reduced unshadowed upper fill. Shadow-on/off browser comparison confirms that folds shade the yarn surfaces themselves.
+
+Validation: all 16 physics/frame-pacing tests pass, including physical rest lengths, material advection, touch, floor contact and sleep. Browser checks inspect the five-photo pile and deformed shadow rendering. No measured iPhone FPS claim.
