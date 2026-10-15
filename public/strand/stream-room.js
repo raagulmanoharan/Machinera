@@ -8,7 +8,13 @@ export async function addStreamRoom(scene,renderer){
  const wallMat=new T.MeshStandardMaterial({color:'#f3e9d9',map:plaster.Diffuse,roughness:1,normalMap:plaster.nor_gl,normalScale:new T.Vector2(.85,.85),roughnessMap:plaster.Rough});
  applyRoomDaylight(wallMat);const wall=new T.Mesh(new T.BoxGeometry(12,.16,8),wallMat);wall.position.set(0,.12,4);wall.receiveShadow=true;wall.name='Restored 3D lime plaster wall';scene.add(wall);
  const floorMat=new T.MeshStandardMaterial({map:oak.Diffuse,normalMap:oak.nor_gl,normalScale:new T.Vector2(1,1),roughnessMap:oak.Rough,roughness:.96});applySurfaceRelief(floorMat,oak.Displacement,.001);applyRoomDaylight(floorMat);const floor=new T.Mesh(new T.BoxGeometry(12,12,.1),floorMat);floor.position.set(0,-5.8,-.05);floor.receiveShadow=true;floor.name='Restored 3D oak floor and collision plane';scene.add(floor);
- return {wall,floor};
+ // A shallow timber skirting floats clear of plaster and floor. Reuse the
+ // scanned oak images, with independent UV repeats for long horizontal grain.
+ const trimMaps={};for(const role of ['Diffuse','nor_gl','Rough','Displacement']){trimMaps[role]=oak[role].clone();trimMaps[role].repeat.set(3,.12);trimMaps[role].needsUpdate=true;}
+ const trimMat=new T.MeshStandardMaterial({color:'#aa7651',map:trimMaps.Diffuse,normalMap:trimMaps.nor_gl,normalScale:new T.Vector2(.65,.65),roughnessMap:trimMaps.Rough,roughness:.9});applySurfaceRelief(trimMat,trimMaps.Displacement,.0007);applyRoomDaylight(trimMat);
+ const skirting=new T.Mesh(new T.BoxGeometry(12,.06,.16),trimMat);skirting.position.set(0,-.005,.10);skirting.castShadow=true;skirting.receiveShadow=true;skirting.name='Oak skirting with recessed shadow gap';scene.add(skirting);
+ const lip=new T.Mesh(new T.BoxGeometry(12,.068,.012),trimMat);lip.position.set(0,-.009,.182);lip.castShadow=true;lip.receiveShadow=true;lip.name='Skirting top edge';scene.add(lip);
+ return {wall,floor,skirting};
 }
 
 // The continuous strip only needs these two yarn maps; no unused rail/cotton sets.
