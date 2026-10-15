@@ -4,13 +4,22 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const W=2.4,H=W*1280/714,S=W/714;
 const palette={teal:'#173e47',rust:'#a95235',gold:'#a97b2c',ivory:'#c6b697'};
 const scene=new T.Scene();scene.background=new T.Color('#e6e0d6');
-const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.VSMShadowMap;
+const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
 document.querySelector('#stage').prepend(renderer.domElement);
-scene.environment=studioEnvironment(renderer);scene.environmentIntensity=.4;scene.environmentRotation.y=.45;
+scene.environment=studioEnvironment(renderer);scene.environmentIntensity=.12;scene.environmentRotation.y=.45;
 const camera=new T.OrthographicCamera(-2,2,3,-3,.1,30);camera.position.set(0,0,7);camera.lookAt(0,0,0);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableRotate=false;controls.enableDamping=false;controls.screenSpacePanning=true;controls.minZoom=1;controls.maxZoom=12;controls.mouseButtons.LEFT=T.MOUSE.PAN;controls.touches.ONE=T.TOUCH.PAN;controls.touches.TWO=T.TOUCH.DOLLY_PAN;
-const key=new T.DirectionalLight(0xfff2de,2.2);key.position.set(-3,4,4.5);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.camera.left=-1.7;key.shadow.camera.right=1.7;key.shadow.camera.top=2.6;key.shadow.camera.bottom=-2.6;key.shadow.camera.near=.1;key.shadow.camera.far=12;key.shadow.bias=-.000015;key.shadow.normalBias=.00035;key.shadow.radius=2;key.shadow.blurSamples=4;scene.add(key);scene.add(new T.HemisphereLight(0xffffff,0xc5b8a8,.35));
-const fill=new T.DirectionalLight(0xe6efff,.35);fill.position.set(3,0,5);scene.add(fill);
+// Camera looks along -Z: negative X / positive Y is the upper-left of the image.
+// A grazing key reveals yarn relief; weak indirect light keeps the cavities readable.
+const key=new T.DirectionalLight(0xfff2de,3.0);
+key.position.set(-3,4,3);key.target.position.set(0,0,0);
+key.castShadow=true;key.shadow.mapSize.set(4096,4096);
+key.shadow.camera.left=-2.3;key.shadow.camera.right=2.3;
+key.shadow.camera.top=2.6;key.shadow.camera.bottom=-2.6;
+key.shadow.camera.near=.1;key.shadow.camera.far=12;
+key.shadow.bias=-.000005;key.shadow.normalBias=.00015;
+scene.add(key,key.target);
+scene.add(new T.HemisphereLight(0xffffff,0xc5b8a8,.12));
 // This is the studio wall, not a second cloth or coloured backing layer.
 const wall=new T.Mesh(new T.PlaneGeometry(200,200),new T.MeshStandardMaterial({color:0xe6e0d6,roughness:1}));wall.position.z=-.028;wall.receiveShadow=true;scene.add(wall);
 const textile=new T.Group();scene.add(textile);
