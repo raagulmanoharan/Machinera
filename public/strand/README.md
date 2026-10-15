@@ -101,3 +101,11 @@ Feeding inserts material at the inlet and advects existing positions/velocities 
 The moving cloth surface casts fold shadows at all distances. Close-up yarn instances use the same deformation in their shadow depth material. Zoom/pan refreshes detailed shadows. The top-left key has a 2048-square PCF shadow map and reduced unshadowed upper fill. Shadow-on/off browser comparison confirms that folds shade the yarn surfaces themselves.
 
 Validation: all 16 physics/frame-pacing tests pass, including physical rest lengths, material advection, touch, floor contact and sleep. Browser checks inspect the five-photo pile and deformed shadow rendering. No measured iPhone FPS claim.
+
+## Motion-first yarn rendering (v36)
+
+The yarn now uses one compact, three-sided strand geometry at every zoom level, retaining the longitudinal weave samples. This halves normal-view triangles and removes the high-detail geometry allocation and detailed yarn shadow pass. The complete moving cloth surface still casts and receives fold shadows; particle simulation, contact resolution, feeding and dragging are unchanged.
+
+Use MeshStandardMaterial instead of MeshPhysicalMaterial, a constant matte roughness, and one locally bundled 256px normal map. Remove the large wool roughness map and external normal-map request. The normal map is reduced from the existing CC0 Poly Haven scan and its tangent vectors are renormalized. Attribution/processing is recorded in `assets/yarn/provenance.json`. Combined yarn-map download goes from 2,538,716 bytes to 120,512 bytes (95% less). The reusable colour-history texture is 128×2048 instead of 256×4096 (75% fewer pixels). Zoom remains available, with deliberately reduced microscopic detail.
+
+The same five-photo, 720×1280 browser capture drops from 4,617,818 to 2,313,818 submitted scene/shadow triangles, with eight draw calls in both cases. This measures rendering workload, not phone FPS. Browser render has no shader errors; capture, successive photo feeding and floor-drag workflow are checked independently.

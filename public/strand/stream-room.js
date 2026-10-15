@@ -12,4 +12,4 @@ export async function addStreamRoom(scene,renderer){
 }
 
 // The continuous strip only needs these two yarn maps; no unused rail/cotton sets.
-export async function loadStreamYarn(renderer){const manifest=await(await fetch('./assets/materials-provenance.json?v=27')).json(),wool={};await Promise.all(['nor_gl','Rough'].map(async role=>{const map=await new T.TextureLoader().loadAsync(manifest.wool_boucle.maps[role].url);map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(.5,.08);map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());wool[role]=map;}));return {wool};}
+export async function loadStreamYarn(renderer){const map=await new T.TextureLoader().loadAsync('./assets/yarn/wool-normal-256.png?v=36');map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(.5,.08);map.anisotropy=Math.min(2,renderer.capabilities.getMaxAnisotropy());return {wool:{nor_gl:map}};}
