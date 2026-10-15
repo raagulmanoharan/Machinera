@@ -65,3 +65,14 @@ Replace the projected contact/fringe silhouettes with actual depth shadows from 
 Use radius-filtered PCF maps instead of VSM so receiving yarn meshes do not have to be redrawn into every room shadow pass. Keep the soft kernel, move the key slightly more grazing while balancing its intensity, and retain the HDR/area bounce. This is shadow-mapped real-time cloth shading, not full path-traced contact hardening.
 
 Browser checks verify that 975 caster vertices/normals exactly follow the displayed field (maximum discrepancy zero in the float-texture test) after a roughly 18 cm pull. Resting and held captures show responsive wall/fringe shadows and fold shading, and photo/shader checks pass.
+
+
+## v25 — positive window illumination and dense yarn coverage
+
+The requested comparator/critic loop reviewed baseline and successive screenshots. Both reviewers rejected a pixel-perfect match claim. Early candidates removed dark stripes but lacked positive illumination; stronger variants washed the cloth. The final approach uses blurred bright panes over black, a calibrated diagonal projection (approximately 1.1 wall-space slope), restrained textile modulation, warm upper-wall bounce and a localized floor pool. Global exposure stays at 1.1. Shadow maps still use the actual shared cloth pose.
+
+A close-up showed that many apparent white glints were wall visible through square weave holes. Lateral yarn coverage was increased from .40/.43 to .50/.53 pitch while ply height compensation .72→.58 preserves depth. The 8×8 reusable Blender topology and periodic end checks remain. Physical crossings are 80×120 over the same 1.536×2.304m cloth; default 18 dye bands are sampled independently, so photos continue to drive every source pixel rather than palette clustering.
+
+Existing CC0 normal/roughness maps use finer textile scale. Fringe is 176 three-ply twisted ends, not a single fuzzy shell. Foreground cords reuse the same authored yarn geometry over a CC0 Hessian 230 substrate; this adds real relief but remains more regular than the reference's braids. Asset URLs, authors, CC0 licence and verified MD5/SHA256 are recorded in the manifest.
+
+At 720×1280 DPR1 the complete initial shadow render is about 2.73M triangles / 46 calls, versus v24 2.60M / 44. Main hanging geometry is lower, but added fringe and foreground offset the savings; this is not a phone-FPS result. Simulation stays fixed-step with interpolated display, eased grabs and sleeping when settled. Browser checks cover live dragging, source-photo colour replacement, macro geometry, 4K export and narrow controls. Remaining gaps: uniformly repeated cotton cells, limited fibre scattering, fringe opacity and the exact plaster/daylight/braid character. Real-time interactivity is preserved; reference-level photorealism is not demonstrated.
