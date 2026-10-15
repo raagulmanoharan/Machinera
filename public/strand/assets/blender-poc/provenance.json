@@ -1,0 +1,37 @@
+{
+  "name": "Strand hanging cotton carpet room POC",
+  "authoringTool": "Blender 4.3.2",
+  "source": "blender/build_textile.py",
+  "geometry": "Original three-ply, 8 by 8 crossing plain-weave tile",
+  "dimensionsMeters": {
+    "width": 1.536,
+    "height": 2.304
+  },
+  "render": {
+    "engine": "Cycles CPU",
+    "samples": 96,
+    "denoising": false,
+    "roomPixels": [
+      900,
+      1200
+    ],
+    "detailPixels": [
+      1100,
+      850
+    ]
+  },
+  "browser": "Three.js instancing with distance-based topology and separate procedural fibre/plaster maps; not a Cycles-identical render",
+  "provenance": "Original project-authored geometry and textures; no paid generation and no extracted reference photograph",
+  "checks": {
+    "embeddedBufferLength": 884736,
+    "meshCount": 2,
+    "verticesPerMesh": 11664,
+    "uvsPresent": true,
+    "bufferViewsInBounds": true
+  },
+  "sha256": {
+    "weave-tile.gltf": "4c4749ef5b4f5bc169796940f5aea3f5ac19e330ba6339e5a4a64c5bee863472",
+    "room.png": "09400540876f58a3ac7d9a4e63a70a27d227aab872ebf0fb046e006bbbc25610",
+    "detail.png": "97181763da6ba803ae96f1cd12e064e43c6c8a56de2e1f2f9664416019a16efc"
+  }
+}
