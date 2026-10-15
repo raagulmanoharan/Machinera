@@ -77,3 +77,11 @@ The main soft directional light remains the live cloth/yarn shadow source. The p
 Same-camera close-up captures reduce shadow-refresh triangle submissions from 2,929,254 to 1,994,230 (31.9%), and draw calls from 41 to 26. Room-view shadow-refresh calls fall from 47 to 34; its triangle savings are small because it already uses a coarse cloth shadow proxy. These counts measure rendering work, not phone FPS. The single-shadow setup changes the fill's shadow contribution, so the images are visually compared rather than claimed pixel-identical.
 
 A packed normal/tangent field trial was rejected: strong tugs produced up to 11 degrees of interpolation error. The original three-texture deformation fields are retained. No false claim of fewer field samples or reduced physical geometry applies to this release.
+
+## Heritage room (v33)
+
+The interactive carpet now hangs above a carved wooden cabinet, with books, citrus, a bowl, three pottery vessels, two original botanical pictures and a small wall sconce. There is no chair. Original low-poly props were modeled in Blender and combined into one 13,184-triangle mesh with one 1024px JPEG atlas baking scanned wood colour, ambient occlusion and upper-left shading. The self-contained GLB is 880,736 bytes; no runtime furniture PBR maps or additional lights are required. The existing primary light supplies live room contact shadows.
+
+A 56,712-byte baked limewash texture adds warm plaster patina, using the existing CC0 plaster scan. Source attribution, hashes, build details and static checks are in assets/room/provenance.json. Blender sources are included. The game-dev packaging CLI was unavailable; the GLB was checked directly for valid headers, accessor bounds and finite values, then imported and screenshot-reviewed in Three.js.
+
+The room floor and camera framing are adjusted to fit furniture beneath the original full-length carpet; photo UVs, yarn geometry and cloth physics remain unchanged. The dense foreground jute rug is removed. The 720x1280 full-view capture submits about 1.91M triangles including shadows, versus about 2.33M in the previous scene (framing differs); this is rendering-work evidence, not physical-phone FPS.
