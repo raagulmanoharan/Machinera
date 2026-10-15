@@ -6,7 +6,7 @@ The supplied 15-page Textile WebGL Hyperrealism Guide was read in full. Plate A 
 | --- | --- | --- |
 | pp. 2–3: physical scene and camera | Preserve the existing 1.536 × 2.304 m hanging; 25° frontal perspective, wall/floor/rail/fixings as separate geometry. Rest clearance is roughly 4–5 cm. | Source design and dimensions retained. The guide’s 1.2 × 1.7 m values are starting examples, not a reason to resize the original product. |
 | pp. 3–5: actual crossing yarns | Reuse the Blender-authored continuous 8×8 warp/weft tile. Compress its depth to about 16 mm overall and keep alternating over/under crossings. Medium and near geometry remain instanced. | Close-up browser checks reveal geometry and parallax. No separate mesh per crossing. |
-| pp. 5–6: materials | High, varying roughness; directional fibre bump; dye-tinted cotton sheen; small correlated dye variation; coherent normal-directed yarn thickness variation. | Colour maps are sRGB; normal, roughness and AO maps are non-colour. Photo colour remains live and anchored to undeformed cloth coordinates. |
+| pp. 5–6: materials | High, varying roughness; directional fibre normals; dye-tinted cotton sheen; small correlated dye variation; coherent normal-directed yarn thickness variation. | Colour maps are sRGB; normal, roughness and AO maps are non-colour. Photo colour remains live and anchored to undeformed cloth coordinates. |
 | pp. 6–7: shape and irregularity | A 25×39-node position-based simulation, pinned top row, structural/shear/bend links, damping, small rest bow and wavy edges. The same position/normal field deforms surface, yarns, fibres, fringe and yarn shadow shaders. | CPU proxy supplies matching hit tests and wall shadows. Wall collision has a margin for yarn thickness; the shader also bounds fringe vertices in front of plaster. This is an approximate cloth solver, not a full textile constitutive or self-collision solver. |
 | pp. 7–9: lighting and shadow scales | Broad warm RectAreaLight, aligned directional shadow caster, real Z-up HDR environment and weak neutral bounce. PCF soft filtering avoids close-yarn VSM bleeding. | RectAreaLight does not cast WebGL shadows; the separate aligned directional light is an intentional raster compromise described in the guide. |
 | pp. 9–10: room and renderer | Beveled rail/skirting, directional wood colour/roughness/grain, rounded brass pins, oak floor and subtle off-white plaster. AgX, linear half-float composition, sRGB output and FXAA. | Bloom, chromatic aberration, vignette, sharpening, added grain and forced depth of field remain off. |
@@ -22,6 +22,10 @@ The supplied 15-page Textile WebGL Hyperrealism Guide was read in full. Plate A 
 - The wall constrains the cloth centre and visible yarn/fringe shell.
 - Photo colour uses rest coordinates, so it follows the cloth rather than sliding in world space.
 - Saving immediately after Fit refreshes the visible instance list and uses full-detail yarns.
+
+## Browser measurements
+
+The 390×844 DPR-1 browser scenario submitted 44,706 triangles in 19 calls at full view. A stable close-up submitted about 1.88 million triangles in 20 calls after deformed-position tile culling, including shadow work. These are renderer submission counts from the test environment, not measured phone FPS. Actual-device profiling is still needed.
 
 ## Visual limits
 
