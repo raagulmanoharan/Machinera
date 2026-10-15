@@ -1,5 +1,5 @@
-import {StreamPhysics} from './stream-physics.js?v=53';
-import {acceptClothPose,loadCollisionWasm} from './stream-intersections.js?v=53';
+import {StreamPhysics} from './stream-physics.js?v=54';
+import {acceptClothPose,loadCollisionWasm} from './stream-intersections.js?v=54';
 let sim,buffers=[],accepted,stepPrevious,collisionBackend='javascript';
 self.onmessage=async({data:m})=>{
  try{
@@ -9,7 +9,8 @@ self.onmessage=async({data:m})=>{
   }
   if(m.type==='recycle'){buffers.push(m.buffer);return;}
   if(m.type!=='tick')return;
-  const started=performance.now();sim.feed=m.feed;sim.setLength(m.length);if(m.visibleRows)sim.setViewportRows(m.visibleRows);
+  const started=performance.now();for(const c of m.commands)if(c.type==='reseed'){const fresh=new StreamPhysics({nx:sim.nx,ny:sim.ny,length:c.length});fresh.positions.set(c.positions);fresh.previous.set(c.positions);fresh.renderSafe=c.positions.slice();fresh.endAnchor=c.endAnchor;fresh.floorField=c.floorField;sim=fresh;accepted.set(c.positions);stepPrevious.set(c.positions);}
+  sim.feed=m.feed;sim.setLength(m.length);if(m.visibleRows)sim.setViewportRows(m.visibleRows);
   for(const c of m.commands){if(c.type==='hold')sim.hold(c.u,c.v,c.target);else if(c.type==='move')sim.move(c.target);else if(c.type==='release')sim.release();else if(c.type==='impulse')sim.impulse(c.u,c.v,c.amount);}
   // Keep integrator velocity history separate from published render snapshots.
   sim.accumulator+=sim.active?Math.min(m.dt,.05):0;

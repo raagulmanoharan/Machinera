@@ -48,11 +48,11 @@ export function findClothIntersections(p,nx,ny,limit=1){
 
 // A final fail-closed pose gate. Contact iterations are allowed to fail; an
 // intersecting surface is never uploaded in place of the last valid surface.
-function resolveCrossings(p,safe,nx,hits,floorFront=-Infinity,floorSide=Infinity){
+function resolveCrossings(p,safe,nx,hits,floorFront=-Infinity,floorSide=Infinity,tailStart=Infinity){
  for(const[A,B]of hits){const a=B[0]*3,b=B[1]*3,c=B[2]*3,ux=p[b]-p[a],uy=p[b+1]-p[a+1],uz=p[b+2]-p[a+2],vx=p[c]-p[a],vy=p[c+1]-p[a+1],vz=p[c+2]-p[a+2];let x=uy*vz-uz*vy,y=uz*vx-ux*vz,z=ux*vy-uy*vx;const len=Math.hypot(x,y,z);if(len<1e-9)continue;x/=len;y/=len;z/=len;
- let before=0;for(const v of A)before+=(safe[v*3]-safe[a])*x+(safe[v*3+1]-safe[a+1])*y+(safe[v*3+2]-safe[a+2])*z;const side=before>=0?1:-1;let min=Infinity;for(const v of A)min=Math.min(min,side*((p[v*3]-p[a])*x+(p[v*3+1]-p[a+1])*y+(p[v*3+2]-p[a+2])*z));const correction=Math.min(.10,Math.max(0,.03-min)),moveA=A.some(v=>v>=nx),moveB=B.some(v=>v>=nx),wa=moveA?(moveB?.5:1):0,wb=moveB?(moveA?.5:1):0;
- for(const v of A){if(v<nx||B.includes(v))continue;const j=v*3;p[j]+=x*side*correction*wa;p[j+1]=Math.min(.012,p[j+1]+y*side*correction*wa);p[j+2]=Math.max(.025,p[j+2]+z*side*correction*wa);}
- for(const v of B){if(v<nx||A.includes(v))continue;const j=v*3;p[j]-=x*side*correction*wb;p[j+1]=Math.min(.012,p[j+1]-y*side*correction*wb);p[j+2]=Math.max(.025,p[j+2]-z*side*correction*wb);}
+ let before=0;for(const v of A)before+=(safe[v*3]-safe[a])*x+(safe[v*3+1]-safe[a+1])*y+(safe[v*3+2]-safe[a+2])*z;const side=before>=0?1:-1;let min=Infinity;for(const v of A)min=Math.min(min,side*((p[v*3]-p[a])*x+(p[v*3+1]-p[a+1])*y+(p[v*3+2]-p[a+2])*z));const correction=Math.min(.10,Math.max(0,.03-min)),moveA=A.some(v=>v>=nx&&v<tailStart),moveB=B.some(v=>v>=nx&&v<tailStart),wa=moveA?(moveB?.5:1):0,wb=moveB?(moveA?.5:1):0;
+ for(const v of A){if(v<nx||v>=tailStart||B.includes(v))continue;const j=v*3;p[j]+=x*side*correction*wa;p[j+1]=Math.min(.012,p[j+1]+y*side*correction*wa);p[j+2]=Math.max(.025,p[j+2]+z*side*correction*wa);}
+ for(const v of B){if(v<nx||v>=tailStart||A.includes(v))continue;const j=v*3;p[j]-=x*side*correction*wb;p[j+1]=Math.min(.012,p[j+1]-y*side*correction*wb);p[j+2]=Math.max(.025,p[j+2]-z*side*correction*wb);}
  }
  for(let j=nx*3;j<p.length;j+=3)if(p[j+2]<.75){p[j+1]=Math.max(floorFront,p[j+1]);p[j]=Math.max(-floorSide,Math.min(floorSide,p[j]));}
 }
@@ -64,7 +64,7 @@ export function acceptClothPose(sim,display){
  for(const pair of hits)for(const face of pair)for(const v of face){const row=Math.floor(v/sim.nx);if(sim.rowSleeping?.[row])sim.wakeRow(row,1);}
  // Resolve actual crossing faces as well as point contacts: long edges can
  // cross between vertices, where particle-only contact cannot detect them.
- for(let pass=0;pass<4&&hits.length;pass++){resolveCrossings(display,sim.renderSafe,sim.nx,hits,sim.floorFront,sim.floorSide);hits=findClothIntersections(display,sim.nx,sim.ny,12);}
+ for(let pass=0;pass<4&&hits.length;pass++){resolveCrossings(display,sim.renderSafe,sim.nx,hits,sim.floorFront,sim.floorSide,sim.endAnchor?(sim.ny-1)*sim.nx:Infinity);hits=findClothIntersections(display,sim.nx,sim.ny,12);}
  let accepted=!hits.length,fraction=1;
  if(!accepted){
   // A collision in a floor fold must not rewind an unrelated hanging grab.

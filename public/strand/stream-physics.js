@@ -1,4 +1,4 @@
-import {separateFoldSurfaces} from './stream-contact.js?v=53';
+import {separateFoldSurfaces} from './stream-contact.js?v=54';
 // Broad, arc-length sampled floor folds: keep layer rise low and allow depth
 // to spread sideways inside an invisible floor collection area.
 function feedPath(){const points=[],distance=[];let total=0,last=null;const add=(y,z,x=0)=>{if(last)total+=Math.hypot(y-last[0],z-last[1],x-last[2]);points.push(y,z,x);distance.push(total);last=[y,z,x];};for(let z=4.35;z>.8;z-=.01)add(-.19,z);add(-.19,.8);for(let angle=.008;angle<Math.PI/2;angle+=.008)add(-.19-.7*(1-Math.cos(angle)),.8-.755*Math.sin(angle));add(-.89,.045);for(let q=.006;q<30;q+=.006)add(-.89-.5*(1-Math.cos(q*2.4)),.045+.055*(q-(1-Math.exp(-q*3))/3)+.008*(1-Math.cos(q*2.4)), .7*Math.sin(q*.6)*(1-Math.exp(-q*.8)));return {points,distance};}
@@ -13,13 +13,15 @@ export class StreamPhysics {
  }
  shape(length){this.length=length;const {points,distance}=inletPath;let cursor=0;for(let y=0;y<this.ny;y++){const s=y/(this.ny-1)*length;while(cursor+1<distance.length-1&&distance[cursor+1]<s)cursor++;const t=(s-distance[cursor])/(distance[cursor+1]-distance[cursor]),depth=points[cursor*3]*(1-t)+points[(cursor+1)*3]*t,height=points[cursor*3+1]*(1-t)+points[(cursor+1)*3+1]*t,centre=points[cursor*3+2]*(1-t)+points[(cursor+1)*3+2]*t;for(let x=0;x<this.nx;x++){const u=x/(this.nx-1),j=(y*this.nx+x)*3;const relaxed=Math.min(1,s)*Math.sin(u*Math.PI);this.rest[j]=centre+(u-.5)*this.width+.008*relaxed*Math.sin(s*.8);this.rest[j+1]=depth+.012*relaxed*Math.sin(u*7+s*.9);this.rest[j+2]=height+.015*relaxed*Math.sin(u*5+s*1.5);}}}
  measure(){const dx=this.width/(this.nx-1),ds=this.length/(this.ny-1);for(let i=0;i<this.a.length;i++){const a=this.a[i],b=this.b[i];this.lengths[i]=Math.hypot((a%this.nx-b%this.nx)*dx,(Math.floor(a/this.nx)-Math.floor(b/this.nx))*ds);}}
- setLength(length){const next=Math.min(14,length),before=this.length,delta=next-before;if(delta<=1e-7)return;this.wakeAll();const {nx,ny}=this,p=this.positions,old=this.previous;this.feedPositions.set(p);this.feedPrevious.set(old);this.shape(next);
+ setLength(length){const next=length,before=this.length,delta=next-before;if(delta<=1e-7)return;this.wakeAll();const {nx,ny}=this,p=this.positions,old=this.previous;this.feedPositions.set(p);this.feedPrevious.set(old);this.shape(next);
   // Insert material at the inlet; advect existing material down the strip.
   // Reuse scratch arrays rather than allocating particle buffers each frame.
   for(let y=0;y<ny;y++){const s=y/(ny-1)*next-delta,source=Math.max(0,s/before*(ny-1)),row=Math.min(ny-1,Math.floor(source)),nextRow=Math.min(ny-1,row+1),t=source-row;for(let x=0;x<nx;x++)for(let c=0;c<3;c++){const j=(y*nx+x)*3+c,a=(row*nx+x)*3+c,b=(nextRow*nx+x)*3+c;if(s<0){p[j]=old[j]=this.rest[j];}else{p[j]=this.feedPositions[a]*(1-t)+this.feedPositions[b]*t;old[j]=this.feedPrevious[a]*(1-t)+this.feedPrevious[b]*t;}}}
   if(this.grab){const i=this.grab.index;this.grab.index=this.index((i%nx)/(nx-1),(Math.floor(i/nx)/(ny-1)*before+delta)/next);}
   this.straightenInlet();this.measure();this.active=true;this.quiet=0;
  }
+ floorHeight(x,y){const f=this.floorField;if(!f)return .025;const u=Math.max(0,Math.min(f.width-1,(x-f.minX)/(f.maxX-f.minX)*(f.width-1))),v=Math.max(0,Math.min(f.height-1,(y-f.minY)/(f.maxY-f.minY)*(f.height-1))),a=Math.floor(u),b=Math.floor(v),aa=Math.min(f.width-1,a+1),bb=Math.min(f.height-1,b+1);return Math.max(.025,f.data[b*f.width+a]+.016,f.data[b*f.width+aa]+.016,f.data[bb*f.width+a]+.016,f.data[bb*f.width+aa]+.016);}
+ anchorTail(){if(!this.endAnchor)return;const start=(this.ny-1)*this.nx*3;this.positions.set(this.endAnchor,start);this.previous.set(this.endAnchor,start);}
  inletRows(){return Math.max(1,Math.floor(.65/this.length*(this.ny-1)));}
  straightenInlet(){const rows=this.inletRows(),nx=this.nx,p=this.positions,old=this.previous;for(let y=0;y<=rows;y++)for(let x=0;x<nx;x++){const j=(y*nx+x)*3;p[j]=old[j]=(x/(nx-1)-.5)*this.width;p[j+1]=old[j+1]=-.19;p[j+2]=old[j+2]=this.top-y/(this.ny-1)*this.length;}
   // Guided feed can bow with touch, but its cross sections stay level so
@@ -37,17 +39,20 @@ export class StreamPhysics {
  release(){this.grab=null;this.active=true;this.quiet=0;}
  impulse(u,v,amount=.009){const index=this.index(u,v),j=index*3;this.previous[j+1]+=amount;this.active=true;this.quiet=0;}
  advance(dt){if(!this.active)return false;this.accumulator+=Math.min(dt,.05);let changed=false;while(this.accumulator>=1/90){this.step();this.accumulator-=1/90;changed=true;}return changed;}
- step(){this.collisionStart.set(this.positions);const p=this.positions,old=this.previous,r=this.rest,nx=this.nx,pinned=(this.inletRows()+1)*nx,hasSleeping=this.rowSleeping.some(Boolean),grab=this.grab?.index??-1,grabRow=grab<0?-100:Math.floor(grab/nx);
+ step(){this.collisionStart.set(this.positions);const p=this.positions,old=this.previous,r=this.rest,nx=this.nx,pinned=(this.inletRows()+1)*nx,hasSleeping=this.rowSleeping.some(Boolean),tailStart=this.endAnchor?(this.ny-1)*nx:Infinity,grab=this.grab?.index??-1,grabRow=grab<0?-100:Math.floor(grab/nx);
   if(this.grab)for(let c=0;c<3;c++)this.grab.target[c]+=Math.max(-.014,Math.min(.014,(this.grab.goal[c]-this.grab.target[c])*.32));
-  for(let i=pinned;i<p.length/3;i++){const j=i*3;if(this.rowSleeping[Math.floor(i/nx)])continue;for(let c=0;c<3;c++){const value=p[j+c];p[j+c]+=(value-old[j+c])*.975+(r[j+c]-value)*(i/nx*this.length/(this.ny-1)<2.8?.00015:0)-(c===2?.00085:0);old[j+c]=value;}}
+  for(let i=pinned;i<p.length/3;i++){const j=i*3;if(i>=tailStart||this.rowSleeping[Math.floor(i/nx)])continue;for(let c=0;c<3;c++){const value=p[j+c];p[j+c]+=(value-old[j+c])*.975+(r[j+c]-value)*(i/nx*this.length/(this.ny-1)<2.8?.00015:0)-(c===2?.00085:0);old[j+c]=value;}}
   for(let it=0;it<5;it++){
-   for(let e=0;e<this.a.length;e++){const ai=this.a[e],bi=this.b[e],a=ai*3,b=bi*3,ar=this.linkRowsA[e],br=this.linkRowsB[e];if(it>=2&&this.lofiLinks[e]&&!this.feed&&(grab<0||Math.abs(ar-grabRow)>4&&Math.abs(br-grabRow)>4))continue;if(hasSleeping&&this.rowSleeping[ar]&&this.rowSleeping[br])continue;const dx=p[b]-p[a],dy=p[b+1]-p[a+1],dz=p[b+2]-p[a+2],d=Math.sqrt(dx*dx+dy*dy+dz*dz)||1;if((this.rowSleeping[ar]||this.rowSleeping[br])&&Math.abs(d-this.lengths[e])>.004){this.wakeRow(ar,1);this.wakeRow(br,1);}const wa=ai<pinned||ai===grab||this.rowSleeping[ar]?0:1,wb=bi<pinned||bi===grab||this.rowSleeping[br]?0:1;if(!wa&&!wb)continue;const f=(d-this.lengths[e])/d*this.k[e]/(wa+wb);p[a]+=dx*f*wa;p[a+1]+=dy*f*wa;p[a+2]+=dz*f*wa;p[b]-=dx*f*wb;p[b+1]-=dy*f*wb;p[b+2]-=dz*f*wb;}
+   for(let e=0;e<this.a.length;e++){const ai=this.a[e],bi=this.b[e],a=ai*3,b=bi*3,ar=this.linkRowsA[e],br=this.linkRowsB[e];if(it>=2&&this.lofiLinks[e]&&!this.feed&&(grab<0||Math.abs(ar-grabRow)>4&&Math.abs(br-grabRow)>4))continue;if(hasSleeping&&this.rowSleeping[ar]&&this.rowSleeping[br])continue;const dx=p[b]-p[a],dy=p[b+1]-p[a+1],dz=p[b+2]-p[a+2],d=Math.sqrt(dx*dx+dy*dy+dz*dz)||1;if((this.rowSleeping[ar]||this.rowSleeping[br])&&Math.abs(d-this.lengths[e])>.004){this.wakeRow(ar,1);this.wakeRow(br,1);}const wa=ai<pinned||ai>=tailStart||ai===grab||this.rowSleeping[ar]?0:1,wb=bi<pinned||bi>=tailStart||bi===grab||this.rowSleeping[br]?0:1;if(!wa&&!wb)continue;const f=(d-this.lengths[e])/d*this.k[e]/(wa+wb);p[a]+=dx*f*wa;p[a+1]+=dy*f*wa;p[a+2]+=dz*f*wa;p[b]-=dx*f*wb;p[b+1]-=dy*f*wb;p[b+2]-=dz*f*wb;}
 
    if(this.grab){p.set(this.grab.target,grab*3);old.set(this.grab.target,grab*3);}
-   for(let i=nx;i<p.length/3;i++){const j=i*3;p[j+1]=Math.min(.012,p[j+1]);if(p[j+2]<.75){if(p[j+1]<this.floorFront){p[j+1]=this.floorFront;old[j+1]=Math.max(old[j+1],this.floorFront);}if(Math.abs(p[j])>this.floorSide){p[j]=Math.sign(p[j])*this.floorSide;old[j]=p[j];}}if(p[j+2]<.025){p[j+2]=.025;old[j+2]=Math.min(old[j+2],.025);if(it===4){old[j]=p[j]+(old[j]-p[j])*.88;old[j+1]=p[j+1]+(old[j+1]-p[j+1])*.88;}}}
+   for(let i=nx;i<p.length/3;i++){const j=i*3;p[j+1]=Math.min(.012,p[j+1]);if(p[j+2]<.75){if(p[j+1]<this.floorFront){p[j+1]=this.floorFront;old[j+1]=Math.max(old[j+1],this.floorFront);}if(Math.abs(p[j])>this.floorSide){p[j]=Math.sign(p[j])*this.floorSide;old[j]=p[j];}}const floor=this.floorHeight(p[j],p[j+1]);if(p[j+2]<floor){p[j+2]=floor;old[j+2]=Math.min(old[j+2],floor);if(it===4){old[j]=p[j]+(old[j]-p[j])*.88;old[j+1]=p[j+1]+(old[j+1]-p[j+1])*.88;}}}
+   this.anchorTail();
   }
   // Triangle contact handles floor folds and raised folds in one pass.
-  separateFoldSurfaces(this);for(let i=nx;i<p.length/3;i++){const j=i*3;if(p[j+2]<.75){p[j+1]=Math.max(this.floorFront,p[j+1]);p[j]=Math.max(-this.floorSide,Math.min(this.floorSide,p[j]));}}this.straightenInlet();this.updateSleeping();
-  let speed=0,energy=0;for(let i=nx*3;i<p.length;i++){const v=p[i]-old[i];speed=Math.max(speed,Math.abs(v));energy+=v*v;}const rms=Math.sqrt(energy/(p.length-nx*3));this.quiet=rms<.0009&&speed<.012&&!this.grab&&!this.feed?this.quiet+1:0;if(this.quiet>45){const t=Math.min(1,(this.quiet-45)/45),gain=1-t*t*(3-2*t);for(let j=pinned*3;j<p.length;j++){const velocity=p[j]-old[j];p[j]=this.collisionStart[j]+(p[j]-this.collisionStart[j])*gain;old[j]=p[j]-velocity*gain;}}if(this.quiet>90){this.active=false;old.set(p);}
+  separateFoldSurfaces(this);for(let i=nx;i<p.length/3;i++){const j=i*3;if(p[j+2]<.75){p[j+1]=Math.max(this.floorFront,p[j+1]);p[j]=Math.max(-this.floorSide,Math.min(this.floorSide,p[j]));}}this.straightenInlet();this.anchorTail();
+  // No forced quiet-pose taper or automatic sleep. Physical damping handles
+  // settling; touch, printing and the worker remain on the same continuous path.
+
  }
 }
