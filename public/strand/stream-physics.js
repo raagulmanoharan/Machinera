@@ -39,12 +39,12 @@ export class StreamPhysics {
  advance(dt){if(!this.active)return false;this.accumulator+=Math.min(dt,.05);let changed=false;while(this.accumulator>=1/90){this.step();this.accumulator-=1/90;changed=true;}return changed;}
  step(){this.collisionStart.set(this.positions);const p=this.positions,old=this.previous,r=this.rest,nx=this.nx,pinned=(this.inletRows()+1)*nx,hasSleeping=this.rowSleeping.some(Boolean),grab=this.grab?.index??-1,grabRow=grab<0?-100:Math.floor(grab/nx);
   if(this.grab)for(let c=0;c<3;c++)this.grab.target[c]+=Math.max(-.014,Math.min(.014,(this.grab.goal[c]-this.grab.target[c])*.32));
-  for(let i=pinned;i<p.length/3;i++){const j=i*3;if(this.rowSleeping[Math.floor(i/nx)])continue;for(let c=0;c<3;c++){const value=p[j+c];p[j+c]+=(value-old[j+c])*.975+(r[j+c]-value)*(this.feed?.0012:.00025)-(c===2?.00036:0);old[j+c]=value;}}
+  for(let i=pinned;i<p.length/3;i++){const j=i*3;if(this.rowSleeping[Math.floor(i/nx)])continue;for(let c=0;c<3;c++){const value=p[j+c];p[j+c]+=(value-old[j+c])*.975+(r[j+c]-value)*(i/nx*this.length/(this.ny-1)<2.8?.00015:0)-(c===2?.00085:0);old[j+c]=value;}}
   for(let it=0;it<5;it++){
    for(let e=0;e<this.a.length;e++){const ai=this.a[e],bi=this.b[e],a=ai*3,b=bi*3,ar=this.linkRowsA[e],br=this.linkRowsB[e];if(it>=2&&this.lofiLinks[e]&&!this.feed&&(grab<0||Math.abs(ar-grabRow)>4&&Math.abs(br-grabRow)>4))continue;if(hasSleeping&&this.rowSleeping[ar]&&this.rowSleeping[br])continue;const dx=p[b]-p[a],dy=p[b+1]-p[a+1],dz=p[b+2]-p[a+2],d=Math.sqrt(dx*dx+dy*dy+dz*dz)||1;if((this.rowSleeping[ar]||this.rowSleeping[br])&&Math.abs(d-this.lengths[e])>.004){this.wakeRow(ar,1);this.wakeRow(br,1);}const wa=ai<pinned||ai===grab||this.rowSleeping[ar]?0:1,wb=bi<pinned||bi===grab||this.rowSleeping[br]?0:1;if(!wa&&!wb)continue;const f=(d-this.lengths[e])/d*this.k[e]/(wa+wb);p[a]+=dx*f*wa;p[a+1]+=dy*f*wa;p[a+2]+=dz*f*wa;p[b]-=dx*f*wb;p[b+1]-=dy*f*wb;p[b+2]-=dz*f*wb;}
 
    if(this.grab){p.set(this.grab.target,grab*3);old.set(this.grab.target,grab*3);}
-   for(let i=nx;i<p.length/3;i++){const j=i*3;p[j+1]=Math.min(.012,p[j+1]);if(p[j+2]<.025){p[j+2]=.025;old[j+2]=Math.min(old[j+2],.025);old[j]=p[j]+(old[j]-p[j])*.7;old[j+1]=p[j+1]+(old[j+1]-p[j+1])*.7;}}
+   for(let i=nx;i<p.length/3;i++){const j=i*3;p[j+1]=Math.min(.012,p[j+1]);if(p[j+2]<.025){p[j+2]=.025;old[j+2]=Math.min(old[j+2],.025);if(it===4){old[j]=p[j]+(old[j]-p[j])*.88;old[j+1]=p[j+1]+(old[j+1]-p[j+1])*.88;}}}
   }
   // Triangle contact handles floor folds and raised folds in one pass.
   separateFoldSurfaces(this);this.straightenInlet();this.updateSleeping();
