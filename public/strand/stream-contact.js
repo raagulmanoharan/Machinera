@@ -1,0 +1,12 @@
+// Coarse surface point/triangle contact supplements yarn-independent cloth constraints.
+// The floor-only spatial hash keeps nonlocal folds apart without testing every pair.
+export function separateFoldSurfaces(sim){
+ const p=sim.positions,old=sim.previous,nx=sim.nx,ny=sim.ny,cell=.18,gap=.018,buckets=new Map(),triangles=[];
+ const key=(x,y,z)=>(x+128)+(y+128)*512+(z+128)*262144;
+ function add(a,b,c){if(Math.min(p[a*3+2],p[b*3+2],p[c*3+2])>1.6)return;const n=triangles.length;triangles.push([a,b,c]);const low=[],high=[];for(let k=0;k<3;k++){low[k]=Math.floor((Math.min(p[a*3+k],p[b*3+k],p[c*3+k])-gap)/cell);high[k]=Math.floor((Math.max(p[a*3+k],p[b*3+k],p[c*3+k])+gap)/cell);}if((high[0]-low[0]+1)*(high[1]-low[1]+1)*(high[2]-low[2]+1)>80)return;for(let x=low[0];x<=high[0];x++)for(let y=low[1];y<=high[1];y++)for(let z=low[2];z<=high[2];z++){const k=key(x,y,z);let list=buckets.get(k);if(!list)buckets.set(k,list=[]);list.push(n);}}
+ for(let y=1;y<ny-1;y++)for(let x=0;x<nx-1;x++){const a=y*nx+x;add(a,a+1,a+nx);add(a+1,a+nx+1,a+nx);}
+ for(let i=nx;i<nx*ny;i++){const j=i*3;if(p[j+2]>1.6||i===sim.grab?.index)continue;const list=buckets.get(key(Math.floor(p[j]/cell),Math.floor(p[j+1]/cell),Math.floor(p[j+2]/cell)));if(!list)continue;for(const ti of list){const[a,b,c]=triangles[ti];if([a,b,c].some(v=>Math.abs(Math.floor(i/nx)-Math.floor(v/nx))<3&&Math.abs(i%nx-v%nx)<3))continue;const A=a*3,B=b*3,C=c*3,ux=p[B]-p[A],uy=p[B+1]-p[A+1],uz=p[B+2]-p[A+2],vx=p[C]-p[A],vy=p[C+1]-p[A+1],vz=p[C+2]-p[A+2];let nxv=uy*vz-uz*vy,nyv=uz*vx-ux*vz,nzv=ux*vy-uy*vx;const magnitude=Math.hypot(nxv,nyv,nzv);if(magnitude<1e-8)continue;nxv/=magnitude;nyv/=magnitude;nzv/=magnitude;const dx=p[j]-p[A],dy=p[j+1]-p[A+1],dz=p[j+2]-p[A+2],d=dx*nxv+dy*nyv+dz*nzv;if(Math.abs(d)>=gap)continue;const uu=ux*ux+uy*uy+uz*uz,uv=ux*vx+uy*vy+uz*vz,vv=vx*vx+vy*vy+vz*vz,du=dx*ux+dy*uy+dz*uz,dv=dx*vx+dy*vy+dz*vz,den=uu*vv-uv*uv;if(den<1e-12)continue;const wb=(du*vv-dv*uv)/den,wc=(dv*uu-du*uv)/den,wa=1-wb-wc;if(Math.min(wa,wb,wc)<0)continue;const previous=(old[j]-old[A])*nxv+(old[j+1]-old[A+1])*nyv+(old[j+2]-old[A+2])*nzv,side=previous===0?(d>=0?1:-1):(previous>0?1:-1),correction=(side*gap-d)*.32;
+ p[j]+=nxv*correction;p[j+1]+=nyv*correction;p[j+2]=Math.max(.025,p[j+2]+nzv*correction);
+ for(const[v,w]of [[A,wa],[B,wb],[C,wc]]){p[v]-=nxv*correction*w*.5;p[v+1]-=nyv*correction*w*.5;p[v+2]=Math.max(.025,p[v+2]-nzv*correction*w*.5);}
+ }}
+}
