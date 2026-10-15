@@ -44,6 +44,10 @@ function noiseTexture(kind){const n=512,data=new Uint8Array(n*n*4);function hash
 const plaster=new T.MeshStandardMaterial({map:noiseTexture('colour'),bumpMap:noiseTexture('height'),bumpScale:.0014,roughness:.96});
 function box(name,xyz,size,material){const m=new T.Mesh(new T.BoxGeometry(...size),material);m.name=name;m.position.set(...xyz);m.castShadow=m.receiveShadow=true;scene.add(m);return m;}
 box('Warm lime-plaster wall',[0,.12,2.3],[8,.18,4.6],plaster);
+// Out-of-frame window mullions break the upper-left daylight into soft diagonal bands.
+const windowFrame=new T.MeshBasicMaterial({colorWrite:false,depthWrite:false});
+for(const x of [-2.15,-1.55]){const mullion=box('Window-frame shadow caster',[x,-.9,2.0],[.075,.06,4.2],windowFrame);mullion.rotation.y=-.48;mullion.receiveShadow=false;}
+
 box('Oak floor',[0,-1.7,-.05],[8,4,.1],woodMaterial({floor:true}));
 const wood=woodMaterial();
 const skirting=new T.Mesh(new RoundedBoxGeometry(8,.045,.15,3,.007),wood);skirting.position.set(0,.002,.075);skirting.castShadow=skirting.receiveShadow=true;scene.add(skirting);
