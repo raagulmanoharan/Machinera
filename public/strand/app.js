@@ -1,6 +1,6 @@
 import { OpticalView } from './optics.js?v=9';
 import { AttachedCloth } from './cloth-deformation.js?v=9';
-import { DenseFabric } from './fabric.js?v=9';
+import { DenseFabric } from './fabric.js?v=10';
 import * as T from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { studioEnvironment } from './studio-environment.js?v=9';
