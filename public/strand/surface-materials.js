@@ -12,7 +12,7 @@ export async function loadSurfaceMaterials(renderer){
    let tex;for(let attempt=0;attempt<3;attempt++){try{const url=name==='painted_plaster_wall'&&role==='Diffuse'?'./assets/room/wall-patina.jpg?v=33':entry.url;tex=await loader.loadAsync(url+(attempt?(url.includes('?')?'&':'?')+'strand-retry='+attempt:''));break;}catch(error){if(attempt===2)throw error;await new Promise(resolve=>setTimeout(resolve,250*(attempt+1)));}}tex.name=`${name}:${role}`;tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(...repeat);tex.anisotropy=anisotropy;tex.colorSpace=role==='Diffuse'?T.SRGBColorSpace:T.NoColorSpace;result[role]=tex;
   }));return result;
  }
- const [timber,floor,wall,cotton,wool,hessian]=await Promise.all([set('wood_table_worn',[1,1]),set('wood_floor',[3,2]),set('painted_plaster_wall',[2,1.35]),set('cotton_jersey',[.5,.08]),set('wool_boucle',[.5,.08]),set('hessian_230',[1,.5])]);
+ const [timber,floor,wall,cotton,wool]=await Promise.all([set('wood_table_worn',[1,1]),set('wood_floor',[3,2]),set('painted_plaster_wall',[2,1.35]),set('cotton_jersey',[.5,.08]),set('wool_boucle',[.5,.08])]);
  const standard=(maps,normalScale,colour=0xffffff)=>new T.MeshStandardMaterial({color:colour,map:maps.Diffuse,normalMap:maps.nor_gl,normalScale:new T.Vector2(normalScale,normalScale),roughnessMap:maps.Rough,roughness:1});
  for(const tex of Object.values(floor)){tex.rotation=Math.PI/2;tex.center.set(.5,.5);tex.repeat.set(2,3);}
  const wood=standard(timber,2.0),oak=standard(floor,5.0,'#be8b54');applySurfaceRelief(wood,timber.Displacement,.0012);applySurfaceRelief(oak,floor.Displacement,.0045);
@@ -24,5 +24,5 @@ export async function loadSurfaceMaterials(renderer){
    #include <opaque_fragment>`);};material.customProgramCacheKey=()=>key()+'-wood-cavities-v29';
  }
  wood.roughness=.83;oak.roughness=.86;wood.envMapIntensity=.8;
- return {rug:standard(hessian,.65,'#e1c59b'),wood,floor:oak,wall:standard(wall,.3,'#fff5e5'),cotton,wool};
+ return {wood,floor:oak,wall:standard(wall,.3,'#fff5e5'),cotton,wool};
 }
