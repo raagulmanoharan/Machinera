@@ -2,7 +2,7 @@ import {acceptClothPose} from './stream-intersections.js?v=37';
 import * as T from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { repairWeaveGeometry } from './weave-model.js?v=27';
-import { StreamPhysics } from './stream-physics.js?v=37';
+import { StreamPhysics } from './stream-physics.js?v=39';
 const header=`uniform sampler2D streamPosition;uniform sampler2D streamNormal;uniform sampler2D streamTangent;uniform vec2 streamGrid;uniform float streamLength;
 vec2 streamUV(vec3 p){return vec2(p.x/1.536+.5,clamp(-p.z/streamLength,0.,1.));}
 vec2 streamTexel(vec2 uv){return(clamp(uv,0.,1.)*(streamGrid-1.)+.5)/streamGrid;}
