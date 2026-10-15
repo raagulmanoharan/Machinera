@@ -9,8 +9,8 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 // viewport. Canvas DPR is independent: no accidental 4x target growth at DPR 2.
 // Preserve OutputPass before FXAA. Fusing AgX into every FXAA neighbour would
 // repeat expensive tone mapping and change nonlinear bilinear filtering.
-export function createStreamPipeline(renderer, scene, camera) {
- const composer = new EffectComposer(renderer, new T.WebGLRenderTarget(1, 1, {type:T.HalfFloatType,samples:2}));
+export function createStreamPipeline(renderer, scene, camera,profile={samples:profile.samples}) {
+ const composer = new EffectComposer(renderer, new T.WebGLRenderTarget(1, 1, {type:T.HalfFloatType,samples:profile.samples}));
  composer.setPixelRatio(1);
  composer.addPass(new RenderPass(scene, camera));
  composer.addPass(new OutputPass());
@@ -23,7 +23,7 @@ export function createStreamPipeline(renderer, scene, camera) {
    gl_FragColor.rgb=clamp(gl_FragColor.rgb+vec3(outputNoise/255.),0.,1.);`)};
  const aa = new ShaderPass(outputAA);
  composer.addPass(aa);
- const metrics = {width:1, height:1, renderScale:1, samples:2, outputDither:true, postPasses:2};
+ const metrics = {width:1, height:1, renderScale:1, canvasDpr:renderer.getPixelRatio(),deviceProfile:profile.name??'standard', samples:profile.samples, outputDither:true, postPasses:2};
  function resize(width, height) {
   const w = Math.max(1, Math.round(width)), h = Math.max(1, Math.round(height));
   composer.setSize(w, h);
