@@ -49,3 +49,10 @@ Six 720×1280 browser screenshots were iterated against the supplied room refere
 The sixth-pass review accepted a clear improvement in room warmth, soft window bands, hanging contact and yarn relief. It did **not** judge the result identical to the reference. The yarn topology remains more regular and smoother, the fringe less organic, and the target's grazing floor light is still stronger. Regional RGB samples were used as rough checks, not as a claim of pixel-perfect lighting reconstruction.
 
 At 720×1280 DPR1 the final initial render submitted about 2.62 million triangles in 25 calls, including shadow work. Earlier 44,706-triangle sheet measurements above describe v16, not the current always-visible yarn geometry. These are headless renderer counts, not physical-phone frame-rate measurements. The periodic yarn visibility and projected contact shadows are real-time approximations, particularly under large folds.
+
+
+## v23 natural hanging shape
+
+The upper edge now has five load-bearing attachment points with small linen loops. Nodes between them can sag. The initial/rest shape includes unequal widening tension folds, two broad shallow puffs, a gentle asymmetric bow, and a subtly uneven hem; the same field drives yarns, fibres, fringe, hit testing and projected shadows. This is an art-directed rest shape relaxed by the existing position-based solver, not a full stress-derived cloth equilibrium simulation.
+
+Four physics tests cover fixed anchors/settling, wall clearance, smooth grabbing and bounded initial relief. Browser resting/held screenshots and a grab/release check pass without shader errors. The light setup and texture resolution are retained.
