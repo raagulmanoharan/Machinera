@@ -1,33 +1,29 @@
 # Strand — interactive photo to cloth
 
-Take or choose a photo and its pixels immediately colour the real woven yarns in the browser. The camera button opens the native capture flow on supported phones; the upload button opens the photo library. Both routes use the same local processing path. Photos are never sent to a rendering service.
+Take or choose a photo to colour real woven yarns in a browser-based hanging carpet. Drag the cloth to pull it; release to let it settle. Pinch with two fingers to zoom, or drag beside the cloth to pan. The top edge stays attached to the rail. The wall prevents the fabric passing into the plaster.
 
-The reusable Blender weave is loaded once. A live GPU material projects photo colour over the warp and weft, preserving spatial colour variation instead of reducing it to a few dominant colours. Fine loose fibres and fringe are recoloured as well. Replacing the photo changes the material without rebuilding or downloading the geometry. Photos larger than the GPU-safe limit are resized to at most 4096 pixels on the longest edge; no palette clustering is used.
+Native camera and library inputs share one local processing path. Photo pixels colour the warp and weft directly at up to 4096 pixels on the longest edge, rather than being reduced to dominant palette colours. Replacing a photo reuses the same geometry, light rig and simulation. No photo upload, server render or offline processing job is needed.
 
-The carpet remains in a straight-on portrait room view with warm plaster, upper-left/window lighting, HDR fill, AO and soft shadows. Pan, pinch zoom, exposure and high-resolution export continue to work after taking a photo. Export includes the live photo material and full yarn geometry. The original 3D camera animation and cloth physics remain paused; native photo capture is available directly in this scene.
+## Guide-based renderer
 
-Blender is an authoring tool for reusable assets only. Neither Blender, an offline render nor a server is needed when the user takes a photo or interacts with the carpet.
+The supplied hyperrealism guide informed the v16 revision. [GUIDE-IMPLEMENTATION.md](GUIDE-IMPLEMENTATION.md) maps its sections to implementation, checks and remaining limits. The original stripe design and proportions are retained; the generated photographic target remains a visual reference, not an exact match claim.
 
-## Blender source and rendering
+- A fixed-step position-based 25×39 cloth grid drives a shared position/normal deformation field. The surface, yarns, loose fibres, fringe and depth shaders follow that field. A CPU-deformed proxy supplies touch picking and broad moving wall shadows.
+- Full view uses a subdivided cloth surface with normal, role/coverage and local AO maps baked at startup from the actual Blender weave tile. Medium view uses reduced instanced yarn geometry. Close-up enables full geometry, nearby fibres and self-shadowing. The surface and yarn LODs never overlap.
+- Tile boundaries use matching ply twist phases and endpoint normals, avoiding disconnected yarn ends. Yarn materials combine real three-ply geometry, correlated thickness/dye variation, directional fibre normals, matte roughness variation and dye-tinted sheen. Fringe length and curl vary subtly.
+- The photographic rig uses a broad rectangular window light, an aligned directional shadow caster and the bundled real HDR environment. AgX, linear half-float composition, sRGB output and FXAA handle display. AO is local and baked, not a dark full-screen outline filter.
+- The room has off-white plaster, a beveled wooden rail, brass pins, wood-grained skirting and oak flooring. Camera rotation remains disabled.
 
-`blender/build_textile.py` authors a reusable 8×8 plain-weave tile. Both warp and weft contain three geometrically twisted plies, actual alternating over-under crossings and UVs following the yarn surface. Blender materials add fine directional fibre grooves, matte roughness and cotton sheen. The full room uses linked tile meshes and fine loose fibre curves.
+This is a real-time approximation with bounded local dragging, not a full yarn mechanics or self-collision solver. Physical-phone capture and frame rates remain unverified. Full reference-level photorealism has not been demonstrated.
 
-Run with Blender 4.3+: `blender -b -t 5 --python blender/build_textile.py`. The script currently writes into `/workspace`; change `OUT` and the `.blend` save path for another workspace. It decodes the bundled CC0 HDR from `studio-environment.js` and packs it into the Blender scene. It produces the editable scene, a self-contained glTF weave tile and two 96-sample Cycles renders. The installed Blender build lacks OpenImageDenoise, so denoising is disabled.
+## Run and checks
 
-## Browser proof of concept
+In the standalone workspace, `npm run dev` serves `public/` at http://localhost:3000. In the Machinera repository, use its existing dev server and open `/strand/`; the entry is `public/strand/index.html`. Live: https://raagulmanoharan.github.io/Machinera/strand/.
 
-Three.js loads the actual Blender-exported tile, using two instanced yarn meshes and per-instance stripe dyes. The distant view uses a reduced mesh derived from the exported topology; close-ups use the full authored geometry, with offscreen tiles culled. Fine fibres and fringe remain separate geometry. Directional fibre bump and plaster maps are generated in the browser; Blender's procedural shader nodes are not exported by glTF. The browser is a real-time approximation of the Cycles scene, not an identical path-traced render.
+`node --test --test-isolation=none public/strand/hanging-physics.test.mjs` (or `public/hanging-physics.test.mjs` in the standalone workspace) checks invariant rail pins, finite bounded stretch, settling and wall collision. Browser checks cover mouse/touch drags, touch pinch, photo replacement, LODs, narrow-screen controls, shader compilation and 4K export. Save refreshes culling and uses full yarn geometry with the live photo and current cloth pose.
 
-Drag to pan; pinch/wheel or the +/− controls to inspect. Rotation is disabled. Fit returns to the full hanging carpet. The light control adjusts exposure. Save refreshes visibility and uses full Blender yarn geometry for the current room view at up to 4096 pixels high, subject to GPU limits. Rendering runs on interaction, and stationary shadow maps are cached. The browser uses a linear half-float postprocessing chain with AO before tone mapping and FXAA after output conversion. Physical-phone frame rates and final photorealistic fidelity remain unverified.
+## Assets and earlier experiments
 
-`blender-preview.html` is an optional development comparison of offline Cycles renders, outside the photo-to-carpet workflow. `assets/blender-poc/provenance.json` records geometry hashes and checks.
+`blender/build_textile.py` is the reproducible Blender 4.3 authoring source for the reusable 8×8 three-ply weave tile. The glTF buffer is embedded in `assets/blender-poc/weave-tile.gltf`. The browser applies the v16 material, geometric variation and cloth simulation directly; Blender is not required at runtime. The older `blender-preview.html` contains historical v14 offline Cycles renders and is outside the current photo workflow.
 
-Run `npm run dev` and open http://localhost:3000. Live: https://raagulmanoharan.github.io/Machinera/strand/.
-
-## Earlier 3D camera experience (paused)
-
-The earlier capture, optical viewfinder and attached-cloth experience remains at `camera.html`. The default entry uses native camera/photo selection; it does not load the earlier 3D camera scene or run cloth simulation. No server rendering service or paid infrastructure has been deployed.
-
-## Assets
-
-The Blender weave, room geometry and procedural textures are original assets authored for this project. No image-generation service or extracted reference photograph is used. Studio fill uses [Poly Haven Studio Small 08](https://polyhaven.com/a/studio_small_08) by Sergej Majboroda, CC0, bundled in `studio-environment.js`; see `assets/studio-license.json`. The paused camera uses Poly Haven Camera 01 by Rajil Jose Macatangay, CC0; see `assets/camera-license.json`. Three.js 0.170.0 and addons load from unpkg.
+The weave, room geometry and procedural textures are original project assets. Studio fill uses [Poly Haven Studio Small 08](https://polyhaven.com/a/studio_small_08), Sergej Majboroda, CC0; see `assets/studio-license.json`. Three.js 0.170.0 and addons load from unpkg. The earlier 3D camera/printing scene remains separately at `camera.html`; the current entry uses native photo capture and the wall-hanging simulation.
