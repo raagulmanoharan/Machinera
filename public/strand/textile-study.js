@@ -7,6 +7,7 @@ import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUnifo
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { installClothInteraction } from './cloth-interaction.js?v=16';
 import { HangingCloth } from './hanging-cloth.js?v=16';
+import { repairWeaveGeometry } from './weave-model.js?v=16';
 import { bakeWeave } from './weave-bake.js?v=16';
 import { woodMaterial } from './room-wood.js?v=16';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
@@ -113,7 +114,8 @@ function render(){if(pending)return;pending=true;requestAnimationFrame(frame)}
 function frame(time){pending=false;const dt=lastFrame?Math.min((time-lastFrame)/1000,.05):1/60;lastFrame=time;const moved=cloth.update(dt);if(moved)renderer.shadowMap.needsUpdate=true;updateYarns();renderer.info.reset();composer.render();if(ready){stage.dataset.ready='true';stage.dataset.triangles=String(renderer.info.render.triangles);stage.dataset.drawCalls=String(renderer.info.render.calls);stage.dataset.cameraDistance=camera.position.distanceTo(controls.target).toFixed(4);stage.dataset.lod=farFabric?.visible?'baked-surface':'yarns';stage.dataset.photoVersion=String(photoVersion);stage.dataset.clothActive=String(cloth.sim.active);stage.dataset.clothCentreY=cloth.sim.positions[(Math.floor(cloth.sim.ny/2)*cloth.sim.nx+Math.floor(cloth.sim.nx/2))*3+1].toFixed(5);}if(cloth.sim.active)render();}
 try{
  const gltf=await new GLTFLoader().loadAsync('./assets/blender-poc/weave-tile.gltf?v=13');
- for(const source of gltf.scene.children)if(source.isMesh){source.geometry.scale(1,1,.78);source.geometry.computeVertexNormals();}
+ let seamGap=0;for(const source of gltf.scene.children)if(source.isMesh){seamGap=Math.max(seamGap,repairWeaveGeometry(source.geometry,source.name.includes('warp')));source.geometry.scale(1,1,.78);}
+ stage.dataset.weaveSeamGap=String(seamGap);
  const baked=bakeWeave(renderer,gltf.scene);weaveAOUniform.value=baked.ao;
  const farMaterial=mat.clone();farMaterial.normalMap=baked.normal;farMaterial.normalMap.repeat.set(12,18);farMaterial.normalScale.set(.88,.88);
  farMaterial.bumpMap=null;farMaterial.roughnessMap=null;farMaterial.roughness=.95;const photoCompile=mat.onBeforeCompile;farMaterial.onBeforeCompile=shader=>{photoCompile(shader);shader.uniforms.strandRole={value:baked.role};shader.uniforms.strandBands={value:pattern.map(i=>new T.Color(colours[i]))};shader.uniforms.strandWarp={value:new T.Color(colours[0])};shader.fragmentShader='uniform sampler2D strandRole;uniform vec3 strandBands[18];uniform vec3 strandWarp;\n'+shader.fragmentShader;
