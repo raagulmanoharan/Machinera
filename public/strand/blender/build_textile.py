@@ -14,7 +14,7 @@ hdr_bytes=base64.b64decode(re.search(r"const data='([^']+)'",hdr_module).group(1
 hdr_path='/workspace/blender/studio-small08.hdr';open(hdr_path,'wb').write(hdr_bytes)
 scene.world.use_nodes=True
 wn=scene.world.node_tree.nodes;wl=scene.world.node_tree.links
-bg=wn.get('Background');bg.inputs['Strength'].default_value=.28
+bg=wn.get('Background');bg.inputs['Strength'].default_value=.16
 env=wn.new('ShaderNodeTexEnvironment');env.image=bpy.data.images.load(hdr_path);env.image.pack();wl.new(env.outputs['Color'],bg.inputs['Color'])
 scene.view_settings.view_transform='AgX'
 P=.016; L=P*8
@@ -120,8 +120,8 @@ for i in range(96):
   t=j/8;sp.points[j].co=((i-47.5)*P+.002*math.sin(t*3+i),-.014-.003*math.sin(t*2),.648-.055*t,1)
 ob=bpy.data.objects.new('Fine bottom fringe',fringe);scene.collection.objects.link(ob);ob.data.materials.append(materials[3])
 def aim(ob,at):ob.rotation_euler=(Vector(at)-ob.location).to_track_quat('-Z','Y').to_euler()
-bpy.ops.object.light_add(type='SUN',location=(-3,-2.5,5.5));sun=bpy.context.object;sun.name='Upper-left afternoon sun';sun.data.energy=2.7;sun.data.angle=.16;sun.data.color=(1,.91,.78);aim(sun,(0,0,1.5))
-bpy.ops.object.light_add(type='AREA',location=(-1,-3,3.8));fill=bpy.context.object;fill.name='Soft room bounce';fill.data.energy=35;fill.data.shape='DISK';fill.data.size=4;aim(fill,(0,0,1.6))
+bpy.ops.object.light_add(type='SUN',location=(-3,-2.5,5.5));sun=bpy.context.object;sun.name='Upper-left afternoon sun';sun.data.energy=1.8;sun.data.angle=.16;sun.data.color=(1,.91,.78);aim(sun,(0,0,1.5))
+bpy.ops.object.light_add(type='AREA',location=(-1.2,-1.5,3.5));fill=bpy.context.object;fill.name='Broad upper-left window';fill.data.energy=110;fill.data.color=(1,.91,.80);fill.data.shape='DISK';fill.data.size=1.8;aim(fill,(-.1,0,1.8))
 bpy.ops.object.camera_add(location=(0,-5.8,1.8));cam=bpy.context.object;cam.data.lens=57;aim(cam,(0,0,1.8));scene.camera=cam
 scene.render.image_settings.file_format='PNG'
 bpy.ops.wm.save_as_mainfile(filepath='/workspace/blender/strand-room.blend')
