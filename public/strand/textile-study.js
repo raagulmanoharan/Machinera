@@ -1,3 +1,4 @@
+import { GPUFrameGate } from './gpu-frame-gate.js?v=30';
 import { applyRoomDaylight } from './room-daylight.js?v=29';
 import * as T from 'three';
 import { applySurfaceRelief } from './surface-relief.js?v=28';
@@ -7,7 +8,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { installClothInteraction } from './cloth-interaction.js?v=27';
+import { installClothInteraction } from './cloth-interaction.js?v=30';
 import { HangingCloth } from './hanging-cloth.js?v=27';
 import { repairWeaveGeometry } from './weave-model.js?v=27';
 import { bakeWeave } from './weave-bake.js?v=27';
@@ -145,9 +146,11 @@ function updateYarns(forceHigh=false){
   item.mesh.count=count;if(dirty)item.mesh.instanceMatrix.needsUpdate=item.mesh.instanceColor.needsUpdate=true;
  }
 }
+const gpuFrameGate=new GPUFrameGate(renderer.getContext());
+renderer.domElement.addEventListener('webglcontextlost',()=>gpuFrameGate.reset());
 let pending=false,ready=false,lastFrame=0;
 function render(){if(pending)return;pending=true;requestAnimationFrame(frame)}
-function frame(time){const frameStart=performance.now();pending=false;const dt=lastFrame?Math.min((time-lastFrame)/1000,.05):1/60;lastFrame=time;const moved=cloth.update(dt),physicsEnd=performance.now();if(moved)renderer.shadowMap.needsUpdate=true;updateYarns();renderer.info.reset();composer.render();if(ready){stage.dataset.physicsMs=(physicsEnd-frameStart).toFixed(2);stage.dataset.frameDtMs=(dt*1000).toFixed(2);stage.dataset.frameCpuMs=(performance.now()-frameStart).toFixed(2);stage.dataset.ready='true';stage.dataset.triangles=String(renderer.info.render.triangles);stage.dataset.drawCalls=String(renderer.info.render.calls);stage.dataset.cameraDistance=camera.position.distanceTo(controls.target).toFixed(4);stage.dataset.lod=farFabric?.visible?'baked-surface':'yarns';stage.dataset.photoVersion=String(photoVersion);stage.dataset.clothActive=String(cloth.sim.active);stage.dataset.clothCentreY=cloth.sim.positions[(Math.floor(cloth.sim.ny/2)*cloth.sim.nx+Math.floor(cloth.sim.nx/2))*3+1].toFixed(5);}if(cloth.sim.active)render();else lastFrame=0;}
+function frame(time){const frameStart=performance.now();pending=false;if(document.hidden){lastFrame=0;return;}if((lastFrame&&time-lastFrame<1000/60-.5)||!gpuFrameGate.ready()){render();return;}const dt=lastFrame?Math.min((time-lastFrame)/1000,.05):1/60;lastFrame=time;const moved=cloth.update(dt),physicsEnd=performance.now();if(moved)renderer.shadowMap.needsUpdate=true;updateYarns();renderer.info.reset();composer.render();gpuFrameGate.submitted();if(ready){stage.dataset.physicsMs=(physicsEnd-frameStart).toFixed(2);stage.dataset.frameDtMs=(dt*1000).toFixed(2);stage.dataset.frameCpuMs=(performance.now()-frameStart).toFixed(2);stage.dataset.ready='true';stage.dataset.triangles=String(renderer.info.render.triangles);stage.dataset.drawCalls=String(renderer.info.render.calls);stage.dataset.cameraDistance=camera.position.distanceTo(controls.target).toFixed(4);stage.dataset.lod=farFabric?.visible?'baked-surface':'yarns';stage.dataset.photoVersion=String(photoVersion);stage.dataset.clothActive=String(cloth.sim.active);stage.dataset.clothCentreY=cloth.sim.positions[(Math.floor(cloth.sim.ny/2)*cloth.sim.nx+Math.floor(cloth.sim.nx/2))*3+1].toFixed(5);}if(cloth.sim.active)render();else lastFrame=0;}
 try{
  const gltf=await new GLTFLoader().loadAsync('./assets/blender-poc/weave-tile.gltf?v=13');
  let seamGap=0;for(const source of gltf.scene.children)if(source.isMesh){seamGap=Math.max(seamGap,repairWeaveGeometry(source.geometry,source.name.includes('warp')));source.geometry.scale(1,1,.78);}
@@ -211,6 +214,7 @@ try{
  materialStatus.hidden=true;stage.dataset.materials='polyhaven-cc0';stage.dataset.lighting='1k-hdri';stage.dataset.shadows='deformed-mesh';ready=true;document.querySelector('#takePhoto').disabled=false;document.querySelector('#uploadPhoto').disabled=false;fit();
 }catch(error){stage.dataset.error=error.message;const msg=document.createElement('p');msg.textContent='The textile model could not load. Please reload.';msg.style.cssText='position:fixed;top:30%;width:100%;text-align:center;color:#514633';stage.append(msg);console.error(error)}
 controls.addEventListener('change',render);
+document.addEventListener('visibilitychange',()=>{lastFrame=0;if(!document.hidden)render();});
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();composer.setSize(innerWidth,innerHeight);updateAntialias(innerWidth,innerHeight);render()});
 function zoom(f){const offset=camera.position.clone().sub(controls.target);offset.multiplyScalar(f);offset.clampLength(.16,14);camera.position.copy(controls.target).add(offset);controls.update();render()}
 document.querySelector('#zoomIn').onclick=()=>zoom(1/1.5);document.querySelector('#zoomOut').onclick=()=>zoom(1.5);document.querySelector('#fitFabric').onclick=fit;
