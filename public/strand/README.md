@@ -69,3 +69,11 @@ Independent GPU, cloth/input and sustained-use reviews identified excessive per-
 A front-face-only yarn trial exposed gaps in close-up comparisons and was rejected; double-sided yarns and their prior shadow rendering remain intact. Moving shadows are refreshed only when displayed deformation accumulates more than .25mm per coordinate from the last shadow snapshot, or caster membership changes. A 376-frame solver/display replay reduced refreshes from 376 to 335 (10.9%), all savings in the settling tail; active dragging still refreshes every frame. No visual geometry or texture resolution is reduced.
 
 The local short-run resource counts show no growing leak, and desktop physics steps take about .964ms. These findings do not establish phone GPU timings or thermal behavior; the scene still submits millions of yarn triangles and uses two live shadow maps. Software-browser CPU timings and a 15-frame replay are not sustained mobile FPS evidence. v30's GPU gate is retained as an unused module/test for history, not imported by the app.
+
+## Lower render cost (v32)
+
+The main soft directional light remains the live cloth/yarn shadow source. The projected daylight fill still illuminates the room and supplies its soft cookie, but no longer renders or samples a second overlapping shadow map. Baked-style daylight bands, HDR environment, visible yarn geometry, textures and cloth physics remain intact. The output canvas disables redundant native multisampling/depth/stencil storage because the scene renders into the composer's depth-enabled target and the final fullscreen output already uses FXAA.
+
+Same-camera close-up captures reduce shadow-refresh triangle submissions from 2,929,254 to 1,994,230 (31.9%), and draw calls from 41 to 26. Room-view shadow-refresh calls fall from 47 to 34; its triangle savings are small because it already uses a coarse cloth shadow proxy. These counts measure rendering work, not phone FPS. The single-shadow setup changes the fill's shadow contribution, so the images are visually compared rather than claimed pixel-identical.
+
+A packed normal/tangent field trial was rejected: strong tugs produced up to 11 degrees of interpolation error. The original three-texture deformation fields are retained. No false claim of fewer field samples or reduced physical geometry applies to this release.
