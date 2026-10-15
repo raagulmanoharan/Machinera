@@ -46,6 +46,44 @@ for(const x of [-.73,.73])box('Brass fixing',[x,-.049,2.985],[.018,.012,.018],ne
 const colours=['#265a64','#b75036','#c79837','#dbca9e'],pattern=[0,0,0,3,1,2,0,0,1,1,1,3,2,2,3,0,0,0];
 function yarnBump(){const w=512,h=256,data=new Uint8Array(w*h*4);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const phase=y/h*Math.PI*48+.16*Math.sin(x*.12),v=128+60*Math.sin(phase)+10*Math.sin(x*23.7+y*13.1),i=(y*w+x)*4;data.set([v,v,v,255],i)}const t=new T.DataTexture(data,w,h);t.wrapS=t.wrapT=T.RepeatWrapping;t.magFilter=T.LinearFilter;t.minFilter=T.LinearMipmapLinearFilter;t.generateMipmaps=true;t.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());t.needsUpdate=true;return t;}
 const P=.016,warpCount=12*18,mat=new T.MeshPhysicalMaterial({color:0xffffff,roughness:.96,sheen:.3,sheenColor:'#c5ad8c',sheenRoughness:.9,bumpMap:yarnBump(),bumpScale:.0003});
+// One reusable Blender asset; photos only change live yarn colour on the GPU.
+const blankPhoto=new T.DataTexture(new Uint8Array([255,255,255,255]),1,1);blankPhoto.needsUpdate=true;
+const photoUniform={value:blankPhoto},hasPhotoUniform={value:0};
+mat.onBeforeCompile=shader=>{
+ shader.uniforms.strandPhoto=photoUniform;shader.uniforms.strandHasPhoto=hasPhotoUniform;
+ shader.vertexShader='varying vec2 vStrandPhotoUV;\n'+shader.vertexShader;
+ shader.vertexShader=shader.vertexShader.replace('#include <project_vertex>',`#include <project_vertex>
+ vec4 strandPosition=vec4(transformed,1.0);
+ #ifdef USE_INSTANCING
+ strandPosition=instanceMatrix*strandPosition;
+ #endif
+ strandPosition=modelMatrix*strandPosition;
+ vStrandPhotoUV=vec2(strandPosition.x/1.536+0.5,(strandPosition.z-0.648)/2.304);`);
+ shader.fragmentShader='uniform sampler2D strandPhoto;uniform float strandHasPhoto;varying vec2 vStrandPhotoUV;\n'+shader.fragmentShader;
+ shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+ if(strandHasPhoto>0.5){diffuseColor.rgb=texture2D(strandPhoto,clamp(vStrandPhotoUV,0.0,1.0)).rgb;}`);
+};
+mat.customProgramCacheKey=()=> 'strand-live-photo-v1';
+let fibreMesh,fringeMaterial,photoVersion=0,photoRequest=0;
+function photoColour(pixels,width,height,x,z,out){const u=T.MathUtils.clamp(x/1.536+.5,0,1),v=T.MathUtils.clamp(1-(z-.648)/2.304,0,1),i=(Math.min(height-1,Math.floor(v*height))*width+Math.min(width-1,Math.floor(u*width)))*4;return out.setRGB(pixels[i]/255,pixels[i+1]/255,pixels[i+2]/255,T.SRGBColorSpace)}
+async function applyPhoto(file){
+ if(!file)return;const request=++photoRequest,status=document.querySelector('#photoStatus');status.textContent='Weaving your colours…';status.hidden=false;
+ const url=URL.createObjectURL(file);let texture;
+ try{
+  const image=new Image();image.src=url;await image.decode();
+  const limit=Math.min(4096,renderer.capabilities.maxTextureSize),scale=Math.min(1,limit/Math.max(image.naturalWidth,image.naturalHeight));
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);
+  if(request!==photoRequest)return;
+  texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;texture.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
+  const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data,colour=new T.Color();
+  if(fibreMesh){const positions=fibreMesh.geometry.attributes.position,tints=fibreMesh.geometry.attributes.color;for(let i=0;i<positions.count;i++){photoColour(pixels,canvas.width,canvas.height,positions.getX(i),positions.getZ(i),colour);tints.setXYZ(i,colour.r,colour.g,colour.b)}tints.needsUpdate=true;}
+  if(fringeMaterial){const sum=new T.Color(0,0,0);for(let i=0;i<64;i++)sum.add(photoColour(pixels,canvas.width,canvas.height,(i/63-.5)*1.536,.648,colour));fringeMaterial.color.copy(sum.multiplyScalar(1/64));}
+  const old=photoUniform.value;photoUniform.value=texture;hasPhotoUniform.value=1;if(old!==blankPhoto)old.dispose();photoVersion++;
+  stage.dataset.photoWidth=String(canvas.width);stage.dataset.photoHeight=String(canvas.height);status.hidden=true;fit();render();
+ }catch(error){texture?.dispose();if(request===photoRequest){status.textContent='That photo could not be opened. Try JPEG, PNG or WebP.';status.hidden=false;console.error(error)}}finally{URL.revokeObjectURL(url)}
+}
+for(const [button,input]of [['takePhoto','cameraPhoto'],['uploadPhoto','photoFile']]){document.querySelector('#'+button).onclick=()=>document.querySelector('#'+input).click();document.querySelector('#'+input).onchange=e=>{applyPhoto(e.target.files?.[0]);e.target.value='';};}
 const yarnMeshes=[],frustum=new T.Frustum(),projectionView=new T.Matrix4(),tileSphere=new T.Sphere(new T.Vector3(),.105);
 function distantGeometry(source){
  const p=source.getAttribute('position'),n=source.getAttribute('normal'),uv=source.getAttribute('uv'),positions=[],normals=[],uvs=[],indices=[];
@@ -55,20 +93,20 @@ function distantGeometry(source){
 }
 function updateYarns(forceHigh=false){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projectionView.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));const close=forceHigh||camera.position.distanceTo(controls.target)<2.3;for(const item of yarnMeshes){item.mesh.geometry=close?item.high:item.low;let count=0;for(const entry of item.entries){tileSphere.center.copy(entry.centre);if(close&&!frustum.intersectsSphere(tileSphere))continue;item.mesh.setMatrixAt(count,entry.matrix);item.mesh.setColorAt(count++,entry.colour)}item.mesh.count=count;item.mesh.instanceMatrix.needsUpdate=true;item.mesh.instanceColor.needsUpdate=true}}
 let pending=false,ready=false;
-function render(){if(pending)return;pending=true;requestAnimationFrame(()=>{updateYarns();composer.render();if(ready)renderer.shadowMap.autoUpdate=false;pending=false;if(ready)stage.dataset.ready='true'})}
+function render(){if(pending)return;pending=true;requestAnimationFrame(()=>{updateYarns();composer.render();if(ready)renderer.shadowMap.autoUpdate=false;pending=false;if(ready){stage.dataset.ready='true';stage.dataset.photoVersion=String(photoVersion)}})}
 try{
  const gltf=await new GLTFLoader().loadAsync('./assets/blender-poc/weave-tile.gltf?v=13');
  for(const source of gltf.scene.children){if(!source.isMesh)continue;const warp=source.name.includes('warp'),mesh=new T.InstancedMesh(source.geometry,mat,warpCount);const entries=[];yarnMeshes.push({mesh,entries,high:source.geometry,low:distantGeometry(source.geometry)});mesh.name=source.name;mesh.castShadow=mesh.receiveShadow=true;const matrix=new T.Matrix4(),rotation=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),Math.PI/2),colour=new T.Color();let index=0;for(let y=0;y<18;y++)for(let x=0;x<12;x++){matrix.compose(new T.Vector3((x*8-47.5)*P,-.014,1.8+(y*8-71.5)*P),rotation,new T.Vector3(1,1,1));mesh.setMatrixAt(index,matrix);colour.set(colours[warp?0:pattern[y]]);mesh.setColorAt(index++,colour);entries.push({matrix:matrix.clone(),colour:colour.clone(),centre:new T.Vector3((x*8-44)*P,-.014,1.8+(y*8-68)*P)})}mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
  // Fine loose fibres are sparse geometry rather than a thick fuzzy surface shell.
  let seed=24;function random(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}const fibres=[],tints=[];
  for(let i=0;i<18000;i++){const x=(random()-.5)*1.52,z=.65+random()*2.3,len=.001+random()*.004,angle=random()*Math.PI*2,row=T.MathUtils.clamp(Math.floor((z-.648)/.128),0,17),c=new T.Color(colours[pattern[row]]);for(let j=0;j<2;j++){const a=j/2,b=(j+1)/2;for(const t of [a,b]){fibres.push(x+Math.cos(angle)*len*t,-.024-Math.sin(t*2)*len*.5,z+Math.sin(angle)*len*t);tints.push(c.r,c.g,c.b)}}}
- const fg=new T.BufferGeometry();fg.setAttribute('position',new T.Float32BufferAttribute(fibres,3));fg.setAttribute('color',new T.Float32BufferAttribute(tints,3));scene.add(new T.LineSegments(fg,new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.3,depthWrite:false})));
- const fringeMaterial=new T.MeshPhysicalMaterial({color:colours[3],roughness:1,sheen:.3});for(let i=0;i<96;i++){const points=[];for(let j=0;j<=8;j++){const t=j/8;points.push(new T.Vector3((i-47.5)*P+.002*Math.sin(t*3+i),-.014-.003*Math.sin(t*2),.648-.055*t))}const mesh=new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(points),12,.0025,5,false),fringeMaterial);mesh.castShadow=true;scene.add(mesh)}
- ready=true;fit();
+ const fg=new T.BufferGeometry();fg.setAttribute('position',new T.Float32BufferAttribute(fibres,3));fg.setAttribute('color',new T.Float32BufferAttribute(tints,3));fibreMesh=new T.LineSegments(fg,new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.3,depthWrite:false}));scene.add(fibreMesh);
+ fringeMaterial=new T.MeshPhysicalMaterial({color:colours[3],roughness:1,sheen:.3});for(let i=0;i<96;i++){const points=[];for(let j=0;j<=8;j++){const t=j/8;points.push(new T.Vector3((i-47.5)*P+.002*Math.sin(t*3+i),-.014-.003*Math.sin(t*2),.648-.055*t))}const mesh=new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(points),12,.0025,5,false),fringeMaterial);mesh.castShadow=true;scene.add(mesh)}
+ ready=true;document.querySelector('#takePhoto').disabled=false;document.querySelector('#uploadPhoto').disabled=false;fit();
 }catch(error){stage.dataset.error=error.message;const msg=document.createElement('p');msg.textContent='The textile model could not load. Please reload.';msg.style.cssText='position:fixed;top:30%;width:100%;text-align:center;color:#514633';stage.append(msg);console.error(error)}
 controls.addEventListener('change',render);
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();composer.setSize(innerWidth,innerHeight);updateAntialias(innerWidth,innerHeight);render()});
 function zoom(f){const offset=camera.position.clone().sub(controls.target);offset.multiplyScalar(f);offset.clampLength(.16,10);camera.position.copy(controls.target).add(offset);controls.update();render()}
 document.querySelector('#zoomIn').onclick=()=>zoom(1/1.5);document.querySelector('#zoomOut').onclick=()=>zoom(1.5);document.querySelector('#fitFabric').onclick=fit;
 document.querySelector('#light').value='1.1';document.querySelector('#light').oninput=e=>{renderer.toneMappingExposure=Number(e.target.value);render()};
-document.querySelector('#saveFabric').onclick=()=>{const size=new T.Vector2();renderer.getSize(size);const aspect=size.x/size.y,h=Math.min(4096,renderer.capabilities.maxTextureSize),w=Math.round(h*aspect),pixelRatio=renderer.getPixelRatio();renderer.setPixelRatio(1);renderer.setSize(w,h,false);composer.setPixelRatio(1);composer.setSize(w,h);updateAntialias(w,h,1);updateYarns(true);composer.render();renderer.domElement.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='strand-blender-room.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)});renderer.setPixelRatio(pixelRatio);renderer.setSize(size.x,size.y,false);composer.setPixelRatio(pixelRatio);composer.setSize(size.x,size.y);updateAntialias(size.x,size.y,pixelRatio);render()};
+document.querySelector('#saveFabric').onclick=()=>{const size=new T.Vector2();renderer.getSize(size);const aspect=size.x/size.y,h=Math.min(4096,renderer.capabilities.maxTextureSize),w=Math.round(h*aspect),pixelRatio=renderer.getPixelRatio();renderer.setPixelRatio(1);renderer.setSize(w,h,false);composer.setPixelRatio(1);composer.setSize(w,h);updateAntialias(w,h,1);updateYarns(true);composer.render();renderer.domElement.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='strand-photo-carpet.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)});renderer.setPixelRatio(pixelRatio);renderer.setSize(size.x,size.y,false);composer.setPixelRatio(pixelRatio);composer.setSize(size.x,size.y);updateAntialias(size.x,size.y,pixelRatio);render()};
