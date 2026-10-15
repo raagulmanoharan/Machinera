@@ -1,5 +1,5 @@
 import * as T from 'three';
-import { HangingPhysics } from './hanging-physics.js?v=19';
+import { HangingPhysics } from './hanging-physics.js?v=23';
 const header=`uniform sampler2D uHangPosition;uniform sampler2D uHangNormal;uniform sampler2D uHangTangent;uniform vec2 uHangGrid;
 vec2 hangTexel(vec2 uv){return(clamp(uv,0.0,1.0)*(uHangGrid-1.0)+.5)/uHangGrid;}
 vec3 hangPoint(vec2 uv){return texture2D(uHangPosition,hangTexel(uv)).xyz;}
