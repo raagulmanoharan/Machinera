@@ -119,3 +119,7 @@ The initial strip follows an arc-length-sampled, non-intersecting inlet/fold pat
 GPU position sampling now uses the same two triangles per grid cell as the collider, instead of a bilinear patch that could bow through another fold. Normal interpolation remains smooth; yarn thickness is accommodated by the 3cm contact margin. The validator checks the finite sheet mesh, not a formal continuous-collision proof for every microscopic yarn contact.
 
 Validation: 20 tests across collision, physics and frame pacing; browser photo capture, repeated feeding, floor dragging, portrait five-photo render and 320px layout. Fast-drag regression validates each accepted surface pose; raised grabbed points and explicit crossing rejection have independent tests. No measured iPhone FPS guarantee.
+
+## Soft diffuse shadows (v38)
+
+Feather the existing directional shadow by widening its fixed-cost PCF radius from 4.5 to 9 and using a 1024-square map instead of 2048-square. This makes the world-space edge transition wider while reducing shadow-map texels by 75%. The filter sample count, shadow-casting light count and render passes are unchanged. Slightly reduce HDR environment fill (.16 to .15) and upper bounce (4 to 3.6) for deeper cores without increasing key-light highlights. This is uniform filtered shadow softness, not contact-dependent path-traced penumbrae; phone frame rates have not been measured. Verify in the five-photo browser render with live fold shadows.

@@ -6,7 +6,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { loadRoomEnvironment } from './room-lighting.js?v=27';
-import { addTextileLights } from './textile-light-rig.js?v=35';
+import { addTextileLights } from './textile-light-rig.js?v=38';
 import { addStreamRoom, loadStreamYarn } from './stream-room.js?v=36';
 import { StreamCloth } from './stream-cloth.js?v=37';
 import { installClothInteraction } from './cloth-interaction.js?v=33';
@@ -33,7 +33,7 @@ async function openCapture(){clearTimeout(closeTimer);capture.hidden=false;captu
  const request=++cameraRequest;try{if(!navigator.mediaDevices?.getUserMedia)throw Error('unavailable');const nextMedia=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:1920}},audio:false});if(capture.hidden||request!==cameraRequest){nextMedia.getTracks().forEach(t=>t.stop());return;}media=nextMedia;video.srcObject=media;await video.play();document.querySelector('#shutter').disabled=false;}catch{document.querySelector('#captureHint').textContent='Choose a photo, or open your phone camera.';document.querySelector('#shutter').disabled=false;}}
 function closeCapture(){stopCamera();capture.classList.add('flipped');stage.classList.remove('behind-camera');closeTimer=setTimeout(()=>{capture.hidden=true;render()},600);}
 document.querySelector('#takePhoto').onclick=openCapture;
-document.querySelector('#demoPhotos').onclick=()=>{location.search='?demo=5&v=37'};document.querySelector('#closeCapture').onclick=closeCapture;
+document.querySelector('#demoPhotos').onclick=()=>{location.search='?demo=5&v=38'};document.querySelector('#closeCapture').onclick=closeCapture;
 function selectImage(image){const width=image.naturalWidth??image.width,height=image.naturalHeight??image.height,scale=Math.min(1,1024/Math.max(width,height));preview.width=Math.round(width*scale);preview.height=Math.round(height*scale);preview.getContext('2d').drawImage(image,0,0,preview.width,preview.height);selected=document.createElement('canvas');selected.width=256;selected.height=384;selected.getContext('2d').drawImage(image,0,0,256,384);preview.hidden=false;video.hidden=true;printButton.disabled=false;document.querySelector('#captureHint').textContent='Let these colours keep flowing.';stopCamera();}
 document.querySelector('#shutter').onclick=()=>{if(video.srcObject&&video.videoWidth){const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;c.getContext('2d').drawImage(video,0,0);selectImage(c);}else document.querySelector('#cameraPhoto').click();};
 async function selectFile(file){if(!file||selecting)return;selecting=true;const url=URL.createObjectURL(file);try{const image=new Image();image.src=url;await image.decode();selectImage(image);}catch{document.querySelector('#captureHint').textContent='Try another JPEG, PNG or WebP.';}finally{selecting=false;URL.revokeObjectURL(url);}}
