@@ -1,0 +1,11 @@
+{
+  "source": "https://polyhaven.com/a/wool_boucle",
+  "license": "CC0-1.0",
+  "file": "wool-normal-256.png",
+  "processing": "256px Lanczos reduction in encoded tangent-normal space, vectors renormalized, lossless PNG",
+  "dimensions": [
+    256,
+    256
+  ],
+  "bytes": 120512
+}
