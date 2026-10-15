@@ -33,6 +33,6 @@ export class StreamPhysics {
   }
   // Resolve non-neighbouring floor vertices, keeping successive folds separate.
   if((this.tick=(this.tick??0)+1)%2===0){const cells=this.collisionCells,cell=.035;cells.clear();for(let i=nx;i<p.length/3;i++){const j=i*3;if(p[j+2]>.65)continue;const x=Math.floor(p[j]/cell),y=Math.floor(p[j+1]/cell),z=Math.floor(p[j+2]/cell);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){const first=cells.get(x+dx+64+(y+dy+256)*256+(z+dz+64)*131072);if(first===undefined)continue;for(let k=first;k>=0;k=this.collisionNext[k]){if(Math.abs(Math.floor(k/nx)-Math.floor(i/nx))<3)continue;const b=k*3,ax=p[j]-p[b],ay=p[j+1]-p[b+1],az=p[j+2]-p[b+2],d=Math.hypot(ax,ay,az);if(d>.00001&&d<.018){const f=(.018-d)/d*.35;p[j]+=ax*f;p[j+1]+=ay*f;p[j+2]=Math.max(.025,p[j+2]+az*f);p[b]-=ax*f;p[b+1]-=ay*f;p[b+2]=Math.max(.025,p[b+2]-az*f);}}}const key=x+64+(y+256)*256+(z+64)*131072;this.collisionNext[i]=cells.get(key)??-1;cells.set(key,i);}}
-  let speed=0;for(let i=nx*3;i<p.length;i++)speed=Math.max(speed,Math.abs(p[i]-old[i]));this.quiet=speed<.00015&&!this.grab&&!this.feed?this.quiet+1:0;if(this.quiet>75){this.active=false;old.set(p);}
+  let speed=0,energy=0;for(let i=nx*3;i<p.length;i++){const v=p[i]-old[i];speed=Math.max(speed,Math.abs(v));energy+=v*v;}const rms=Math.sqrt(energy/(p.length-nx*3));this.quiet=rms<.00035&&speed<.006&&!this.grab&&!this.feed?this.quiet+1:0;if(this.quiet>90){this.active=false;old.set(p);}
  }
 }
