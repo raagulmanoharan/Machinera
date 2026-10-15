@@ -84,3 +84,16 @@ Validation: all four cloth invariant tests passed; live dragging moved centre Y 
 
 
 The final macro review exposed excessively weak, overly small normal detail. Wool/cotton normal amplitudes and metric UV scale were adjusted to make the existing scan grain visible; flyaways are restricted to exposed front-facing yarn surfaces instead of overlapping inner ply faces. This improves material detail, but the underlying repeated six-sided three-ply model is still a major realism limitation. The published result must not be described as microscopic fibre accuracy or a pixel-perfect reconstruction.
+
+
+## v26 — soft irregular light and lower interaction cost
+
+Straight blurred pane rectangles were replaced with overlapping curved Gaussian daylight pools, retaining the warm positive baseline and the existing light rig/HDR. No visible geometry, texture resolution or device-pixel ratio was reduced.
+
+Optimisation keeps the same 975 simulation vertices, structural/shear/bending constraints and seven iterations. Packed typed arrays, precomputed endpoint weights and scalar constraint lengths give a local median of 2.283ms→.965ms per 90Hz step (six warmed 600-step runs). The previous and new solver produced exactly equal Float32 positions over a 900-step tug/release scenario. Picking indices are cached, conservative bounds replace per-frame bounds scans, culling samples the displayed field, and unchanged yarn instance buffers no longer re-upload.
+
+The 176 visible three-ply fringe ends are unchanged. Shadow-only outer envelopes reduce fringe shadow triangles from 126,720 to 8,448 per shadow pass, appropriate to the existing 1024px shadow maps and their broad PCF filter. Complete shadow-updating frames decrease from 2,727,892 to 2,499,796 triangles; one extra inexpensive main draw is added for the invisible proxy. Shadows still follow the same displayed deformation field every moving frame. Camera-only changes refresh shadows only when the actual detailed-caster visibility changes.
+
+The frame clock resets on sleep: the first grab now uses 16.67ms instead of a stale 50ms catch-up. Fast swipes, canceled touches and switching to pinch no longer trigger tap impulses. Close-up pull scales with hit distance to keep the cloth in front of the camera, and detailed yarn selection has hysteresis to prevent repeated swaps near the threshold. The camera near plane is .03m, safely below the .16m zoom limit, to improve depth precision.
+
+Validation: four physics invariant tests pass; gesture tests cover drag/tap/pinch/cancel and close-up pull (8.67mm at .16m); updated picking/shadow vertices and normals exactly match the displayed field, within conservative bounds. A sequential baseline/candidate software-Chromium grab sample measured median CPU frame submission 14.3ms→7.9ms across five warmed samples. This is a small local CPU measurement, not GPU timing or proof of physical-phone smoothness. Browser/source-photo/macro checks retain the current rendering workflow.
