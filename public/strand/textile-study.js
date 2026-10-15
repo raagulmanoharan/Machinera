@@ -5,16 +5,16 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { installClothInteraction } from './cloth-interaction.js?v=22';
-import { HangingCloth } from './hanging-cloth.js?v=22';
-import { repairWeaveGeometry } from './weave-model.js?v=22';
-import { bakeWeave } from './weave-bake.js?v=22';
-import { loadSurfaceMaterials } from './surface-materials.js?v=22';
+import { installClothInteraction } from './cloth-interaction.js?v=23';
+import { HangingCloth } from './hanging-cloth.js?v=23';
+import { repairWeaveGeometry } from './weave-model.js?v=23';
+import { bakeWeave } from './weave-bake.js?v=23';
+import { loadSurfaceMaterials } from './surface-materials.js?v=23';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { loadRoomEnvironment } from './room-lighting.js?v=22';
-import { windowDaylight } from './window-daylight.js?v=22';
+import { loadRoomEnvironment } from './room-lighting.js?v=23';
+import { windowDaylight } from './window-daylight.js?v=23';
 const stage=document.querySelector('#stage');
 const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
@@ -56,6 +56,10 @@ const skirting=new T.Mesh(new RoundedBoxGeometry(8,.045,.15,3,.007),wood);skirti
 const rail=new T.Mesh(new RoundedBoxGeometry(1.7,.045,.038,4,.007),wood);rail.position.set(0,-.018,2.985);rail.castShadow=rail.receiveShadow=true;scene.add(rail);
 for(const x of [-.73,.73]){const pin=new T.Mesh(new T.CylinderGeometry(.0055,.0055,.009,16),new T.MeshPhysicalMaterial({color:'#a28042',metalness:.8,roughness:.32}));pin.position.set(x,-.045,2.985);pin.castShadow=true;scene.add(pin);}
 const cloth=new HangingCloth(scene,renderer);
+// Small linen loops make the five load-bearing attachment points visible.
+const ties=new T.MeshStandardMaterial({color:'#d6c6a7',roughness:1,normalMap:surfaces.cotton.nor_gl,normalScale:new T.Vector2(.2,.2)});
+for(let x=0;x<cloth.sim.nx;x++){const i=(cloth.sim.ny-1)*cloth.sim.nx+x;if(!cloth.sim.pinned[i])continue;const j=i*3,px=cloth.sim.positions[j],py=cloth.sim.positions[j+1],pz=cloth.sim.positions[j+2];const points=[new T.Vector3(px-.003,py,pz),new T.Vector3(px-.003,-.044,2.98),new T.Vector3(px,-.023,3.008),new T.Vector3(px+.003,.008,2.982),new T.Vector3(px+.003,py,pz)];const loop=new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(points),24,.0014,6,false),ties);loop.name='Linen attachment loop';loop.castShadow=true;scene.add(loop);}
+
 const colours=['#3b595a','#a74730','#ae812c','#cbbb9d'],pattern=[0,0,0,3,1,2,0,0,1,1,1,3,2,2,3,0,0,0];
 const fibreNormal=surfaces.wool.nor_gl;
 const P=.016,warpCount=12*18,mat=new T.MeshPhysicalMaterial({color:0xffffff,side:T.DoubleSide,roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.32,.32)});
