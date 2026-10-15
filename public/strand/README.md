@@ -77,3 +77,13 @@ The main soft directional light remains the live cloth/yarn shadow source. The p
 Same-camera close-up captures reduce shadow-refresh triangle submissions from 2,929,254 to 1,994,230 (31.9%), and draw calls from 41 to 26. Room-view shadow-refresh calls fall from 47 to 34; its triangle savings are small because it already uses a coarse cloth shadow proxy. These counts measure rendering work, not phone FPS. The single-shadow setup changes the fill's shadow contribution, so the images are visually compared rather than claimed pixel-identical.
 
 A packed normal/tangent field trial was rejected: strong tugs produced up to 11 degrees of interpolation error. The original three-texture deformation fields are retained. No false claim of fewer field samples or reduced physical geometry applies to this release.
+
+## Empty image-backed room (v33)
+
+The room is now an empty, restrained matte wall and wood floor. The rail, yarns and cloth remain live 3D; furnishings, pottery, frames and lamps are removed.
+
+The offline browser bake and interactive carpet import `textile-light-rig.js`: the same Studio Small 08 1K HDRI, environment rotation, top-left directional key, soft window cookie and bounce lights. `assets/room/empty-room.hdr` contains two linear HDR states side by side (lit / key occluded). The live shadow shader blends those actual room colours using the moving cloth shadow map. The whole scene passes through AgX/exposure once, including exports; there is no double-tonemapped JPEG or black shadow overlay. The room is two triangles and one draw call. Pan/zoom stays inside the baked frame.
+
+The room uses a stylized matte cream palette and CC0 Poly Haven plaster/wood normals. Runtime no longer downloads wall/floor material sets or builds furniture. Original cloth simulation, photo colour mapping and close-up yarn geometry remain. This reduces room cost; it does not establish 60 FPS on an iPhone.
+
+Rebaking: serve this folder, open `tools/bake-empty-room.html` in a WebGL2 browser with an exposed `window.saveBake(name, floatRGBAArray)` callback, save the lit and shadow Float32 arrays, then run `python tools/encode-room-hdr.py lit.f32 shadow.f32 assets/room/empty-room.hdr` (NumPy required). Capture dimensions and projection must agree with `heritage-room.js`. Changing the actual light rig requires rebaking; the exposure slider remains live and affects both room and carpet identically.

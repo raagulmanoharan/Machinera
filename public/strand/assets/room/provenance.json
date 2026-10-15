@@ -1,0 +1,43 @@
+{
+  "name": "Empty matte room, shared HDR lighting",
+  "delivery": "empty-room.hdr",
+  "dimensions": [
+    1024,
+    910
+  ],
+  "subimage_dimensions": [
+    512,
+    910
+  ],
+  "layout": "left: full light; right: directional key occluded",
+  "encoding": "Radiance RGBE, scene-linear sRGB; decoded to half float",
+  "hdri": {
+    "name": "Studio Small 08",
+    "author": "Sergej Majboroda / Poly Haven",
+    "license": "CC0",
+    "url": "https://polyhaven.com/a/studio_small_08"
+  },
+  "materials": [
+    "Poly Haven painted_plaster_wall normal",
+    "Poly Haven wood_floor diffuse, normal, roughness"
+  ],
+  "lighting_source": "textile-light-rig.js, shared with live carpet",
+  "display": "Single AgX output transform, exposure 1.1 default, identical to live textile",
+  "room_contents": [
+    "wall",
+    "wood floor"
+  ],
+  "live_geometry": [
+    "carpet",
+    "hanging rail",
+    "attachment pins and linen ties"
+  ],
+  "camera": {
+    "vertical_fov": 25,
+    "world_image_height": 5,
+    "image_centre_z": 1.35,
+    "wall_y": 0.03
+  },
+  "sha256": "57ba13e2341a9a2652722b7d47d025ad5febfdeb9d75af561db655b0cf9d08ef",
+  "bytes": 2649372
+}
