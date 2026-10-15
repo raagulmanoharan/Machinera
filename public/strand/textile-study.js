@@ -5,21 +5,21 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { installClothInteraction } from './cloth-interaction.js?v=23';
-import { HangingCloth } from './hanging-cloth.js?v=23';
-import { repairWeaveGeometry } from './weave-model.js?v=23';
-import { bakeWeave } from './weave-bake.js?v=23';
-import { loadSurfaceMaterials } from './surface-materials.js?v=23';
+import { installClothInteraction } from './cloth-interaction.js?v=24';
+import { HangingCloth } from './hanging-cloth.js?v=24';
+import { repairWeaveGeometry } from './weave-model.js?v=24';
+import { bakeWeave } from './weave-bake.js?v=24';
+import { loadSurfaceMaterials } from './surface-materials.js?v=24';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { loadRoomEnvironment } from './room-lighting.js?v=23';
-import { windowDaylight } from './window-daylight.js?v=23';
+import { loadRoomEnvironment } from './room-lighting.js?v=24';
+import { windowDaylight } from './window-daylight.js?v=24';
 const stage=document.querySelector('#stage');
 const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.AgXToneMapping;renderer.toneMappingExposure=1.1;
-renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;renderer.shadowMap.type=T.VSMShadowMap;stage.prepend(renderer.domElement);
+renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;renderer.shadowMap.type=T.PCFShadowMap;stage.prepend(renderer.domElement);
 const scene=new T.Scene();scene.background=new T.Color('#d5c8b4');
 const hdrStatus=document.querySelector('#photoStatus');hdrStatus.hidden=false;hdrStatus.textContent='Lighting the room…';
 try{scene.environment=await loadRoomEnvironment(renderer);}catch(error){hdrStatus.textContent='The room lighting could not load. Please reload.';throw error;}scene.environmentIntensity=.20;scene.environmentRotation.set(Math.PI/2,0,.35);
@@ -27,8 +27,8 @@ const camera=new T.PerspectiveCamera(25,innerWidth/innerHeight,.01,40);camera.up
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableRotate=false;controls.screenSpacePanning=true;controls.minDistance=.16;controls.maxDistance=14;controls.mouseButtons.LEFT=T.MOUSE.PAN;controls.touches.ONE=T.TOUCH.PAN;controls.touches.TWO=T.TOUCH.DOLLY_PAN;
 const target=new T.Vector3(0,0,1.47),home=new T.Vector3(0,-8.65,1.47);
 function fit(){controls.target.copy(target);camera.position.copy(target).add(home.clone().sub(target).multiplyScalar(Math.max(1,.57/camera.aspect)));controls.update();render()}
-const key=new T.DirectionalLight(0xffecd1,1.2);key.position.set(-3,-2.8,5.3);key.target.position.set(0,0,1.5);key.castShadow=true;
-Object.assign(key.shadow.camera,{left:-2.3,right:2.3,top:2.7,bottom:-2.7,near:.1,far:15});key.shadow.mapSize.set(1024,1024);key.shadow.radius=8;key.shadow.blurSamples=20;key.shadow.bias=-.000008;key.shadow.normalBias=.00025;scene.add(key,key.target);
+const key=new T.DirectionalLight(0xffecd1,1.65);key.position.set(-3.6,-1.9,5.2);key.target.position.set(0,0,1.5);key.castShadow=true;
+Object.assign(key.shadow.camera,{left:-2.3,right:2.3,top:2.7,bottom:-2.7,near:.1,far:15});key.shadow.mapSize.set(1024,1024);key.shadow.radius=4.5;key.shadow.bias=-.000008;key.shadow.normalBias=.00025;scene.add(key,key.target);
 // Broad photographic window light; the aligned directional key casts the wall shadow.
 RectAreaLightUniformsLib.init();
 const windowLight=new T.RectAreaLight(0xfff1de,.8,3.5,4.5);
@@ -115,10 +115,11 @@ function distantGeometry(source){
  for(let ply=0;ply<24;ply++){const base=positions.length/3;for(let ring=0;ring<=80;ring+=4)for(const side of [0,1,2,3,4,5]){const v=ply*81*6+ring*6+side;positions.push(p.getX(v),p.getY(v),p.getZ(v));normals.push(n.getX(v),n.getY(v),n.getZ(v));uvs.push(uv.getX(v),uv.getY(v))}for(let ring=0;ring<20;ring++)for(let side=0;side<6;side++){const a=base+ring*6+side,b=base+ring*6+(side+1)%6;indices.push(a,b,b+6,a,b+6,a+6)}}
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));g.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));g.setIndex(indices);return g;
 }
-function updateYarns(forceHigh=false){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projectionView.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));const distance=camera.position.distanceTo(controls.target),near=true;microShadowUniform.value=distance>=1?1:0;if(farFabric)farFabric.visible=!near;if(fibreMesh)fibreMesh.visible=true;for(const item of yarnMeshes){item.mesh.visible=near;item.mesh.receiveShadow=distance<3.1;if(!near)continue;item.mesh.geometry=forceHigh||distance<1.0?item.high:item.low;item.mesh.castShadow=distance<1.0;let count=0;for(const entry of item.entries){cloth.sample(entry.centre.x/1.536+.5,(entry.centre.z-.648)/2.304,tileSphere.center);tileSphere.radius=cloth.sim.active?.18:.14;if(!frustum.intersectsSphere(tileSphere))continue;item.mesh.setMatrixAt(count,entry.matrix);item.mesh.setColorAt(count++,entry.colour)}item.mesh.count=count;item.mesh.instanceMatrix.needsUpdate=true;item.mesh.instanceColor.needsUpdate=true;}}
+let detailedShadowCasters=false;
+function updateYarns(forceHigh=false){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projectionView.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));const distance=camera.position.distanceTo(controls.target),near=true;if(detailedShadowCasters!==(distance<1)){detailedShadowCasters=distance<1;renderer.shadowMap.needsUpdate=true;}microShadowUniform.value=distance>=1?1:0;if(farFabric)farFabric.visible=!near;if(fibreMesh)fibreMesh.visible=true;for(const item of yarnMeshes){item.mesh.visible=near;item.mesh.receiveShadow=true;if(!near)continue;item.mesh.geometry=forceHigh||distance<1.0?item.high:item.low;item.mesh.castShadow=distance<1.0;let count=0;for(const entry of item.entries){cloth.sample(entry.centre.x/1.536+.5,(entry.centre.z-.648)/2.304,tileSphere.center);tileSphere.radius=cloth.sim.active?.18:.14;if(!frustum.intersectsSphere(tileSphere))continue;item.mesh.setMatrixAt(count,entry.matrix);item.mesh.setColorAt(count++,entry.colour)}item.mesh.count=count;item.mesh.instanceMatrix.needsUpdate=true;item.mesh.instanceColor.needsUpdate=true;}}
 let pending=false,ready=false,lastFrame=0;
 function render(){if(pending)return;pending=true;requestAnimationFrame(frame)}
-function frame(time){const frameStart=performance.now();pending=false;const dt=lastFrame?Math.min((time-lastFrame)/1000,.05):1/60;lastFrame=time;const moved=cloth.update(dt);if(moved&&camera.position.distanceTo(controls.target)<1.0)renderer.shadowMap.needsUpdate=true;updateYarns();renderer.info.reset();composer.render();if(ready){stage.dataset.frameCpuMs=(performance.now()-frameStart).toFixed(2);stage.dataset.ready='true';stage.dataset.triangles=String(renderer.info.render.triangles);stage.dataset.drawCalls=String(renderer.info.render.calls);stage.dataset.cameraDistance=camera.position.distanceTo(controls.target).toFixed(4);stage.dataset.lod=farFabric?.visible?'baked-surface':'yarns';stage.dataset.photoVersion=String(photoVersion);stage.dataset.clothActive=String(cloth.sim.active);stage.dataset.clothCentreY=cloth.sim.positions[(Math.floor(cloth.sim.ny/2)*cloth.sim.nx+Math.floor(cloth.sim.nx/2))*3+1].toFixed(5);}if(cloth.sim.active)render();}
+function frame(time){const frameStart=performance.now();pending=false;const dt=lastFrame?Math.min((time-lastFrame)/1000,.05):1/60;lastFrame=time;const moved=cloth.update(dt);if(moved)renderer.shadowMap.needsUpdate=true;updateYarns();renderer.info.reset();composer.render();if(ready){stage.dataset.frameCpuMs=(performance.now()-frameStart).toFixed(2);stage.dataset.ready='true';stage.dataset.triangles=String(renderer.info.render.triangles);stage.dataset.drawCalls=String(renderer.info.render.calls);stage.dataset.cameraDistance=camera.position.distanceTo(controls.target).toFixed(4);stage.dataset.lod=farFabric?.visible?'baked-surface':'yarns';stage.dataset.photoVersion=String(photoVersion);stage.dataset.clothActive=String(cloth.sim.active);stage.dataset.clothCentreY=cloth.sim.positions[(Math.floor(cloth.sim.ny/2)*cloth.sim.nx+Math.floor(cloth.sim.nx/2))*3+1].toFixed(5);}if(cloth.sim.active)render();}
 try{
  const gltf=await new GLTFLoader().loadAsync('./assets/blender-poc/weave-tile.gltf?v=13');
  let seamGap=0;for(const source of gltf.scene.children)if(source.isMesh){seamGap=Math.max(seamGap,repairWeaveGeometry(source.geometry,source.name.includes('warp')));source.geometry.scale(1,1,.78);}
@@ -139,12 +140,8 @@ try{
  fringeMaterial=new T.MeshPhysicalMaterial({color:'#e8d9b9',roughness:1,roughnessMap:surfaces.wool.Rough,sheen:0,specularIntensity:0,normalMap:fibreNormal,normalScale:new T.Vector2(.32,.32)});cloth.patch(fringeMaterial);
  const fringeGeometry=new T.BufferGeometry(),fp=[],fn=[],fu=[],fi=[];for(let i=0;i<192;i++){const points=[],length=.10*(.87+random()*.26),curl=(random()-.5)*.008;for(let j=0;j<=12;j++){const t=j/12;points.push(new T.Vector3((i-95.5)*P*.5+.002*Math.sin(t*4+i)+curl*t*t,-.014-.003*Math.sin(t*2+i*.2),.648-length*t))}const tube=new T.TubeGeometry(new T.CatmullRomCurve3(points),16,.0018*(.9+random()*.2),5,false),offset=fp.length/3;fp.push(...tube.attributes.position.array);fn.push(...tube.attributes.normal.array);fu.push(...tube.attributes.uv.array);for(const k of tube.index.array)fi.push(k+offset);tube.dispose();}
  fringeGeometry.setAttribute('position',new T.Float32BufferAttribute(fp,3));fringeGeometry.setAttribute('normal',new T.Float32BufferAttribute(fn,3));fringeGeometry.setAttribute('uv',new T.Float32BufferAttribute(fu,2));fringeGeometry.setIndex(fi);const fringe=new T.Mesh(fringeGeometry,fringeMaterial);cloth.attach(fringe);fringe.castShadow=true;scene.add(fringe);
- const fringeShadowMaterial=new T.MeshBasicMaterial({color:'#5d4935',transparent:true,opacity:.16,depthWrite:false,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});cloth.patch(fringeShadowMaterial,{line:true});
- const fringeShadowCompile=fringeShadowMaterial.onBeforeCompile;fringeShadowMaterial.onBeforeCompile=shader=>{fringeShadowCompile(shader);shader.vertexShader=shader.vertexShader.replace('vec4 mvPosition=modelViewMatrix*vec4(hangWorld,1.0);','float fringeGap=max(.015,.03-hangWorld.y);hangWorld.x+=fringeGap*.75;hangWorld.z-=fringeGap*1.1;hangWorld.y=.023;vec4 mvPosition=modelViewMatrix*vec4(hangWorld,1.0);');};fringeShadowMaterial.customProgramCacheKey=()=> 'strand-fringe-contact-v22';
- const fringeShadow=new T.Mesh(fringeGeometry,fringeShadowMaterial);fringeShadow.name='Moving fine fringe shadow';fringeShadow.frustumCulled=false;fringeShadow.renderOrder=1;scene.add(fringeShadow);
-
  installClothInteraction({canvas:renderer.domElement,camera,controls,cloth,render,onInteraction:type=>{stage.dataset.lastInteraction=type;}});
- materialStatus.hidden=true;stage.dataset.materials='polyhaven-cc0';stage.dataset.lighting='1k-hdri';ready=true;document.querySelector('#takePhoto').disabled=false;document.querySelector('#uploadPhoto').disabled=false;fit();
+ materialStatus.hidden=true;stage.dataset.materials='polyhaven-cc0';stage.dataset.lighting='1k-hdri';stage.dataset.shadows='deformed-mesh';ready=true;document.querySelector('#takePhoto').disabled=false;document.querySelector('#uploadPhoto').disabled=false;fit();
 }catch(error){stage.dataset.error=error.message;const msg=document.createElement('p');msg.textContent='The textile model could not load. Please reload.';msg.style.cssText='position:fixed;top:30%;width:100%;text-align:center;color:#514633';stage.append(msg);console.error(error)}
 controls.addEventListener('change',()=>{if(camera.position.distanceTo(controls.target)<3.1)renderer.shadowMap.needsUpdate=true;render()});
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();composer.setSize(innerWidth,innerHeight);updateAntialias(innerWidth,innerHeight);render()});
