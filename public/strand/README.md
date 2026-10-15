@@ -55,3 +55,9 @@ Yarn relief now blends the scanned surface at a finer physical scale with deriva
 ## Soft daylight and wood cavities (v29)
 
 Static room surfaces use a world-anchored, baked-style illumination field with broad Gaussian daylight streaks. It multiplies existing shaded radiance, preserving the moving cloth's shadow rather than placing an overlay above it. This is an art-directed approximation, not volumetric ray tracing or a Blender lightmap. The projector is retargeted with a lower energy and higher-contrast soft cookie. Wood now includes height-derived cavity shading over its scanned normal/bump detail, with less environment fill and calibrated roughness. No additional meshes, texture requests, shadow maps or full-screen passes are added; photo dye and cloth physics are unchanged.
+
+## Sustained interaction safeguards (v30)
+
+Rendering now polls a WebGL sync fence without blocking and submits a new interactive frame only after the previous frame has completed. It caps drawing at 60 fps to avoid excess sustained work on high-refresh screens, pauses while hidden, and resets its frame clock on return. Cloth simulation, geometry, materials, textures, shadows and export resolution are unchanged. Lost touch capture, tab hiding and window blur now clear gesture state so later touches cannot inherit a stale pinch.
+
+Validation: three repeated five-frame tugs in a software-rendered browser retained 22 geometries, 37 textures and 17 shader programs in both baseline and candidate; no progressive resource growth or GPU queue buildup reproduced in that scenario. Eight CPU-only repeated tugs settled in 3.58–3.64 seconds each. These checks do not establish physical-phone thermal behavior or prove the reported progressive slowdown resolved. Gate lifecycle/fallback tests, cloth tests and lost-capture gesture recovery pass.
