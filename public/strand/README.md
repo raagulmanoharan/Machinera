@@ -100,4 +100,4 @@ Feeding inserts material at the inlet and advects existing positions/velocities 
 
 The moving cloth surface casts fold shadows at all distances. Close-up yarn instances use the same deformation in their shadow depth material. Zoom/pan refreshes detailed shadows. The top-left key has a 2048-square PCF shadow map and reduced unshadowed upper fill. Shadow-on/off browser comparison confirms that folds shade the yarn surfaces themselves.
 
-Validation: all 15 physics/frame-pacing tests pass, including physical rest lengths, material advection, touch, floor contact and sleep. Browser checks inspect the five-photo pile and deformed shadow rendering. No measured iPhone FPS claim.
+Validation: all 16 physics/frame-pacing tests pass, including physical rest lengths, material advection, touch, floor contact and sleep. Browser checks inspect the five-photo pile and deformed shadow rendering. No measured iPhone FPS claim.
