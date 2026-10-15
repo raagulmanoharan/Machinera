@@ -8,6 +8,9 @@
     "height": 2.304
   },
   "render": {
+    "framing": "straight-on portrait",
+    "environment": "Packed Poly Haven Studio Small 08 HDR radiance",
+    "sunAngleRadians": 0.16,
     "engine": "Cycles CPU",
     "samples": 96,
     "denoising": false,
@@ -31,7 +34,7 @@
   },
   "sha256": {
     "weave-tile.gltf": "4c4749ef5b4f5bc169796940f5aea3f5ac19e330ba6339e5a4a64c5bee863472",
-    "room.png": "09400540876f58a3ac7d9a4e63a70a27d227aab872ebf0fb046e006bbbc25610",
-    "detail.png": "97181763da6ba803ae96f1cd12e064e43c6c8a56de2e1f2f9664416019a16efc"
+    "room.png": "6b73467603004c01a428cc928153b7e3a76791ea200aa260b655a0ad4a9aa82f",
+    "detail.png": "ee95f9f5de6550974b6b5057f139ca89cac957e88f38192f14eb316af8ecc367"
   }
 }
