@@ -1,4 +1,6 @@
-# Guide implementation and visual review — v16
+# Textile implementation and visual review
+
+The audit below records v16. Later changes, including the v22 lighting comparison, are documented in the addendum at the end.
 
 The supplied 15-page Textile WebGL Hyperrealism Guide was read in full. Plate A is the source of truth for proportions, stripe ordering and palette. Plate B is the reference for lighting, tactile material, small imperfections and photographic presentation. Its generated image is not used as a texture, and the application does not claim a pixel-identical reconstruction.
 
@@ -32,3 +34,18 @@ The 390×844 DPR-1 browser scenario submitted 44,706 triangles in 19 calls at fu
 The new render has genuine crossings, moving cloth and coherent shadows, but the generated target is still the visual benchmark rather than an achieved exact match. Remaining differences include yarn-level stochastic structure, measured fibre scattering, full indirect transport, self-collision under extreme folding, and the photographic richness of the target’s room. Do not substitute a flat reference image or an offline frame and describe it as interactive rendering.
 
 The earlier `blender-preview.html` page records the v14 offline authoring experiment; it is not a preview of the current v16 live simulation. The current runtime is implemented directly in Three.js and reuses the geometry authored in Blender.
+
+
+## v22 lighting comparison addendum
+
+Six 720×1280 browser screenshots were iterated against the supplied room reference, with independent subagent critiques between passes. The reference image is not embedded in the app or published as a material.
+
+- Replace the nearly uniform grey room with warm cream plaster, lower isotropic fill, a grazing upper-left key and a calibrated, softly feathered window projector. Two window-frame bands run down and right across the exposed wall; the same lighting reaches the floor.
+- Keep the 1K CC0 HDR environment for bounce and reflections. Add high-window bounce and a warm floor pool to avoid lifting every textile colour through global exposure.
+- Retain actual PBR cotton/wool maps. Bake periodic yarn-level visibility once from a 3×3 neighbourhood of the real interlacing geometry. This supplements indirect AO with directional recess shadows without adding every yarn to the room shadow map each frame. Close views use real yarn shadow rendering instead of compounding this bake.
+- Strengthen the moving cloth-wall contact shadow. Render 192 fine fringe ends, give them real UVs for the wool maps, and project their shadow from the same deformation field. Loose fibres remain visible at full view.
+- Adjust portrait framing and the default sample dyes toward the reference. Uploaded photo pixels remain the live dye input; no reference image, painted photograph, or server render replaces the interactive cloth.
+
+The sixth-pass review accepted a clear improvement in room warmth, soft window bands, hanging contact and yarn relief. It did **not** judge the result identical to the reference. The yarn topology remains more regular and smoother, the fringe less organic, and the target's grazing floor light is still stronger. Regional RGB samples were used as rough checks, not as a claim of pixel-perfect lighting reconstruction.
+
+At 720×1280 DPR1 the final initial render submitted about 2.62 million triangles in 25 calls, including shadow work. Earlier 44,706-triangle sheet measurements above describe v16, not the current always-visible yarn geometry. These are headless renderer counts, not physical-phone frame-rate measurements. The periodic yarn visibility and projected contact shadows are real-time approximations, particularly under large folds.
