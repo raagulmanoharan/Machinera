@@ -18,7 +18,7 @@ export class HangingCloth {
 #ifdef USE_INSTANCING
 hangRest=(instanceMatrix*vec4(hangRest,1.0)).xyz;hangRestNormal=mat3(instanceMatrix)*hangRestNormal;
 #endif
-${yarn?'hangRest+=hangRestNormal*(.00032*sin(hangRest.x*63.0+hangRest.z*47.0)*sin(hangRest.z*91.0-hangRest.x*31.0));':''}
+${yarn?'hangRest+=hangRestNormal*(.0003+.0003*sin(hangRest.x*271.0+sin(hangRest.z*163.0)*2.0)*sin(hangRest.z*317.0+hangRest.x*31.0));':''}
 ${!line&&!depth?'vec3 hangWorld=hangPoint(hangUV(hangRest))+hangSurfaceNormal*(-.014-hangRest.y)+hangV*min(0.,hangRest.z-.648);hangWorld.y=min(hangWorld.y,.028);':'vec3 hangWorld=hangDeform(hangRest);'}`;
   shader.vertexShader=shader.vertexShader.replace('#include <project_vertex>',`${bind}\nvec4 mvPosition=modelViewMatrix*vec4(hangWorld,1.0);gl_Position=projectionMatrix*mvPosition;`);
   shader.vertexShader=shader.vertexShader.replace('#include <worldpos_vertex>','vec4 worldPosition=modelMatrix*vec4(hangWorld,1.0);');
