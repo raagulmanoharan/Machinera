@@ -1,9 +1,9 @@
-import {acceptClothPose} from './stream-intersections.js?v=51';
-import {StreamWorkerClient} from './stream-worker-client.js?v=51';
+import {acceptClothPose} from './stream-intersections.js?v=52';
+import {StreamWorkerClient} from './stream-worker-client.js?v=52';
 import * as T from 'three';
 import {paintPalette} from './palette-strands.js?v=44';
 import {addRaisedYarn} from './stream-yarn.js?v=51';
-import { StreamPhysics } from './stream-physics.js?v=51';
+import { StreamPhysics } from './stream-physics.js?v=52';
 export class StreamCloth {
  constructor(scene,renderer){this.scene=scene;this.renderer=renderer;this.sim=new StreamPhysics();this.display=new Float32Array(this.sim.positions.length);this.sim.renderSafe=this.sim.positions.slice();this.uniforms={streamGrid:{value:new T.Vector2(this.sim.nx,this.sim.ny)},streamLength:{value:this.sim.length}};this.meshes=[];this.version=0;
   const geometry=new T.PlaneGeometry(1.536,1,this.sim.nx-1,this.sim.ny-1);for(let i=0;i<geometry.attributes.uv.count;i++)geometry.attributes.uv.setY(i,1-geometry.attributes.uv.getY(i));this.hit=new T.Mesh(geometry,new T.MeshBasicMaterial({colorWrite:false,depthWrite:false,side:T.DoubleSide}));this.hit.castShadow=true;this.hit.material.shadowSide=T.DoubleSide;this.hit.frustumCulled=false;scene.add(this.hit);this.upload();
