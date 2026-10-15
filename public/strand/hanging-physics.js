@@ -21,6 +21,9 @@ export class HangingPhysics {
   this.rest.set(this.positions);this.previous.set(this.positions);
   const link=(a,b,k)=>{const j=a*3,l=b*3;this.links.push([a,b,Math.hypot(...[0,1,2].map(c=>this.rest[j+c]-this.rest[l+c])),k])};
   for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){const i=y*nx+x;if(x<nx-1)link(i,i+1,1);if(y<ny-1)link(i,i+nx,1);if(x<nx-1&&y<ny-1){link(i,i+nx+1,.75);link(i+1,i+nx,.75)}if(x<nx-2)link(i,i+2,.32);if(y<ny-2)link(i,i+nx*2,.32)}
+  // Static constraint data stays packed; the original links remain available for diagnostics.
+  const count=this.links.length;this.linkA=new Uint32Array(count);this.linkB=new Uint32Array(count);this.linkLength=new Float64Array(count);this.linkStiffness=new Float64Array(count);this.linkWeightA=new Uint8Array(count);this.linkWeightB=new Uint8Array(count);
+  for(let i=0;i<count;i++){const[a,b,length,k]=this.links[i];this.linkA[i]=a*3;this.linkB[i]=b*3;this.linkLength[i]=length;this.linkStiffness[i]=k;this.linkWeightA[i]=1-this.pinned[a];this.linkWeightB[i]=1-this.pinned[b];}
  }
  index(u,v){return Math.max(0,Math.min(this.ny-2,Math.round(v*(this.ny-1))))*this.nx+Math.max(0,Math.min(this.nx-1,Math.round(u*(this.nx-1))))}
  hold(u,v,target){const index=this.index(u,v);this.grab={index,target:Array.from(this.positions.subarray(index*3,index*3+3)),goal:[...target]};this.active=true;this.quiet=0;}
@@ -32,7 +35,8 @@ export class HangingPhysics {
   if(this.grab)for(let c=0;c<3;c++)this.grab.target[c]+=(this.grab.goal[c]-this.grab.target[c])*.28;
   for(let i=0;i<this.pinned.length;i++){if(this.pinned[i])continue;const j=i*3;for(let c=0;c<3;c++){const v=p[j+c],vel=(v-old[j+c])*.965;old[j+c]=v;p[j+c]=v+vel+(c===2?-2.4*dt*dt:0)+(this.rest[j+c]-v)*.0015;}}
   for(let iteration=0;iteration<7;iteration++){
-   for(const[a,b,length,k]of this.links){const j=a*3,l=b*3,dx=p[l]-p[j],dy=p[l+1]-p[j+1],dz=p[l+2]-p[j+2],d=Math.hypot(dx,dy,dz);if(d<1e-9)continue;const wa=this.pinned[a]||this.grab?.index===a?0:1,wb=this.pinned[b]||this.grab?.index===b?0:1;if(!wa&&!wb)continue;const f=(d-length)/d*k/(wa+wb);p[j]+=dx*f*wa;p[j+1]+=dy*f*wa;p[j+2]+=dz*f*wa;p[l]-=dx*f*wb;p[l+1]-=dy*f*wb;p[l+2]-=dz*f*wb;}
+   const a=this.linkA,b=this.linkB,length=this.linkLength,k=this.linkStiffness,weightA=this.linkWeightA,weightB=this.linkWeightB,grab=this.grab?this.grab.index*3:-1;
+   for(let edge=0;edge<a.length;edge++){const j=a[edge],l=b[edge],wa=j===grab?0:weightA[edge],wb=l===grab?0:weightB[edge];if(!wa&&!wb)continue;const dx=p[l]-p[j],dy=p[l+1]-p[j+1],dz=p[l+2]-p[j+2],d=Math.sqrt(dx*dx+dy*dy+dz*dz);if(d<1e-9)continue;const f=(d-length[edge])/d*k[edge]/(wa+wb);p[j]+=dx*f*wa;p[j+1]+=dy*f*wa;p[j+2]+=dz*f*wa;p[l]-=dx*f*wb;p[l+1]-=dy*f*wb;p[l+2]-=dz*f*wb;}
    if(this.grab){const j=this.grab.index*3;p.set(this.grab.target,j);old.set(this.grab.target,j);}
    // Keep the full yarn radius in front of the plaster at Y=.03.
    for(let i=0;i<this.pinned.length;i++){const j=i*3;if(!this.pinned[i])p[j+1]=Math.min(.017,p[j+1]);}
