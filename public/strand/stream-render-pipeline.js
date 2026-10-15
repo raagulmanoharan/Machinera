@@ -14,9 +14,16 @@ export function createStreamPipeline(renderer, scene, camera) {
  composer.setPixelRatio(1);
  composer.addPass(new RenderPass(scene, camera));
  composer.addPass(new OutputPass());
- const aa = new ShaderPass(FXAAShader);
+ // Dither only after tone mapping and FXAA, immediately before the 8-bit
+ // display. Screen-locked noise avoids temporal sparkle and costs no pass.
+ const outputAA={...FXAAShader,fragmentShader:FXAAShader.fragmentShader.replace(
+  'gl_FragColor = ApplyFXAA( tDiffuse, resolution.xy, vUv );',
+  `gl_FragColor = ApplyFXAA( tDiffuse, resolution.xy, vUv );
+   float outputNoise=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))))-.5;
+   gl_FragColor.rgb=clamp(gl_FragColor.rgb+vec3(outputNoise/255.),0.,1.);`)};
+ const aa = new ShaderPass(outputAA);
  composer.addPass(aa);
- const metrics = {width:1, height:1, renderScale:1, samples:2, postPasses:2};
+ const metrics = {width:1, height:1, renderScale:1, samples:2, outputDither:true, postPasses:2};
  function resize(width, height) {
   const w = Math.max(1, Math.round(width)), h = Math.max(1, Math.round(height));
   composer.setSize(w, h);
