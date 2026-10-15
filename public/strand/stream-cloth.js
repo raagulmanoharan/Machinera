@@ -2,7 +2,7 @@ import {acceptClothPose} from './stream-intersections.js?v=43';
 import {StreamWorkerClient} from './stream-worker-client.js?v=45';
 import * as T from 'three';
 import {paintPalette} from './palette-strands.js?v=44';
-import {addRaisedYarn} from './stream-yarn.js?v=47';
+import {addRaisedYarn} from './stream-yarn.js?v=49';
 import { StreamPhysics } from './stream-physics.js?v=45';
 export class StreamCloth {
  constructor(scene,renderer){this.scene=scene;this.renderer=renderer;this.sim=new StreamPhysics();this.display=new Float32Array(this.sim.positions.length);this.sim.renderSafe=this.sim.positions.slice();this.uniforms={streamGrid:{value:new T.Vector2(this.sim.nx,this.sim.ny)},streamLength:{value:this.sim.length}};this.meshes=[];this.version=0;
