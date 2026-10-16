@@ -1,16 +1,16 @@
-import {textileColourGLSL} from './textile-colour.js?v=129';
-import {yarnShadowFunctionsGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=129';
-import {THREAD_PITCH,WARP_ENDS} from './yarn-structure.js?v=129';
-import {SmoothClothGrid} from './smooth-cloth-grid.js?v=129';
-import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=129';
-import {PICKS_PER_METRE,FABRIC_COLUMNS,ATLAS_ROWS,atlasBase} from './fabric-coordinates.js?v=129';
-import {applyMatteTextile} from './matte-textile.js?v=129';
-import {textileAOGLSL} from './textile-ambient-occlusion.js?v=129';
+import {textileColourGLSL} from './textile-colour.js?v=130';
+import {yarnShadowFunctionsGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=130';
+import {THREAD_PITCH,WARP_ENDS} from './yarn-structure.js?v=130';
+import {SmoothClothGrid} from './smooth-cloth-grid.js?v=130';
+import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=130';
+import {PICKS_PER_METRE,FABRIC_COLUMNS,ATLAS_ROWS,atlasBase} from './fabric-coordinates.js?v=130';
+import {applyMatteTextile} from './matte-textile.js?v=130';
+import {textileAOGLSL} from './textile-ambient-occlusion.js?v=130';
 import * as T from 'three';
-import {addRaisedYarn} from './stream-yarn.js?v=129';
-import {wovenSurfaceGLSL} from './stream-weave-shader.js?v=129';
-import {RugArchive} from './rug-archive.js?v=129';
-import {SlackSpan} from './stream-slack.js?v=129';
+import {addRaisedYarn} from './stream-yarn.js?v=130';
+import {wovenSurfaceGLSL} from './stream-weave-shader.js?v=130';
+import {RugArchive} from './rug-archive.js?v=130';
+import {SlackSpan} from './stream-slack.js?v=130';
 export class StreamCloth{
  constructor(scene,renderer){this.scene=scene;this.renderer=renderer;this.sim=new SlackSpan();this.display=this.sim.positions;this.renderGrid=new SmoothClothGrid(this.sim.nx,this.sim.ny);this.scrollOffset=0;this.version=0;this.print=null;this.archive=new RugArchive();this.maxSpan=this.sim.length;this.sim.length=.02;this.sim.shape();this.sim.pose();this.historyLength=ATLAS_ROWS/PICKS_PER_METRE;this.texture=new T.DataTexture(new Uint8Array(FABRIC_COLUMNS*ATLAS_ROWS*4),FABRIC_COLUMNS,ATLAS_ROWS);this.texture.colorSpace=T.SRGBColorSpace;this.texture.generateMipmaps=false;this.texture.minFilter=this.texture.magFilter=T.NearestFilter;this.texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());this.texture.needsUpdate=true;this.weftTexture=new T.DataTexture(new Uint8Array(4*WARP_ENDS*ATLAS_ROWS),WARP_ENDS,ATLAS_ROWS);this.weftTexture.colorSpace=T.SRGBColorSpace;this.weftTexture.minFilter=this.weftTexture.magFilter=T.NearestFilter;this.weftTexture.needsUpdate=true;this.weaveTexture=new T.DataTexture(new Uint8Array(4*WARP_ENDS*ATLAS_ROWS),WARP_ENDS,ATLAS_ROWS);this.weaveTexture.minFilter=this.weaveTexture.magFilter=T.NearestFilter;this.weaveTexture.needsUpdate=true;this.story={streamDraftPitch:{value:THREAD_PITCH},streamHead:{value:0},streamAtlasBase:{value:0},streamWeave:{value:this.weaveTexture},streamWarp:{value:this.texture},streamWeft:{value:this.weftTexture},streamHistoryLength:{value:this.historyLength},streamRemaining:{value:0}};this.currentDraft=null;this.uniforms={streamLength:{value:this.sim.length}};this.viewportMask=new Uint8Array(this.sim.ny).fill(1);this.viewportScratch=new Uint8Array(this.sim.ny);this.viewportPoint=new T.Vector3();const geometry=new T.PlaneGeometry(this.sim.width,1,this.sim.nx-1,this.sim.ny-1);for(let i=0;i<geometry.attributes.uv.count;i++)geometry.attributes.uv.setY(i,1-geometry.attributes.uv.getY(i));this.hit=new T.Mesh(geometry,new T.MeshBasicMaterial({colorWrite:false,depthWrite:false,side:T.DoubleSide}));this.hit.castShadow=true;this.hit.frustumCulled=false;scene.add(this.hit);this.rebuildPalette();this.upload();}
  get totalLength(){return this.archive.length;}
@@ -26,6 +26,7 @@ vec3 q0=dFdx(-vViewPosition),q1=dFdy(-vViewPosition),r1=cross(q1,normal),r2=cros
  setLength(length,upload=true){this.sim.length=Math.max(.02,Math.min(this.maxSpan,length));this.uniforms.streamLength.value=this.sim.length;this.sim.shape();this.sim.pose();this.viewportMask.fill(1);this.viewportTick=0;this.display=this.sim.positions;this.surface.visible=this.hit.visible=this.sim.length>.025;this.yarn.setVisible(this.sim.length>.025);if(upload)this.upload();}
  canStartPhoto(){return !this.print;}
  addPhoto(image){const type=image.weaveType??null;this.scrollOffset=0;const section=this.version===0?FIRST_PRINT_LENGTH:NEXT_PRINT_LENGTH;const entry=this.archive.append(image,section,type,image.kind?{sourceWidth:image.sourceWidth,sourceHeight:image.sourceHeight,sourcePixelCount:image.sourcePixelCount,processedPixelCount:image.processedPixelCount}:null);this.currentDraft=entry.plan.draft;this.rebuildPalette();this.print={time:0,duration:4,section};this.story.streamRemaining.value=section;this.scrollOffset=0;this.story.streamHead.value=this.archive.length-section;this.version++;}
+ restoreMemories(records){this.archive.restore(records.map(r=>r.archive));this.version=this.archive.entries.length;this.currentDraft=this.archive.entries.at(-1)?.plan.draft??null;this.print=null;this.story.streamRemaining.value=0;this.scrollOffset=0;this.story.streamHead.value=this.archive.length;this.rebuildPalette();this.setLength(Math.min(this.maxSpan,this.archive.length));}
  async start(onFrame){this.wake=onFrame;return false;}
  upload(){const g=this.hit.geometry;g.attributes.position.array.set(this.display);g.attributes.position.needsUpdate=true;g.computeBoundingSphere();this.renderGrid.update(this.display,this.sim.wallLimit,this.sim.floorLimit);if(this.surface){const visual=this.surface.geometry;visual.attributes.position.array.set(this.renderGrid.positions);visual.attributes.normal.array.set(this.renderGrid.normals);visual.attributes.position.needsUpdate=visual.attributes.normal.needsUpdate=true;}this.yarn?.update();}
  sample(u,v,out){const x=Math.min(this.sim.nx-1,Math.round(u*(this.sim.nx-1))),y=Math.min(this.sim.ny-1,Math.round(v*(this.sim.ny-1)));return out.fromArray(this.display,(y*this.sim.nx+x)*3);}
