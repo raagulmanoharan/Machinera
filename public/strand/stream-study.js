@@ -14,7 +14,7 @@ import {createStreamPerformance} from './stream-performance.js?v=42';
 import {createStreamPipeline} from './stream-render-pipeline.js?v=76';
 import { loadRoomEnvironment } from './room-lighting.js?v=27';
 import { addTextileLights } from './textile-light-rig.js?v=78';
-import { StreamCloth } from './stream-cloth.js?v=78';
+import { StreamCloth } from './stream-cloth.js?v=79';
 import { installClothInteraction } from './stream-interaction.js?v=77';
 import { FramePacer } from './frame-pacer.js?v=31';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
