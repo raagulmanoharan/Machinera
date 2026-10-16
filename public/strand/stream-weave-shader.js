@@ -1,4 +1,4 @@
-import {draftGLSL,THREAD_PITCH,YARN_HEIGHT} from './yarn-structure.js?v=112';
+import {draftGLSL,THREAD_PITCH,YARN_HEIGHT} from './yarn-structure.js?v=113';
 // The backing uses the same binary loom draft as the raised yarn, rather than
 // a sinusoidal approximation to a different pattern. Filter subpixel fibres.
 export const wovenSurfaceGLSL=draftGLSL+`
