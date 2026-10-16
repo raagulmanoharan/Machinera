@@ -6,7 +6,7 @@ export function createColourDesign(recipe,seed,symmetry='warp'){
  let identity=2166136261;for(const c of recipe?.id??'plain')identity=Math.imul(identity^c.charCodeAt(0),16777619);
  seed=(seed^identity)>>>0;const random=designRandom(seed),family=recipe?.family??'plain';
  const choices=family==='basket'?['checks','bordered-checks']:family==='rib'?['stripes','bordered-stripes']:family.includes('point')?['point-repeat','checks']:family.includes('twill')?['checks','point-repeat','stripes']:['stripes','checks'];
- if(symmetry==='auto')symmetry=['warp','weft','both','radial'][(seed>>>0)%4];
+ if(symmetry==='auto')symmetry=['warp','both','both','radial'][(seed>>>0)%4];
  return {seed,symmetry,style:symmetry==='radial'?'medallion':choices[Math.floor(random()*choices.length)],repeat:2+Math.floor(random()*2),reverse:random()<.5};
 }
 export function designYarns(palette,count,design,axis){
@@ -20,7 +20,7 @@ export function designYarns(palette,count,design,axis){
  const isStripe=design.style.includes('stripes');
  // Broad lengthwise ground panels support horizontal bands. Checks share the
  // same ordered colour repeat on both axes. Avoid isolated one-yarn speckling.
- let repeats=design.style==='medallion'?1:isStripe&&axis==='warp'?1:axis==='warp'?2:design.repeat;
+ let repeats=design.style==='medallion'?1:axis==='warp'?1:Math.min(2,design.repeat);
  const occurrences=counts.map((_,i)=>motif.filter(c=>c===i).length);
  const supported=Math.min(...active.map(i=>Math.max(1,Math.floor(counts[i]/(2*occurrences[i])))));
  repeats=Math.max(1,Math.min(repeats,supported));

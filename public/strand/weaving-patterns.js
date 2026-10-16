@@ -1,5 +1,5 @@
 import {WEAVE_LIBRARY,warpOver} from './weave-library.js?v=87';
-import {createColourDesign,designYarns,freshDesignSeed} from './yarn-colour-design.js?v=91';
+import {createColourDesign,designYarns,freshDesignSeed} from './yarn-colour-design.js?v=93';
 export {compileLoomDraft,generateLoomDraft} from './loom-draft.js?v=87';
 export function patternIndices({family,symmetry='warp',maxFloat=4}={}){
  return WEAVE_LIBRARY.flatMap((draft,index)=>(!family||draft.family===family)&&(symmetry!=='warp'||draft.structuralSymmetry==='warp')&&draft.maxFloat<=maxFloat?[index]:[]);
@@ -9,7 +9,7 @@ export function createWeavePattern({draftId,seed=freshDesignSeed(),palette,warpE
  if(!Number.isInteger(firstPick)||!Number.isInteger(seed)||!Number.isInteger(warpEnds)||warpEnds<2||!Number.isInteger(weftPicks)||weftPicks<1)throw new RangeError('Integer seed, ends and picks required');
  if(!palette?.length||palette.some(c=>!Array.isArray(c.rgb)||c.rgb.length!==3||c.rgb.some(v=>!Number.isFinite(v)||v<0||v>255)||!Number.isFinite(c.share)||c.share<0)||Math.abs(palette.reduce((n,c)=>n+c.share,0)-1)>1e-6)throw new RangeError('Provide RGB dye lots with shares summing to one');
  if(!['warp','weft','both','radial','auto'].includes(symmetry))throw new RangeError('Unknown composition symmetry');
- const candidates=patternIndices({family,symmetry,maxFloat});let draftIndex;
+ const candidates=patternIndices({family,symmetry:symmetry==='auto'?'warp':symmetry,maxFloat});let draftIndex;
  if(draftId!==undefined){draftIndex=WEAVE_LIBRARY.findIndex(d=>d.id===draftId);if(draftIndex<0)throw new RangeError('Unknown compiled draft');}
  else {if(!candidates.length)throw new RangeError('No supported draft matches the constraints');draftIndex=candidates[(seed>>>0)%candidates.length];}
  const draft=WEAVE_LIBRARY[draftIndex];if(draft.structuralSymmetry==='warp'&&warpEnds%draft.width)throw new RangeError('Mirrored repeat must divide the warp width');
