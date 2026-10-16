@@ -1,24 +1,24 @@
-import {updateMemoryUI} from './camera-ui.js?v=127';
-import {captureWindow} from './camera-framing.js?v=127';
-import * as StrandWeaving from './weaving-patterns.js?v=127';
+import {updateMemoryUI} from './camera-ui.js?v=128';
+import {captureWindow} from './camera-framing.js?v=128';
+import * as StrandWeaving from './weaving-patterns.js?v=128';
 globalThis.StrandWeaving=StrandWeaving;
-import {CarpetScroll} from './carpet-scroll.js?v=127';
-import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=127';
-import {FloorReturn} from './floor-return.js?v=127';
-import {LoomAudio} from './loom-audio.js?v=127';
-import {PhotoRugBridge} from './photo-rug-bridge.js?v=127';
-import {preparePhotoPalette} from './photo-colours.js?v=127';
-import {TLRViewfinder} from './tlr-viewfinder.js?v=127';
-import {streamDeviceProfile} from './stream-device-profile.js?v=127';
+import {CarpetScroll} from './carpet-scroll.js?v=128';
+import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=128';
+import {FloorReturn} from './floor-return.js?v=128';
+import {LoomAudio} from './loom-audio.js?v=128';
+import {PhotoRugBridge,createPrintProgressReader} from './photo-rug-bridge.js?v=128';
+import {preparePhotoPalette} from './photo-colours.js?v=128';
+import {TLRViewfinder} from './tlr-viewfinder.js?v=128';
+import {streamDeviceProfile} from './stream-device-profile.js?v=128';
 const deviceProfile=streamDeviceProfile();
 import * as T from 'three';
-import {createStreamPerformance} from './stream-performance.js?v=127';
-import {createStreamPipeline} from './stream-render-pipeline.js?v=127';
-import { loadRoomEnvironment } from './room-lighting.js?v=127';
-import { addTextileLights } from './textile-light-rig.js?v=127';
-import { StreamCloth } from './stream-cloth.js?v=127';
-import { installClothInteraction } from './stream-interaction.js?v=127';
-import { FramePacer } from './frame-pacer.js?v=127';
+import {createStreamPerformance} from './stream-performance.js?v=128';
+import {createStreamPipeline} from './stream-render-pipeline.js?v=128';
+import { loadRoomEnvironment } from './room-lighting.js?v=128';
+import { addTextileLights } from './textile-light-rig.js?v=128';
+import { StreamCloth } from './stream-cloth.js?v=128';
+import { installClothInteraction } from './stream-interaction.js?v=128';
+import { FramePacer } from './frame-pacer.js?v=128';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
 const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,deviceProfile.canvasDpr));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=1.0;renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.shadowMap.autoUpdate=false;stage.append(renderer.domElement);
 const scene=new T.Scene();scene.background=null;renderer.setClearColor(0x141414,0);const camera=new T.PerspectiveCamera(32,innerWidth/innerHeight,.03,40);camera.up.set(0,0,1);
@@ -67,7 +67,8 @@ async function closeCapture(prepared=Promise.resolve(),onPrepared=()=>{}){
  stopCamera();capture.dataset.captureState='transition';stage.classList.remove('behind-camera','room-entering');
  if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
   const section=cloth.version===0?FIRST_PRINT_LENGTH:NEXT_PRINT_LENGTH;
-  const complete=bridge.begin(preview,lens,section,{feed:!!(processingPhoto&&selected),prepared,onPrepared});capture.classList.add('flipped','capture-bridging');render(true);await complete;
+  const readPrintProgress=createPrintProgressReader(()=>cloth.print);
+  const complete=bridge.begin(preview,lens,section,{feed:!!(processingPhoto&&selected),prepared,onPrepared,readPrintProgress});capture.classList.add('flipped','capture-bridging');render(true);await complete;
  }else{capture.classList.add('flipped','capture-bridging');await prepared;await onPrepared();render(true);await new Promise(resolve=>requestAnimationFrame(resolve));}
  if(version!==flowVersion)return;capture.hidden=true;capture.dataset.captureState='printing';render(true);
 }
