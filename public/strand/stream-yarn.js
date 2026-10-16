@@ -1,7 +1,7 @@
 import {textileColourGLSL} from './textile-colour.js?v=81';
-import {yarnNoiseGLSL,yarnShadowGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=81';
-import {yarnPhase,YARN_TILE} from './fabric-coordinates.js?v=81';
-import {draftGLSL,THREAD_PITCH,WARP_ENDS,TILE_THREADS,YARN_RADIUS,YARN_HEIGHT,CROSSING_HEIGHT,yarnTile} from './yarn-structure.js?v=81';
+import {yarnNoiseGLSL,yarnShadowGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=83';
+import {yarnPhase,YARN_TILE} from './fabric-coordinates.js?v=83';
+import {draftGLSL,THREAD_PITCH,WARP_ENDS,TILE_THREADS,YARN_RADIUS,YARN_HEIGHT,CROSSING_HEIGHT,yarnTile} from './yarn-structure.js?v=83';
 import {applyMatteTextile} from './matte-textile.js?v=77';
 import {textileAOGLSL} from './textile-ambient-occlusion.js?v=77';
 import * as T from 'three';

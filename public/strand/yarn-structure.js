@@ -1,7 +1,7 @@
-// A physical, balanced set: 64 visibly interlaced yarn bundles across a 1.536 m cloth.
+// A physical, balanced set: 48 visibly interlaced yarn bundles across a 1.536 m cloth.
 // All relief, draft joins, surface shading and tile phases use this pitch.
 export const CLOTH_WIDTH=1.536;
-export const WARP_ENDS=64;
+export const WARP_ENDS=48;
 export const THREAD_PITCH=CLOTH_WIDTH/WARP_ENDS;
 export const TILE_THREADS=8;
 export const YARN_RADIUS=THREAD_PITCH*.45;
