@@ -1,9 +1,9 @@
-import {createColourDesign,designYarns,freshDesignSeed} from './yarn-colour-design.js?v=84';
+import {createColourDesign,designYarns,freshDesignSeed} from './yarn-colour-design.js?v=85';
 import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=83';
 import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=83';
 import {WARP_ENDS} from './yarn-structure.js?v=83';
 import {WEAVE_LIBRARY,warpOver} from './weave-library.js?v=80';
-import {paletteFromStrands} from './yarn-palette.js?v=82';
+import {paletteFromStrands} from './yarn-palette.js?v=85';
 export class RugArchive{
  constructor(){this.entries=[];this.length=0;this.transition=.42;}
  append(input,length=2.4,weave=0,metadata=null){
