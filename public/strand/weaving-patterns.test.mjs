@@ -30,5 +30,13 @@ test('composition supports top-bottom, both axes and half-turn medallions',()=>{
   }
   if(plan.colourSymmetry==='radial'){assert.equal(plan.design.style,'medallion');assert.equal(plan.rotationalOrder,2);}
  }
- assert.deepEqual([...modes].sort(),['both','radial','warp','weft']);
+ assert.deepEqual([...modes].sort(),['both','radial','warp']);
+});
+
+test('every automatic carpet exposes exactly mirrored colour blocks at actual crossings',()=>{
+ const photographicPalette=[{rgb:[70,45,31],share:.62},{rgb:[148,144,115],share:.18},{rgb:[65,85,150],share:.20}];
+ for(let seed=1;seed<=200;seed++){
+ const p=createWeavePattern({seed,palette:photographicPalette,symmetry:'auto'});assert.notEqual(p.colourSymmetry,'weft');
+ for(let y=0;y<120;y++)for(let x=0;x<24;x++)assert.deepEqual(p.yarnAt(x,y),p.yarnAt(47-x,y),'visible yarn dyes, not just sequences, must mirror');
+ }
 });

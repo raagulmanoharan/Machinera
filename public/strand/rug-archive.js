@@ -1,4 +1,4 @@
-import {createWeavePattern} from './weaving-patterns.js?v=91';
+import {createWeavePattern} from './weaving-patterns.js?v=93';
 import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=87';
 import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=87';
 import {WARP_ENDS} from './yarn-structure.js?v=87';
