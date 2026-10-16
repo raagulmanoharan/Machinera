@@ -1,6 +1,6 @@
 # Loom draft library
 
-24 independently constructed, single-warp/single-weft recipes. Each records the threading sequence (shaft per end), treadling sequence (treadle per pick), and tie-up (lifted shafts). The resulting binary drawdown generates both the CPU crossing lookup and the GPU bitmask rules. These rules also drive yarn relief and directional self-shadowing.
+30 single-warp/single-weft recipes: 24 original studies and six generated mirrored drafts. Each records the threading sequence (shaft per end), treadling sequence (treadle per pick), and tie-up (lifted shafts). The resulting binary drawdown generates both the CPU crossing lookup and the GPU bitmask rules. These rules also drive yarn relief and directional self-shadowing.
 
 ## Study references
 
@@ -15,6 +15,10 @@ The app's recipes are original implementations of these structural principles, n
 
 ## Application behaviour
 
-A cryptographically shuffled deck uses each of the 24 drafts once before reshuffling. Adjacent photos never repeat a draft, including across deck boundaries. A finite library will eventually repeat. Each section stores its chosen ID permanently; later photos cannot rerandomise old sections.
+The automatic photo deck uses the seven compiled drafts with mirrored threading and cyclic floats of at most four yarns; it exhausts those before reshuffling. All 30 drafts are callable explicitly through the [pattern API](./weaving-patterns.md). Adjacent photos never repeat a draft, including across deck boundaries. A finite library will eventually repeat. Each section stores its chosen ID permanently; later photos cannot rerandomise old sections.
 
 Transitions insert two plain binding picks and progressively exchange complete old/new picks. They never interpolate the crossing rules or blur one pattern into another. Palette extraction, natural thread irregularity and cloth interaction remain independent of draft selection.
+
+## Programmatic compiler
+
+`loom-draft.js` constructs twill lift progressions, point threading, grouped basket and rib structures. Mirroring threading produces a symmetric drawdown, rather than merely symmetric colours. Candidate repeats are compiled and checked across cyclic boundaries on both faces. Six new distinct candidates pass the automatic float/width constraints. Recipes are capped at 16×16 to keep row bitmasks exact in the shader. The bounded catalogue is compiled once at module startup, never per frame or per photo.

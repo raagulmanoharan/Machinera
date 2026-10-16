@@ -1,14 +1,14 @@
+import {generatedDraftCatalogue,compileLoomDraft} from './loom-draft.js?v=87';
 // Independently constructed loom drafts, studied against the public drawdowns
 // and structural metadata in Handweaving.net's Glossary, Twills and Satins.
 // Each recipe records threading, treadling and tie-up; no thumbnail is a texture.
 const seq=n=>Array.from({length:n},(_,i)=>i),mod=(x,n)=>((x%n)+n)%n;
 function draft(id,name,shafts,threading,treadling,lifts,family){
  const tieUp=Array.from({length:shafts},(_,t)=>seq(shafts).map(s=>lifts[mod(s+t,shafts)]===1));
- const rows=treadling.map(t=>threading.reduce((mask,s,x)=>mask+(tieUp[t][s]?2**x:0),0));
- return Object.freeze({id,name,family,shafts,width:threading.length,height:treadling.length,threading:Object.freeze(threading),treadling:Object.freeze(treadling),tieUp:Object.freeze(tieUp.map(Object.freeze)),rows:Object.freeze(rows)});
+ return Object.freeze({...compileLoomDraft({id,name,family,shafts,threading,treadling,tieUp}),generated:false});
 }
 const point=[0,1,2,3,2,1],reverse=[0,1,2,3,3,2,1,0];
-export const WEAVE_LIBRARY=Object.freeze([
+const baseDrafts=[
  draft('tabby','Plain weave',2,[0,1],[0,1],[1,0],'plain'),
  draft('twill-22','2/2 twill',4,seq(4),seq(4),[1,1,0,0],'twill'),
  draft('basket-22','2×2 basket',2,[0,0,1,1],[0,0,1,1],[1,0],'basket'),
@@ -33,7 +33,8 @@ export const WEAVE_LIBRARY=Object.freeze([
  draft('satin-8','Eight-end satin',8,seq(8),[0,3,6,1,4,7,2,5],[0,1,1,1,1,1,1,1],'satin'),
  draft('granite-8','Granite study',8,seq(8),[0,3,6,1,4,7,2,5],[1,0,1,0,0,1,1,0],'crepe study'),
  draft('mw-point','M-and-W point twill',4,[0,1,2,3,2,1,2,3,2,1,0,1],[0,1,2,3,2,1,0,1,2,3,2,1],[1,1,0,0],'point twill')
-]);
+];
+export const WEAVE_LIBRARY=Object.freeze([...baseDrafts,...generatedDraftCatalogue(baseDrafts)]);
 export function warpOver(end,pick,type=0){const d=WEAVE_LIBRARY[type]??WEAVE_LIBRARY[0];return Math.floor(d.rows[mod(Math.round(pick),d.height)]/2**mod(Math.round(end),d.width))%2===1;}
 // Generate the GPU rules from these exact drawdown bits. A balanced decision
 // tree keeps the lookup to at most five pattern decisions, with no extra texture.
@@ -42,6 +43,6 @@ function lookup(d){let expression='0.';for(let y=d.height-1;y>=0;y--)expression=
 function branch(lo,hi){if(lo===hi)return lookup(WEAVE_LIBRARY[lo]);const mid=(lo+hi)>>1;return `if(type<${f(mid+.5)}){${branch(lo,mid)}}else{${branch(mid+1,hi)}}`;}
 export const draftGLSL=`float warpCrossing(float end,float pick,float type){end=floor(end+.5);pick=floor(pick+.5);${branch(0,WEAVE_LIBRARY.length-1)}}\n`;
 export class DraftDeck{
- constructor(random=()=>{const bits=new Uint32Array(1);globalThis.crypto.getRandomValues(bits);return bits[0]/4294967296;}){this.random=random;this.remaining=[];this.last=null;}
- next(){if(!this.remaining.length){this.remaining=seq(WEAVE_LIBRARY.length);for(let i=this.remaining.length-1;i>0;i--){const j=Math.floor(this.random()*(i+1));[this.remaining[i],this.remaining[j]]=[this.remaining[j],this.remaining[i]];}if(this.remaining.at(-1)===this.last)[this.remaining[0],this.remaining[this.remaining.length-1]]=[this.remaining.at(-1),this.remaining[0]];}return this.last=this.remaining.pop();}
+ constructor(random=()=>{const bits=new Uint32Array(1);globalThis.crypto.getRandomValues(bits);return bits[0]/4294967296;},indices=null){this.random=random;this.indices=indices??seq(WEAVE_LIBRARY.length);this.remaining=[];this.last=null;}
+ next(){if(!this.remaining.length){this.remaining=this.indices.slice();for(let i=this.remaining.length-1;i>0;i--){const j=Math.floor(this.random()*(i+1));[this.remaining[i],this.remaining[j]]=[this.remaining[j],this.remaining[i]];}if(this.remaining.at(-1)===this.last)[this.remaining[0],this.remaining[this.remaining.length-1]]=[this.remaining.at(-1),this.remaining[0]];}return this.last=this.remaining.pop();}
 }

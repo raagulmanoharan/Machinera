@@ -1,0 +1,23 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {compileLoomDraft,generateLoomDraft,createWeavePattern,listWeavePatterns,patternIndices} from './weaving-patterns.js';
+import {WEAVE_LIBRARY,warpOver} from './weave-library.js';import {RugArchive} from './rug-archive.js';
+const palette=[{rgb:[30,80,75],share:.5},{rgb:[195,160,100],share:.3},{rgb:[160,65,40],share:.2}];
+test('default patterns mirror the actual drawdown and keep floats within four yarns',()=>{
+ const indices=patternIndices();assert.ok(indices.length>=6);assert.ok(listWeavePatterns().length>24);
+ for(const draftIndex of indices){const draft=WEAVE_LIBRARY[draftIndex];assert.ok(draft.maxFloat<=4);for(let y=0;y<draft.height;y++)for(let x=0;x<48;x++)assert.equal(warpOver(x,y,draftIndex),warpOver(47-x,y,draftIndex));}
+});
+test('seed replay gives immutable recipes and actual yarn crossing colours',()=>{
+ for(let seed=1;seed<=40;seed++){
+ const a=createWeavePattern({palette,seed,firstPick:117}),b=createWeavePattern({palette,seed,firstPick:117});assert.equal(a.id,b.id);assert.deepEqual(a.warp,b.warp);assert.deepEqual(a.weft,b.weft);assert.equal(a.symmetry,'warp-colour-and-structure');
+ assert.deepEqual(a.warp.sequence,a.warp.sequence.slice().reverse());assert.throws(()=>a.warp.sequence[0]=99,TypeError);assert.throws(()=>a.palette[0].rgb[0]=99,TypeError);
+ for(let y=0;y<120;y++)for(let x=0;x<48;x++)assert.deepEqual(a.yarnAt(x,y),a.palette[a.crossing(x,y)?a.warp.sequence[x]:a.weft.sequence[y]].rgb);
+ }
+});
+test('compiler rejects unbound ends and unsafe repeat floats',()=>{
+ assert.throws(()=>compileLoomDraft({shafts:2,threading:[0,1],treadling:[0,1],tieUp:[[true,true],[true,true]]}),/Unbound/);
+ assert.throws(()=>generateLoomDraft({shafts:8,over:7}),/Float/);
+ const d=generateLoomDraft({family:'twill',shafts:3,over:1});assert.equal(d.structuralSymmetry,'warp');assert.equal(d.maxFloat,4);
+});
+test('archive uses the callable recipe and retains old sections',()=>{
+ const archive=new RugArchive(),index=patternIndices()[0],a=archive.append({palette,designSeed:42},3.8,index),before=a.baked.slice();assert.equal(a.plan.draftIndex,index);assert.deepEqual(a.warp,a.plan.warp.sequence);archive.append({palette,designSeed:87},2.4,patternIndices()[1]);assert.deepEqual(a.baked,before);
+});

@@ -11,7 +11,7 @@ test('every drawdown is a distinct, fully bound threading/treadling/tie-up recip
  for(let x=0;x<d.width;x++){const col=d.treadling.map((_,y)=>warpOver(x,y,id));assert.ok(col.some(Boolean)&&col.some(v=>!v),'each end binds');}
  const signature=Array.from({length:64},(_,y)=>Array.from({length:64},(_,x)=>+warpOver(x,y,id)).join('')).join('');assert.ok(!signatures.has(signature),'distinct crossing topology: '+d.name);signatures.add(signature);
  }
- assert.equal(signatures.size,24);
+ assert.equal(signatures.size,WEAVE_LIBRARY.length);
 });
 test('random photos exhaust the library before repeating and never repeat at a deck boundary',()=>{
  let seed=31;const deck=new DraftDeck(()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296));let previous=null;const orders=new Set();
