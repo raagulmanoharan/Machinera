@@ -1,0 +1,13 @@
+{
+  "source": "User-supplied charcoal paper reference screenshot",
+  "method": "Image-generation reconstruction of the dark paper only, web-encoded; not a literal crop",
+  "sampleRGB": [
+    31.582043956,
+    31.582043956,
+    31.582043956
+  ],
+  "sampleStandardDeviation": 4.18902996957,
+  "renderGain": 0.6983958645604897,
+  "renderOffset": 0.03344466613310924,
+  "generatorAsset": "exec-515fb559-d2ae-49a2-84fc-0badfad9e480.png"
+}
