@@ -1,4 +1,4 @@
-import {THREAD_PITCH,YARN_RADIUS,YARN_HEIGHT,CROSSING_HEIGHT,draftGLSL} from './yarn-structure.js?v=98';
+import {THREAD_PITCH,YARN_RADIUS,YARN_HEIGHT,CROSSING_HEIGHT,draftGLSL} from './yarn-structure.js?v=99';
 // Shared by displaced yarn centres and the directional visibility height field.
 // Coordinates are permanent end/pick indices, not time or recycled tile UVs.
 export const yarnNoiseGLSL=`

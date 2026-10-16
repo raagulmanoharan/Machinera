@@ -1,8 +1,8 @@
-import {orderColours} from './yarn-contrast.js?v=98';
-import {allocateYarns} from './yarn-palette.js?v=98';
-import {deriveColourDesign} from './photo-weave-design.js?v=98';
-export function createColourDesign(recipe,seed,symmetry='warp',palette,layout){
- const derived=palette?deriveColourDesign(palette,layout):{symmetry:'both',style:recipe?.family==='basket'?'checks':'stripes',repeat:2};
+import {orderColours} from './yarn-contrast.js?v=99';
+import {allocateYarns} from './yarn-palette.js?v=99';
+import {deriveColourDesign} from './photo-weave-design.js?v=99';
+export function createColourDesign(recipe,seed,symmetry='warp',palette,analysis){
+ const derived=palette?deriveColourDesign(palette,analysis):{symmetry:'both',style:recipe?.family==='basket'?'checks':'stripes',repeat:2};
  return {seed,...derived,symmetry:symmetry==='auto'?derived.symmetry:symmetry};
 }
 export function designYarns(palette,count,design,axis){
@@ -15,12 +15,12 @@ export function designYarns(palette,count,design,axis){
  // Dark accents become continuous paired outer bands, never image fragments.
  if(mirror&&active.length>1){const darkest=active.reduce((a,b)=>palette[a].rgb.reduce((n,v)=>n+v,0)<=palette[b].rgb.reduce((n,v)=>n+v,0)?a:b);
  if(palette[darkest].share<=.35)motif=[darkest,...motif.filter(i=>i!==darkest)];
- const centre=design.centreDye;if(active.includes(centre)&&centre!==motif[0])motif=[...motif.filter(i=>i!==centre),centre];}
+}
  if(design.style==='point-repeat'&&!mirror)motif=[...order,...order.slice(1,-1).reverse()];
  if(!mirror&&design.style.startsWith('bordered')&&order.length>1){const bordered=[order.at(-1),...order.slice(0,-1)];motif=[...bordered,...bordered.slice(1,-1).reverse()];};
  // Broad lengthwise ground panels support horizontal bands. Checks share the
  // same ordered colour repeat on both axes. Avoid isolated one-yarn speckling.
- let repeats=design.style==='medallion'?1:design.style==='columns'?(axis==='warp'?2:1):axis==='warp'?1:Math.min(2,design.repeat);
+ let repeats=design.style==='medallion'?1:design.style==='columns'?(axis==='warp'?2:1):axis==='warp'?1:Math.min(3,design.repeat);
  const occurrences=counts.map((_,i)=>motif.filter(c=>c===i).length);
  const supported=Math.min(...active.map(i=>Math.max(1,Math.floor(counts[i]/(2*occurrences[i])))));
  repeats=Math.max(1,Math.min(repeats,supported));
