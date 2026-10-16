@@ -1,4 +1,5 @@
-import {allocateYarns} from './yarn-palette.js?v=94';
+import {orderColours} from './yarn-contrast.js?v=95';
+import {allocateYarns} from './yarn-palette.js?v=95';
 // A loom plan is made of ordered colour runs. Randomness selects the complete
 // repeat, never individual ends/picks or an independent order for each axis.
 export function designRandom(seed){let state=seed>>>0;return()=>{state+=0x6D2B79F5;let t=Math.imul(state^state>>>15,1|state);t^=t+Math.imul(t^t>>>7,61|t);return((t^t>>>14)>>>0)/4294967296;};}
@@ -7,17 +8,16 @@ export function createColourDesign(recipe,seed,symmetry='warp'){
  seed=(seed^identity)>>>0;const random=designRandom(seed),family=recipe?.family??'plain';
  const choices=family==='basket'?['checks','bordered-checks']:family==='rib'?['stripes','bordered-stripes']:family.includes('point')?['point-repeat','checks']:family.includes('twill')?['checks','point-repeat','stripes']:['stripes','checks'];
  if(symmetry==='auto')symmetry=['warp','both','both','radial'][(seed>>>0)%4];
- return {seed,symmetry,style:symmetry==='radial'?'medallion':choices[Math.floor(random()*choices.length)],repeat:2+Math.floor(random()*2),reverse:random()<.5};
+ return {seed,symmetry,style:symmetry==='radial'?'medallion':choices[Math.floor(random()*choices.length)],repeat:2+Math.floor(random()*2)};
 }
 export function designYarns(palette,count,design,axis){
  const symmetry=design.symmetry??'warp',mirror=symmetry==='both'||symmetry==='radial'||symmetry===axis,half=mirror?Math.floor(count/2):count;
  const counts=allocateYarns(palette,half),active=palette.map((_,i)=>i).filter(i=>counts[i]>0);
  // Keep the dominant ground and the same accent order in warp and weft.
  // A reversed accent order is a whole-design decision, not per-axis shuffling.
- const accents=active.slice(1);if(design.reverse)accents.reverse();const order=[active[0],...accents];
- let motif=design.style==='medallion'?[...accents,order[0]]:order.slice();if(design.style==='point-repeat')motif=[...order,...order.slice(1,-1).reverse()];
- if(design.style.startsWith('bordered')&&order.length>1){const bordered=[order.at(-1),...order.slice(0,-1)];motif=[...bordered,...bordered.slice(1,-1).reverse()];};
- const isStripe=design.style.includes('stripes');
+ const order=orderColours(palette,active);
+ let motif=mirror?order.slice().reverse():order.slice();if(design.style==='point-repeat'&&!mirror)motif=[...order,...order.slice(1,-1).reverse()];
+ if(!mirror&&design.style.startsWith('bordered')&&order.length>1){const bordered=[order.at(-1),...order.slice(0,-1)];motif=[...bordered,...bordered.slice(1,-1).reverse()];};
  // Broad lengthwise ground panels support horizontal bands. Checks share the
  // same ordered colour repeat on both axes. Avoid isolated one-yarn speckling.
  let repeats=design.style==='medallion'?1:axis==='warp'?1:Math.min(2,design.repeat);
