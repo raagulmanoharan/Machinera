@@ -1,23 +1,24 @@
-import {captureWindow} from './camera-framing.js?v=117';
-import * as StrandWeaving from './weaving-patterns.js?v=117';
+import {updateMemoryUI} from './camera-ui.js?v=118';
+import {captureWindow} from './camera-framing.js?v=118';
+import * as StrandWeaving from './weaving-patterns.js?v=118';
 globalThis.StrandWeaving=StrandWeaving;
-import {CarpetScroll} from './carpet-scroll.js?v=117';
-import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=117';
-import {FloorReturn} from './floor-return.js?v=117';
-import {LoomAudio} from './loom-audio.js?v=117';
-import {PhotoRugBridge} from './photo-rug-bridge.js?v=117';
-import {preparePhotoPalette} from './photo-colours.js?v=117';
-import {TLRViewfinder} from './tlr-viewfinder.js?v=117';
-import {streamDeviceProfile} from './stream-device-profile.js?v=117';
+import {CarpetScroll} from './carpet-scroll.js?v=118';
+import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=118';
+import {FloorReturn} from './floor-return.js?v=118';
+import {LoomAudio} from './loom-audio.js?v=118';
+import {PhotoRugBridge} from './photo-rug-bridge.js?v=118';
+import {preparePhotoPalette} from './photo-colours.js?v=118';
+import {TLRViewfinder} from './tlr-viewfinder.js?v=118';
+import {streamDeviceProfile} from './stream-device-profile.js?v=118';
 const deviceProfile=streamDeviceProfile();
 import * as T from 'three';
-import {createStreamPerformance} from './stream-performance.js?v=117';
-import {createStreamPipeline} from './stream-render-pipeline.js?v=117';
-import { loadRoomEnvironment } from './room-lighting.js?v=117';
-import { addTextileLights } from './textile-light-rig.js?v=117';
-import { StreamCloth } from './stream-cloth.js?v=117';
-import { installClothInteraction } from './stream-interaction.js?v=117';
-import { FramePacer } from './frame-pacer.js?v=117';
+import {createStreamPerformance} from './stream-performance.js?v=118';
+import {createStreamPipeline} from './stream-render-pipeline.js?v=118';
+import { loadRoomEnvironment } from './room-lighting.js?v=118';
+import { addTextileLights } from './textile-light-rig.js?v=118';
+import { StreamCloth } from './stream-cloth.js?v=118';
+import { installClothInteraction } from './stream-interaction.js?v=118';
+import { FramePacer } from './frame-pacer.js?v=118';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
 const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,deviceProfile.canvasDpr));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=1.0;renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.shadowMap.autoUpdate=false;stage.append(renderer.domElement);
 const scene=new T.Scene();scene.background=null;renderer.setClearColor(0x141414,0);const camera=new T.PerspectiveCamera(32,innerWidth/innerHeight,.03,40);camera.up.set(0,0,1);
@@ -40,12 +41,13 @@ window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);c
 const lens=document.querySelector('.lens');
 const finder=new TLRViewfinder(lens,video),shell=document.querySelector('.camera-shell'),shutter=document.querySelector('#shutter'),secondFloor=document.querySelector('#secondFloor');
 const switchCamera=document.querySelector('#switchCamera');
-function updateMemoryCount(){const count=cloth?.version??0;document.querySelector('#memoryCount').textContent=String(count).padStart(2,'0');document.querySelector('#memoryLabel').textContent=count===1?'MEMORY':'MEMORIES';}
+document.addEventListener('machinera-about',event=>{finder.suspended=event.detail.open;});
+function updateMemoryCount(){updateMemoryUI(cloth?.version??0);}
 async function startCamera(facing=cameraFacing){const request=++cameraRequest;let next;try{
  next=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1920},height:{ideal:1440}},audio:false});
  if(capture.hidden||capture.classList.contains('flipped')||request!==cameraRequest){next.getTracks().forEach(t=>t.stop());return false;}
  media=next;video.srcObject=next;await video.play();if(request!==cameraRequest){next.getTracks().forEach(t=>t.stop());return false;}
- cameraFacing=next.getVideoTracks()[0]?.getSettings?.().facingMode||facing;finder.start();shell.classList.add('has-camera');shell.dataset.camera='live';shell.dataset.facing=cameraFacing;switchCamera.setAttribute('aria-label',cameraFacing==='environment'?'Switch to front camera':'Switch to rear camera');return true;
+ cameraFacing=next.getVideoTracks()[0]?.getSettings?.().facingMode||facing;finder.start();finder.suspended=document.querySelector('#aboutDialog').open;shell.classList.add('has-camera');shell.dataset.camera='live';shell.dataset.facing=cameraFacing;switchCamera.setAttribute('aria-label',cameraFacing==='environment'?'Switch to front camera':'Switch to rear camera');return true;
  }catch{next?.getTracks().forEach(t=>t.stop());if(request===cameraRequest){if(media===next)media=null;video.srcObject=null;shell.dataset.camera='file';}return false;}}
 switchCamera.onclick=async()=>{if(!ready||processingPhoto||switchingCamera||capture.hidden||bridge.active)return;const previous=cameraFacing;switchingCamera=true;switchCamera.disabled=true;shutter.disabled=true;lens.setAttribute('aria-disabled','true');stopCamera();try{const started=await startCamera(previous==='environment'?'user':'environment');if(!started&&!capture.hidden&&!bridge.active&&!processingPhoto)await startCamera(previous);}finally{switchingCamera=false;if(!capture.hidden&&!bridge.active&&!processingPhoto){switchCamera.disabled=false;shutter.disabled=!ready;lens.setAttribute('aria-disabled',String(!ready));}}};
 function stopCamera(){cameraRequest++;finder.stop();media?.getTracks().forEach(t=>t.stop());media=null;video.srcObject=null;shell.classList.remove('has-camera');}
