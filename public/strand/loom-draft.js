@@ -1,7 +1,7 @@
 // Pure shaft-loom draft compiler. Rows are real warp-over/weft-over decisions.
 const mod=(x,n)=>(x%n+n)%n,seq=n=>Array.from({length:n},(_,i)=>i);
 export function compileLoomDraft({id,name,family,shafts,threading,treadling,tieUp}){
- if(!Number.isInteger(shafts)||shafts<2||shafts>8)throw new RangeError('Use 2–8 shafts');
+ if(!Number.isInteger(shafts)||shafts<2||shafts>16)throw new RangeError('Use 2–16 shafts');
  if(!threading.length||threading.length>16||!treadling.length||treadling.length>16)throw new RangeError('Repeat must fit 16×16');
  if(tieUp.length!==shafts||tieUp.some(row=>row.length!==shafts))throw new RangeError('Tie-up dimensions');
  if([...threading,...treadling].some(n=>!Number.isInteger(n)||n<0||n>=shafts))throw new RangeError('Invalid shaft/treadle');
@@ -12,7 +12,7 @@ export function compileLoomDraft({id,name,family,shafts,threading,treadling,tieU
   }
  }
  if(maxFloat>7)throw new RangeError('Float exceeds supported seven-yarn span');
- const freeze=a=>Object.freeze(a.slice()),mirror=threading.every((v,i)=>v===threading.at(-1-i));
+ const freeze=a=>Object.freeze(a.slice()),mirror=grid.every(row=>row.every((v,i)=>v===row.at(-1-i)));
  return Object.freeze({id,name,family,shafts,width:threading.length,height:treadling.length,threading:freeze(threading),treadling:freeze(treadling),tieUp:Object.freeze(tieUp.map(r=>freeze(r.map(Boolean)))),rows:freeze(grid.map(row=>row.reduce((bits,v,x)=>bits+(v?2**x:0),0))),maxFloat,structuralSymmetry:mirror?'warp':'none',generated:true});
 }
 export function generateLoomDraft({family='twill',shafts=4,over=2,block=2,symmetry=true}={}){

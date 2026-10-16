@@ -1,6 +1,6 @@
 # Loom draft library
 
-30 single-warp/single-weft recipes: 24 original studies and six generated mirrored drafts. Each records the threading sequence (shaft per end), treadling sequence (treadle per pick), and tie-up (lifted shafts). The resulting binary drawdown generates both the CPU crossing lookup and the GPU bitmask rules. These rules also drive yarn relief and directional self-shadowing.
+41 single-warp/single-weft recipes: 24 original studies, six generated mirrored drafts and eleven geometric block lift plans. Each records the threading sequence (shaft per end), treadling sequence (treadle per pick), and tie-up (lifted shafts). The resulting binary drawdown generates both the CPU crossing lookup and the GPU bitmask rules. These rules also drive yarn relief and directional self-shadowing.
 
 ## Study references
 
@@ -15,10 +15,12 @@ The app's recipes are original implementations of these structural principles, n
 
 ## Application behaviour
 
-The automatic photo deck uses the seven compiled drafts with mirrored threading and cyclic floats of at most four yarns; it exhausts those before reshuffling. All 30 drafts are callable explicitly through the [pattern API](./weaving-patterns.md). Adjacent photos never repeat a draft, including across deck boundaries. A finite library will eventually repeat. Each section stores its chosen ID permanently; later photos cannot rerandomise old sections.
+The automatic photo deck uses the 18 compiled drafts with mirrored drawdowns and cyclic floats of at most seven yarns; it exhausts those before reshuffling. All 41 drafts are callable explicitly through the [pattern API](./weaving-patterns.md). Adjacent photos never repeat a draft, including across deck boundaries. A finite library will eventually repeat. Each section stores its chosen ID permanently; later photos cannot rerandomise old sections.
 
 Transitions insert two plain binding picks and progressively exchange complete old/new picks. They never interpolate the crossing rules or blur one pattern into another. Palette extraction, natural thread irregularity and cloth interaction remain independent of draft selection.
 
 ## Programmatic compiler
 
 `loom-draft.js` constructs twill lift progressions, point threading, grouped basket and rib structures. Mirroring threading produces a symmetric drawdown, rather than merely symmetric colours. Candidate repeats are compiled and checked across cyclic boundaries on both faces. Six new distinct candidates pass the automatic float/width constraints. Recipes are capped at 16×16 to keep row bitmasks exact in the shader. The bounded catalogue is compiled once at module startup, never per frame or per photo.
+
+The geometric block set uses original mathematical masks and mandatory binding points to create reference-inspired motifs with real lift instructions. It is not an attribution to a specific traditional carpet technique.

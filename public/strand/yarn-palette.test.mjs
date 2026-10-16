@@ -26,3 +26,8 @@ test('final rounded dye lots remain pairwise distinct after all weighted folds',
  }
  const grey=mergeDyeColours([{rgb:[80,80,80],weight:3},{rgb:[82,82,82],weight:7}]);assert.equal(grey.length,1);assert.equal(grey[0].weight,10);
 });
+
+test('saturated primaries stay source-derived and transparent input cannot create brown fallback',()=>{
+ for(const rgb of [[255,0,0],[0,255,0],[0,0,255],[0,255,255],[255,0,255]])assert.deepEqual(mergeDyeColours([{rgb,weight:100}])[0].rgb,rgb);
+ assert.throws(()=>mergeDyeColours([]),/No opaque/);
+});

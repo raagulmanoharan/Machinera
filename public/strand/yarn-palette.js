@@ -2,10 +2,10 @@
 const linear=v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
 export function oklab(rgb){const[r,g,b]=rgb.map(linear),l=Math.cbrt(.4122214708*r+.5363325363*g+.0514459929*b),m=Math.cbrt(.2119034982*r+.6806995451*g+.1073969566*b),s=Math.cbrt(.0883024619*r+.2817188376*g+.6299787005*b);return[.2104542553*l+.793617785*m-.0040720468*s,1.9779984951*l-2.428592205*m+.4505937099*s,.0259040371*l+.7827717662*m-.808675766*s];}
 const distance=(a,b)=>.35*(a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2;
-function similar(a,b){const ca=Math.hypot(a[1],a[2]),cb=Math.hypot(b[1],b[2]),dl=Math.abs(a[0]-b[0]);if(ca<.045&&cb<.045)return dl<.20;if(distance(a,b)<.003)return true;const angle=Math.acos(Math.max(-1,Math.min(1,(a[1]*b[1]+a[2]*b[2])/(ca*cb||1))));return ca>.035&&cb>.035&&angle<Math.PI/10&&dl<.40&&Math.abs(ca-cb)<.15;}
+function similar(a,b){const ca=Math.hypot(a[1],a[2]),cb=Math.hypot(b[1],b[2]),dl=Math.abs(a[0]-b[0]);if(ca<.045&&cb<.045)return dl<.20;if(distance(a,b)<.003)return true;const angle=Math.acos(Math.max(-1,Math.min(1,(a[1]*b[1]+a[2]*b[2])/(ca*cb||1))));return ca>.035&&cb>.035&&angle<Math.PI/18&&dl<.16&&Math.abs(ca-cb)<.06;}
 export const areDyeColoursDistinct=(a,b)=>!similar(oklab(a),oklab(b));
 export function mergeDyeColours(samples,{maxColours=5,minShare=.04}={}){
- const total=samples.reduce((n,s)=>n+s.weight,0);if(!total)return[{rgb:[180,170,150],weight:1,share:1}];
+ const total=samples.reduce((n,s)=>n+s.weight,0);if(!total)throw new Error('No opaque pixel colours in this image');
  const sorted=samples.filter(s=>s.weight>0).map(s=>({...s,lab:oklab(s.rgb)})).sort((a,b)=>b.weight-a.weight||a.rgb[0]-b.rgb[0]||a.rgb[1]-b.rgb[1]||a.rgb[2]-b.rgb[2]);let groups=[];
  const combine=(a,b)=>{const w=a.weight+b.weight;a.rgb=a.rgb.map((v,i)=>(v*a.weight+b.rgb[i]*b.weight)/w);a.weight=w;a.lab=oklab(a.rgb);};
  for(const s of sorted){let match=null,best=Infinity;for(const g of groups){const d=distance(g.lab,s.lab);if(d<best&&similar(g.lab,s.lab)){match=g;best=d;}}if(match)combine(match,s);else groups.push({...s,rgb:s.rgb.slice()});}
