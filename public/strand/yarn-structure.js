@@ -7,7 +7,7 @@ export const TILE_THREADS=8;
 export const YARN_RADIUS=THREAD_PITCH*.45;
 export const YARN_HEIGHT=THREAD_PITCH*.20;
 export const CROSSING_HEIGHT=THREAD_PITCH*.28;
-export {draftGLSL} from './weave-library.js?v=96';
+export {draftGLSL} from './weave-library.js?v=97';
 // Seam-matched elliptical yarns. Four longitudinal segments per crossing,
 // smooth analytical normals and shader plies avoid adding microscopic geometry.
 export function yarnTile(warp,sides=6){

@@ -1,8 +1,8 @@
-import {chooseLoomDraft} from './photo-weave-design.js?v=96';
-import {splitYarnDyes} from './yarn-contrast.js?v=96';
-import {WEAVE_LIBRARY,warpOver} from './weave-library.js?v=96';
-import {createColourDesign,designYarns} from './yarn-colour-design.js?v=96';
-export {compileLoomDraft,generateLoomDraft} from './loom-draft.js?v=96';
+import {chooseLoomDraft} from './photo-weave-design.js?v=97';
+import {splitYarnDyes} from './yarn-contrast.js?v=97';
+import {WEAVE_LIBRARY,warpOver} from './weave-library.js?v=97';
+import {createColourDesign,designYarns} from './yarn-colour-design.js?v=97';
+export {compileLoomDraft,generateLoomDraft} from './loom-draft.js?v=97';
 export function patternIndices({family,symmetry='warp',maxFloat=7}={}){
  return WEAVE_LIBRARY.flatMap((draft,index)=>(!family||draft.family===family)&&(symmetry!=='warp'||draft.structuralSymmetry==='warp')&&draft.maxFloat<=maxFloat?[index]:[]);
 }
