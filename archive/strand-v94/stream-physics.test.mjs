@@ -1,0 +1,37 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {StreamPhysics} from './stream-physics.js';
+test('stream enters above frame, contacts floor, and stays finite while feeding',()=>{
+ const sim=new StreamPhysics();const top=sim.positions.slice(0,sim.nx*3);
+ for(let i=0;i<180;i++){sim.setLength(6.2+1.35*Math.min(1,i/120));sim.feed=1;sim.advance(1/90);}
+ assert.deepEqual(sim.positions.slice(0,sim.nx*3),top);
+ assert.ok(sim.length>7.5);let floorNodes=0;for(let i=0;i<sim.positions.length;i+=3){assert.ok(Number.isFinite(sim.positions[i]+sim.positions[i+1]+sim.positions[i+2]));assert.ok(sim.positions[i+2]>=.0249);assert.ok(sim.positions[i+1]<=.01201);if(sim.positions[i+2]<.12)floorNodes++;}
+ assert.ok(floorNodes>100,'old cloth gathers at the floor');
+});
+test('touching a floor fold moves the cloth without crossing the floor',()=>{
+ const sim=new StreamPhysics();sim.hold(.5,.84,[.15,-1.6,.28]);for(let i=0;i<60;i++)sim.advance(1/90);const index=sim.grab.index*3;assert.ok(sim.positions[index+2]>.15);sim.move([.3,-1.6,-1]);for(let i=0;i<30;i++)sim.advance(1/90);assert.ok(sim.positions[index+2]>=.0249);sim.release();for(let i=0;i<60;i++)sim.advance(1/90);assert.ok(sim.positions.every(Number.isFinite));
+});
+test('length is not capped and grid storage remains fixed',()=>{const s=new StreamPhysics(),p=s.positions;s.setLength(30.2);assert.equal(s.length,30.2);assert.equal(s.positions,p);});
+
+test('settling does not force the live simulation into idle',()=>{const s=new StreamPhysics({nx:5,ny:25});for(let i=0;i<1800;i++)s.step();assert.equal(s.active,true);assert.ok(s.positions.every(Number.isFinite));});
+
+test('feed constraints preserve actual sheet lengths instead of shortening floor folds',()=>{const s=new StreamPhysics();for(let i=0;i<s.a.length;i++){const a=s.a[i],b=s.b[i],expected=Math.hypot((a%s.nx-b%s.nx)*s.width/(s.nx-1),(Math.floor(a/s.nx)-Math.floor(b/s.nx))*s.length/(s.ny-1));assert.ok(Math.abs(s.lengths[i]-expected)<1e-6);}});
+test('feeding inserts material above existing particles without replacing the strip',()=>{const s=new StreamPhysics(),old=s.positions.slice(),before=s.length,delta=.3;s.setLength(before+delta);const y=60,x=9,source=(y/(s.ny-1)*s.length-delta)/before*(s.ny-1),a=Math.floor(source),b=a+1,t=source-a;for(let c=0;c<3;c++)assert.ok(Math.abs(s.positions[(y*s.nx+x)*3+c]-(old[(a*s.nx+x)*3+c]*(1-t)+old[(b*s.nx+x)*3+c]*t))<1e-6);});
+
+test('a floor particle is separated from a nonlocal cloth triangle',async()=>{const {separateFoldSurfaces}=await import('./stream-contact.js');const sim=new StreamPhysics({nx:3,ny:10});for(let i=0;i<30;i++)sim.positions.set([100+i,100,5],i*3);sim.positions.set([-.1,-1,.1],3*3);sim.positions.set([.1,-1,.1],4*3);sim.positions.set([-.1,-1.2,.1],6*3);sim.positions.set([-.05,-1.05,.105],25*3);sim.previous.set(sim.positions);sim.previous[25*3+2]=.13;separateFoldSurfaces(sim);assert.ok(sim.positions[25*3+2]>.1051);assert.ok(sim.positions[3*3+2]>=.025);});
+
+test('incoming cloth stays straight and untwisted through feeding and floor dragging',()=>{const s=new StreamPhysics();s.hold(.5,.85,[.4,-1.4,.4]);for(let f=0;f<120;f++){s.setLength(6.2+1.35*f/120);s.advance(1/60);for(let y=0;y<=s.inletRows();y++)for(let x=0;x<s.nx;x++){const j=(y*s.nx+x)*3;assert.ok(Math.abs(s.positions[j]-(x/(s.nx-1)-.5)*s.width)<1e-6);assert.ok(Math.abs(s.positions[j+1]+.19)<1e-6);assert.ok(Math.abs(s.positions[j+2]-(s.top-y/(s.ny-1)*s.length))<1e-6);}}});
+
+test('guided hanging section yields to touch while keeping each row untwisted',()=>{const s=new StreamPhysics();s.hold(.5,.3,[.14,-.35,2.4]);for(let i=0;i<45;i++)s.advance(1/90);const row=Math.floor(s.grab.index/s.nx),p=s.positions;assert.ok(p[(row*s.nx+6)*3]>.05,'upper cloth responds to a touch');for(let x=1;x<s.nx;x++){assert.ok(Math.abs(p[(row*s.nx+x)*3+1]-p[row*s.nx*3+1])<1e-6);assert.ok(Math.abs(p[(row*s.nx+x)*3+2]-p[row*s.nx*3+2])<1e-6);}});
+
+test('vertical drag yields in the hanging guide instead of resetting height',()=>{const s=new StreamPhysics(),row=Math.round(.32*(s.ny-1)),j=(row*s.nx+6)*3,z=s.positions[j+2];s.hold(.5,.32,[0,-.25,z-.22]);for(let i=0;i<60;i++)s.advance(1/90);assert.ok(s.positions[j+2]<z-.1,'selected cloth point moves vertically');});
+
+test('offscreen rows continue responding without automatic sleep',()=>{const s=new StreamPhysics({nx:5,ny:25});s.setViewportRows(new Uint8Array(s.ny));for(let i=0;i<120;i++)s.step();assert.ok(s.rowSleeping.every(x=>x===0));s.hold(.5,.8,[.1,-1,.4]);for(let i=0;i<60;i++)s.step();assert.ok(s.positions.every(Number.isFinite));assert.equal(s.active,true);});
+
+test('sleeping hidden triangles still repel moving cloth and wake on contact',async()=>{const {separateFoldSurfaces}=await import('./stream-contact.js');const s=new StreamPhysics({nx:3,ny:10});for(let i=0;i<30;i++)s.positions.set([10+i,10,8],i*3);s.positions.set([-.1,-1,2.1],3*3);s.positions.set([.1,-1,2.1],4*3);s.positions.set([-.1,-1.2,2.1],6*3);s.positions.set([-.05,-1.05,2.105],25*3);s.previous.set(s.positions);s.collisionStart.set(s.positions);s.collisionStart[25*3+2]=2.13;s.rowSleeping[1]=s.rowSleeping[2]=1;separateFoldSurfaces(s);assert.ok(s.positions[25*3+2]>2.106,'sleeping triangle remains a collider');assert.equal(s.rowSleeping[1],0,'significant contact wakes hidden cloth');});
+
+test('free lower cloth falls under gravity without being pulled toward its seed',()=>{const s=new StreamPhysics({nx:3,ny:10});s.floorFront=-Infinity;s.inletRows=()=>-1;s.straightenInlet=()=>{};s.k.fill(0);for(let i=0;i<30;i++)s.positions.set([i*.2,-2,1],i*3);s.previous.set(s.positions);s.rest.fill(0);s.step();assert.ok(Math.abs(s.positions[28*3+1]+2)<1e-6,'no depth attraction toward a preset pile');assert.ok(s.positions[28*3+2]<.9993,'gravity supplies the downward acceleration');});
+
+test('retained tail stays anchored while live fabric moves',()=>{const s=new StreamPhysics({nx:5,ny:25});s.endAnchor=s.positions.slice((s.ny-1)*s.nx*3);const tail=s.endAnchor.slice();s.hold(.5,.5,[.1,-.3,1.6]);for(let i=0;i<60;i++)s.step();assert.deepEqual(s.positions.slice((s.ny-1)*s.nx*3),tail);});
+
+test('floor collection boundary retains low folds and permits wide lateral dragging',()=>{const s=new StreamPhysics();s.hold(.5,.9,[2.8,-3,.3]);s.move([2.8,-3,.3]);assert.equal(s.grab.goal[0],2.8,'floor drags are no longer limited to the narrow central strip');for(let f=0;f<90;f++)s.step();for(let j=0;j<s.positions.length;j+=3)if(s.positions[j+2]<.75){assert.ok(s.positions[j+1]>=s.floorFront-1e-5,'front collider keeps folds in the collection area');assert.ok(Math.abs(s.positions[j])<=s.floorSide+1e-5);}});
