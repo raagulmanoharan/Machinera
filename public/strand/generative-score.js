@@ -1,19 +1,26 @@
 // Original instrumental grammar, not a transcription or a complete raga model.
 // Returning cadences and varied couplet-like calls/responses provide continuity.
-export const SCORE_RATIOS=Object.freeze([.5,.75,1,16/15,6/5,4/3,3/2,8/5,9/5,2,32/15,12/5,8/3,3]);
+// Equal-tempered note vocabularies, suitable for harmonium-like synthesis.
+// These are raga-inspired palettes, not full rules for performing those ragas.
+const mode=(id,notes,anchors,voicings)=>{const base=notes.map(n=>2**(n/12));return Object.freeze({id,notes:Object.freeze(notes),anchors:Object.freeze(anchors),voicings:Object.freeze(voicings.map(Object.freeze)),ratios:Object.freeze([.5,base[4]/2,...base,2,...base.slice(1,5).map(r=>r*2)])});};
+export const SCORE_MODES=Object.freeze({
+ bhairavi:mode('bhairavi',[0,1,3,5,7,8,10],[0,3,4],[[2,6,9],[2,4,6],[5,7,9],[2,5,9]]),
+ kafi:mode('kafi',[0,2,3,5,7,9,10],[0,1,4],[[2,6,9],[2,4,6],[5,7,9],[2,5,6]]),
+ yaman:mode('yaman',[0,2,4,6,7,9,11],[0,2,6],[[2,6,9],[2,4,6],[4,6,8],[2,4,9]])
+});
 export class GenerativeScore{
- constructor(seed){this.seed=seed>>>0||1;this.phrases=0;this.queue=[];this.recent=[];this.anchor=[0,this.pick([1,2,3]),this.pick([3,4,5]),this.pick([1,2,3]),0];this.section='invocation';this.sectionLeft=2;this.reset(0);}
+ constructor(seed,modeId){this.seed=seed>>>0||1;this.mode=modeId?SCORE_MODES[modeId]:this.pick(Object.values(SCORE_MODES));if(!this.mode)throw new Error('Unknown musical mode');this.ratios=this.mode.ratios;this.phrases=0;this.queue=[];this.recent=[];this.anchor=[0,this.pick([1,2,3]),this.pick([3,4,5]),this.pick([1,2,3]),0];this.section='invocation';this.sectionLeft=2;this.reset(0);}
  random(){let n=this.seed;n^=n<<13;n^=n>>>17;n^=n<<5;this.seed=n>>>0;return this.seed/4294967296;}
  pick(a){return a[Math.floor(this.random()*a.length)];}
  reset(now){this.queue.length=0;this.nextDrone=now+.12;this.nextCloud=now+.8;this.nextAir=now+3;this.nextPhrase=now+2;this.started=now;}
- event(name,time,volume,degree,pan=0,glide=0){return{name,time,volume,rate:SCORE_RATIOS[degree],pan,glide};}
+ event(name,time,volume,degree,pan=0,glide=0){return{name,time,volume,rate:this.ratios[degree],pan,glide};}
  // Notes are scale-degree walks, with a remembered contour and cadential anchors.
  phrase(time){
   if(this.sectionLeft--<=0){this.section=this.section==='invocation'?'couplet':this.section==='couplet'?this.pick(['elaboration','repose']):this.section==='elaboration'?'repose':this.pick(['couplet','elaboration']);this.sectionLeft=2+Math.floor(this.random()*4);}
   const opening=this.section==='invocation',answer=this.answerNext,energy=({invocation:.15,couplet:.4,elaboration:.72,repose:.12}[this.section])+this.random()*.15;
-  const length=4+Math.floor(this.random()*(answer?4:6));let degree=answer?this.pick([0,2,3]):this.pick([0,3,4]);
+  const length=4+Math.floor(this.random()*(answer?4:6));let degree=answer?this.pick([0,2,3]):this.pick(this.mode.anchors);
   const contour=[];for(let i=0;i<length;i++){
-   if(i===length-1)degree=answer?0:this.pick([0,3,4]);
+   if(i===length-1)degree=answer?0:this.pick(this.mode.anchors);
    else if(i&&this.random()<.24)degree=this.anchor[i%this.anchor.length];
    else if(i)degree=Math.max(0,Math.min(energy>.6?9:7,degree+this.pick(answer?[-2,-1,-1,0,1]:[-1,0,1,1,2])));
    contour.push(degree);
@@ -39,7 +46,7 @@ export class GenerativeScore{
   if(this.nextPhrase<horizon){const p=this.phrase(Math.max(now,this.nextPhrase));this.queue.push(...p.events);}
   if(this.nextDrone<horizon){out.push(this.event('string',Math.max(now,this.nextDrone),.095+this.random()*.035,this.pick([0,0,1,2]),(this.random()-.5)*.4));this.nextDrone=Math.max(now,this.nextDrone)+2.2+this.random()*2.3;}
   if(this.nextCloud<horizon){
-   const root=this.pick([2,2,5]),voicing=root===2?this.pick([[2,6,9],[2,4,6],[2,5,9]]):this.pick([[2,5,9],[5,6,9]]);
+   const voicing=this.pick(this.mode.voicings);
    for(let i=0;i<voicing.length;i++)out.push(this.event('cloud',Math.max(now,this.nextCloud)+i*.12,.1+this.random()*.025,voicing[i],(i-1)*.28));
    this.nextCloud=Math.max(now,this.nextCloud)+7+this.random()*4;
   }

@@ -1,9 +1,9 @@
-import {textileColourGLSL} from './textile-colour.js?v=130';
-import {yarnNoiseGLSL,yarnShadowGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=130';
-import {yarnPhase,YARN_TILE} from './fabric-coordinates.js?v=130';
-import {draftGLSL,THREAD_PITCH,WARP_ENDS,TILE_THREADS,YARN_RADIUS,YARN_HEIGHT,CROSSING_HEIGHT,yarnTile} from './yarn-structure.js?v=130';
-import {applyMatteTextile} from './matte-textile.js?v=130';
-import {textileAOGLSL} from './textile-ambient-occlusion.js?v=130';
+import {textileColourGLSL} from './textile-colour.js?v=132';
+import {yarnNoiseGLSL,yarnShadowGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=132';
+import {yarnPhase,YARN_TILE} from './fabric-coordinates.js?v=132';
+import {draftGLSL,THREAD_PITCH,WARP_ENDS,TILE_THREADS,YARN_RADIUS,YARN_HEIGHT,CROSSING_HEIGHT,yarnTile} from './yarn-structure.js?v=132';
+import {applyMatteTextile} from './matte-textile.js?v=132';
+import {textileAOGLSL} from './textile-ambient-occlusion.js?v=132';
 import * as T from 'three';
 const header=`uniform sampler2D yarnPosition;uniform sampler2D yarnNormal;uniform sampler2D yarnTangent;uniform vec2 yarnGrid;uniform float streamLength;
 vec2 yarnUV(vec3 p){return vec2(p.x/1.536+.5,clamp(-p.z/streamLength,0.,1.));}

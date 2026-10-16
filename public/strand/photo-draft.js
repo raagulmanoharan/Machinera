@@ -1,5 +1,5 @@
-import {compileLoomDraft} from './loom-draft.js?v=130';
-import {photoDesignMetrics} from './photo-weave-design.js?v=130';
+import {compileLoomDraft} from './loom-draft.js?v=132';
+import {photoDesignMetrics} from './photo-weave-design.js?v=132';
 // A photo describes a symmetric lift field, not a catalogue index. Binding
 // crossings constrain every fourth diagonal before the loom compiler checks it.
 export function generatePhotoDraft(palette,analysis=null){
