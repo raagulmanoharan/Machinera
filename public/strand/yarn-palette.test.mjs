@@ -16,3 +16,13 @@ import {createColourDistribution,accumulateColours,distributionPalette,result} f
 test('complete pixel scans produce dye lots with conserved opacity weight',()=>{
  const rgba=new Uint8ClampedArray([180,30,25,255,200,40,35,255,20,50,180,128,0,0,0,0]),d=accumulateColours(createColourDistribution(),rgba),p=distributionPalette(d),r=result(d,4,1,1024);assert.equal(r.kind,'yarn-dye-palette');assert.equal(r.processedPixelCount,4);assert.equal(r.strands,undefined,'active pipeline does not generate gradient strips');assert.ok(Math.abs(p.reduce((s,c)=>s+c.weight,0)-(2+128/255))<1e-10);assert.equal(p.length,2);
 });
+
+import {areDyeColoursDistinct} from './yarn-palette.js';
+test('final rounded dye lots remain pairwise distinct after all weighted folds',()=>{
+ let seed=741;const random=()=>((seed=Math.imul(seed,1664525)+1013904223>>>0)/4294967296);
+ for(let n=0;n<100;n++){const input=Array.from({length:45},()=>({rgb:[0,0,0].map(()=>Math.floor(random()*256)),weight:1+Math.floor(random()*100)})),p=mergeDyeColours(input);
+ assert.equal(p.reduce((s,c)=>s+c.weight,0),input.reduce((s,c)=>s+c.weight,0));assert.ok(Math.abs(p.reduce((s,c)=>s+c.share,0)-1)<1e-12);
+ for(let i=0;i<p.length;i++)for(let j=i+1;j<p.length;j++)assert.ok(areDyeColoursDistinct(p[i].rgb,p[j].rgb),'rounded output dyes must be perceptually distinct');
+ }
+ const grey=mergeDyeColours([{rgb:[80,80,80],weight:3},{rgb:[82,82,82],weight:7}]);assert.equal(grey.length,1);assert.equal(grey[0].weight,10);
+});
