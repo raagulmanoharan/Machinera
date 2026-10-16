@@ -7,7 +7,7 @@ test('photo and camera share one pace with no gap between floors',()=>{
   const p=bridgePose(i/200,844,659);
   assert.ok(Math.abs(p.roomY+p.pan-844)<1e-8);
   assert.ok(Math.abs(p.photoY-p.pan-p.screenPhotoY)<1e-8);
-  assert.ok(Math.abs(p.screenPhotoY/659-p.pan/844)<1e-8);
+  assert.ok(Math.abs(p.screenPhotoY-p.pan)<1e-8);
   assert.ok(p.screenPhotoY>=previous);previous=p.screenPhotoY;
  }
  assert.equal(bridgePose(0,844,659).photoY,0);

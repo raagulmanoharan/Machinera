@@ -1,4 +1,4 @@
-import {THREAD_PITCH,TILE_THREADS} from './yarn-structure.js?v=114';
+import {THREAD_PITCH,TILE_THREADS} from './yarn-structure.js?v=115';
 export const PICKS_PER_METRE=256;
 export const FABRIC_COLUMNS=128;
 export const ATLAS_ROWS=4096;
