@@ -1,0 +1,12 @@
+{
+  "family": "Moren",
+  "style": "Semi Bold",
+  "author": "Yukita Creative",
+  "source": "https://www.1001fonts.com/moren-font.html",
+  "download": "https://www.1001fonts.com/download/moren.zip",
+  "use": "Embedded in this personal-use proof of concept; no standalone font download. Commercial use requires author permission.",
+  "license": "MOREN-LICENSE.txt",
+  "conversion": "Full, unmodified font converted from TTF to WOFF; no subsetting, glyph or name changes.",
+  "source_sha256": "1d07320603279f1c19272f1b9c80807eee37c387dfe05cb656a9093d01b0b76e",
+  "embedded_woff_sha256": "47515ecb848dd86abf61c7297b9499238b87831a3e93e895256ec861d5e20d35"
+}
