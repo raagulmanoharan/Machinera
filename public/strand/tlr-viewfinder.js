@@ -19,7 +19,10 @@ void main(){
  vec2 q=(p+aperture*coc/resolution)*cover+.5;rgb+=texture2D(feed,clamp(q,.001,.999)).rgb*weight;
  }}
  vec3 seed=fract(vec3(floor(gl_FragCoord.xy).xyx)*vec3(.1031,.1030,.0973));seed+=dot(seed,seed.yzx+33.33);float grain=fract((seed.x+seed.y)*seed.z)-.5;
- gl_FragColor=vec4(clamp(rgb*(1.+grain*.055),0.,1.),1.);
+ // Preview contrast and achromatic fine grain share the existing pass.
+ // Additive grain remains visible in shadows; no extra texture reads.
+ rgb=clamp((rgb-.5)*1.10+.5,0.,1.);
+ gl_FragColor=vec4(clamp(rgb+grain*.065,0.,1.),1.);
 }
 `});this.scene=new T.Scene();this.scene.add(new T.Mesh(this.geometry,this.material));this.camera=new T.Camera();this.running=true;this.last=0;this.host.classList.add('has-feed');this.tick=stamp=>{if(!this.running)return;if(!document.hidden&&stamp-this.last>=1000/24){this.last=stamp;if(!this.feedReady&&this.video.readyState>=2){this.texture.needsUpdate=true;this.feedReady=true;}this.resize();this.renderer.render(this.scene,this.camera);}this.frame=requestAnimationFrame(this.tick);};this.frame=requestAnimationFrame(this.tick);}
  resize(){const w=Math.max(1,this.host.clientWidth),h=Math.max(1,this.host.clientHeight);if(w!==this.width||h!==this.height){this.width=w;this.height=h;this.renderer.setSize(w,h);this.uniforms.resolution.value.set(w*this.renderer.getPixelRatio(),h*this.renderer.getPixelRatio());}const source=(this.video.videoWidth||w)/(this.video.videoHeight||h),view=w/h;this.uniforms.cover.value.set(source>view?view/source:1,source>view?1:source/view);}
