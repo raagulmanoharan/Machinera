@@ -1,10 +1,10 @@
-import {draftCrossing} from './photo-draft.js?v=124';
-import {createWeavePattern} from './weaving-patterns.js?v=124';
-import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=124';
-import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=124';
-import {WARP_ENDS} from './yarn-structure.js?v=124';
-import {WEAVE_LIBRARY} from './weave-library.js?v=124';
-import {paletteFromColours} from './yarn-palette.js?v=124';
+import {draftCrossing} from './photo-draft.js?v=125';
+import {createWeavePattern} from './weaving-patterns.js?v=125';
+import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=125';
+import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=125';
+import {WARP_ENDS} from './yarn-structure.js?v=125';
+import {WEAVE_LIBRARY} from './weave-library.js?v=125';
+import {paletteFromColours} from './yarn-palette.js?v=125';
 export class RugArchive{
  constructor(){this.entries=[];this.length=0;this.transition=.42;}
  append(input,length=2.4,weave=null,metadata=null){
