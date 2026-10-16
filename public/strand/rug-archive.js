@@ -1,17 +1,17 @@
-import {draftCrossing} from './photo-draft.js?v=120';
-import {createWeavePattern} from './weaving-patterns.js?v=120';
-import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=120';
-import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=120';
-import {WARP_ENDS} from './yarn-structure.js?v=120';
-import {WEAVE_LIBRARY} from './weave-library.js?v=120';
-import {paletteFromColours} from './yarn-palette.js?v=120';
+import {draftCrossing} from './photo-draft.js?v=124';
+import {createWeavePattern} from './weaving-patterns.js?v=124';
+import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=124';
+import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=124';
+import {WARP_ENDS} from './yarn-structure.js?v=124';
+import {WEAVE_LIBRARY} from './weave-library.js?v=124';
+import {paletteFromColours} from './yarn-palette.js?v=124';
 export class RugArchive{
  constructor(){this.entries=[];this.length=0;this.transition=.42;}
  append(input,length=2.4,weave=null,metadata=null){
   const palette=Array.isArray(input)?paletteFromColours(input):input.palette,previous=this.entries.at(-1),end=this.length+length,firstPick=Math.ceil(this.length/THREAD_PITCH),lastPick=Math.floor(end/THREAD_PITCH),pickCount=Math.max(1,lastPick-firstPick+1),recipe=weave===null?null:WEAVE_LIBRARY[weave];
   // Count real warp ends and physical weft picks. Dominant dye lots own the most
   // yarns; complete yarns (not interpolated pixels) form coherent colour blocks.
-  const plan=createWeavePattern({draftId:recipe?.id,seed:input.designSeed,palette,analysis:input.analysis,warpEnds:WARP_ENDS,weftPicks:pickCount,firstPick,symmetry:input.symmetry??'auto'}),{design,warp,weft}=plan;
+  const plan=createWeavePattern({draftId:recipe?.id,seed:input.designSeed,palette,analysis:input.analysis,warpEnds:WARP_ENDS,weftPicks:pickCount,firstPick,symmetry:input.symmetry??'auto',composition:weave===null}),{design,warp,weft}=plan;
   weave=plan.draftIndex;
   const entry={plan,design,palette:palette.map(c=>({...c,rgb:c.rgb.slice()})),length,end,weave,metadata,previous,firstPick,warp:warp.sequence,weft:weft.sequence,warpCounts:warp.counts,weftCounts:weft.counts};
   entry.rows=Math.ceil(length*PICKS_PER_METRE)+1;entry.baked=new Uint8Array(entry.rows*FABRIC_COLUMNS*4);entry.drafts=new Uint8Array(entry.rows*4);entry.newYarn=new Uint8Array(entry.rows);
@@ -25,7 +25,7 @@ export class RugArchive{
  locateMaterial(q){q=Math.max(0,Math.min(this.length,q));let lo=0,hi=this.entries.length-1;while(lo<hi){const mid=(lo+hi)>>1;if(this.entries[mid].end<q)lo=mid+1;else hi=mid;}const entry=this.entries[lo];return entry?{entry,index:lo,local:Math.max(0,Math.min(entry.length,entry.end-q))}:null;}
  locate(distance){return this.locateMaterial(this.length-distance);}
  warpColour(entry,u){const end=Math.max(0,Math.min(WARP_ENDS-1,Math.floor(u*WARP_ENDS)));return entry.palette[entry.warp[end]].rgb;}
- weftColour(entry,q,u=.5){const pick=Math.max(0,Math.min(entry.weft.length-1,Math.floor(q/THREAD_PITCH+.5)-entry.firstPick));return entry.palette[entry.weft[pick]].rgb;}
+ weftColour(entry,q,u=.5){const pick=Math.max(0,Math.min(entry.weft.length-1,Math.floor(q/THREAD_PITCH+.5)-entry.firstPick));const motif=entry.plan.motif,end=Math.max(0,Math.min(WARP_ENDS-1,Math.floor(u*WARP_ENDS)));return entry.palette[motif?motif.map[pick*WARP_ENDS+end]:entry.weft[pick]].rgb;}
  entryRow(entry,local){return Math.max(0,Math.min(entry.rows-1,Math.round(local/entry.length*(entry.rows-1))));}
  materialYarns(q,u=.5){const f=this.locateMaterial(q);if(!f)return{warp:[180,170,150],weft:[180,170,150]};const row=this.entryRow(f.entry,f.local),own=!!f.entry.newYarn[row],owner=own?f.entry:f.entry.previous;return{warp:this.warpColour(owner,u),weft:this.weftColour(owner,own?q:owner.end,u)};}
  entryColour(entry,u,local){const y=this.entryRow(entry,local),x=Math.max(0,Math.min(FABRIC_COLUMNS-1,Math.floor(u*FABRIC_COLUMNS))),a=(y*FABRIC_COLUMNS+x)*4;return Array.from(entry.baked.subarray(a,a+3));}
