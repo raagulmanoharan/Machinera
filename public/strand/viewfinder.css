@@ -1,12 +1,12 @@
 :root{color-scheme:dark;--paper:#141414;--ink:#ecebe5}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px 'Outfit',Futura,sans-serif;overflow:hidden}button{font:inherit;cursor:pointer;border:0;color:inherit}button:focus-visible,.lens:focus-visible{outline:1px solid #fff8;outline-offset:-3px}button:disabled{cursor:wait;opacity:.35}[hidden]{display:none!important}.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}canvas{display:block}
 #stage{position:fixed;inset:0;touch-action:none}#stage.behind-camera{visibility:hidden}
 #capture{position:fixed;inset:0;z-index:5;overflow:hidden;background:var(--paper);background-image:var(--camera-paper,none);background-size:100% 100%;transform:translate3d(0,0,0);touch-action:manipulation}
-.camera-shell{position:relative;width:100%;height:100%;display:grid;grid-template-rows:minmax(0,1fr) clamp(150px,21svh,210px);overflow:hidden;background:transparent}
-.lens{position:relative;min-height:0;width:100%;height:100%;overflow:hidden;cursor:crosshair;touch-action:manipulation;background:#151d18}
+.camera-shell{position:relative;width:100%;height:100%;display:grid;grid-template-rows:minmax(0,1fr) clamp(150px,21svh,210px);overflow:hidden;background:transparent;padding:0 8px}
+.lens{position:relative;min-height:0;width:100%;height:calc(100% - 8px);overflow:hidden;cursor:crosshair;touch-action:manipulation;background:#151d18}
 .finder-image{position:absolute;inset:0;width:100%!important;height:100%!important}.raw-feed{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .finder-markers{position:absolute;inset:0;z-index:3;pointer-events:none;color:#f5f3df;opacity:.7}.finder-markers:before,.finder-markers:after{content:"";position:absolute;background:#e9e9d2;opacity:.24}.finder-markers:before{left:0;right:0;top:50%;height:.75px}.finder-markers:after{top:0;bottom:0;left:50%;width:.75px}.finder-markers svg{position:absolute;left:50%;top:50%;width:24px;height:24px;transform:translate(-50%,-50%);stroke-width:1}
 #preview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
-.camera-panel{position:relative;min-height:0;background:transparent;padding:clamp(22px,3svh,30px) 24px max(40px,calc(env(safe-area-inset-bottom) + 12px));display:flex;flex-direction:column;justify-content:space-between}
+.camera-panel{position:relative;min-height:0;background:transparent;padding:clamp(22px,3svh,30px) 16px max(40px,calc(env(safe-area-inset-bottom) + 12px));display:flex;flex-direction:column;justify-content:space-between}
 .camera-heading{display:flex;justify-content:space-between;gap:20px;pointer-events:none}.camera-heading p{margin:0;text-transform:uppercase;font-family:'Outfit',Futura,'Century Gothic',sans-serif;font-weight:400;font-size:9px;line-height:1.45;letter-spacing:.085em;color:#e5e5df}.camera-heading p:last-child{text-align:right;font-variant-numeric:tabular-nums}
 .shutter-deck{display:flex;align-items:center;justify-content:space-between;margin:0 -10px -4px;min-height:44px}.shutter-deck button{width:44px;height:44px;display:grid;place-items:center;padding:11px;background:transparent;touch-action:manipulation}.shutter-deck svg{width:22px;height:22px;stroke-width:.9;stroke-linecap:butt;stroke-linejoin:miter}.shutter-deck button:active{opacity:.55}#weavePhoto{display:none!important}
 .scan-overlay{display:none}
@@ -20,4 +20,4 @@
 @media(max-height:500px) and (orientation:landscape){.camera-shell{grid-template-rows:minmax(0,1fr) 110px}.camera-panel{padding:12px max(24px,env(safe-area-inset-right)) 8px max(24px,env(safe-area-inset-left))}}
 @media(prefers-reduced-motion:reduce){#capture.capture-frozen .scan-overlay i{animation:none}*{scroll-behavior:auto!important}}
 
-.app-name{display:inline-block;font-family:"Moren",Georgia,serif;font-weight:600;font-size:16px;line-height:1.1;letter-spacing:.035em;margin-bottom:5px;font-synthesis:none}.lens:after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;border:1px solid #ffffff7a;border-top:0}
+.app-name{font:inherit;letter-spacing:inherit}
