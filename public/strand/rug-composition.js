@@ -1,5 +1,5 @@
-import {photoDesignMetrics} from './photo-weave-design.js?v=125';
-import {orderColours} from './yarn-contrast.js?v=125';
+import {photoDesignMetrics} from './photo-weave-design.js?v=126';
+import {orderColours} from './yarn-contrast.js?v=126';
 // A small yarn-cell map, not a photo texture. Each row becomes contiguous local
 // weft runs. Symmetry groups are assigned whole source dyes by weighted rank.
 export function composeRug(palette,width,height,analysis=null){

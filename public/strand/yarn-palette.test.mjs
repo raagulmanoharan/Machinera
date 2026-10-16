@@ -31,3 +31,11 @@ test('saturated primaries stay source-derived and transparent input cannot creat
  for(const rgb of [[255,0,0],[0,255,0],[0,0,255],[0,255,255],[255,0,255]])assert.deepEqual(mergeDyeColours([{rgb,weight:100}])[0].rgb,rgb);
  assert.throws(()=>mergeDyeColours([]),/No opaque/);
 });
+
+test('night photos retain small warm and pale light accents without changing source weights',()=>{
+ const p=mergeDyeColours([{rgb:[14,18,19],weight:9910},{rgb:[230,152,62],weight:60},{rgb:[220,235,240],weight:30}]);
+ assert.equal(p.length,3,'Sub-4% lights must not disappear into black');
+ assert.deepEqual(p.map(c=>c.weight),[9910,60,30]);assert.deepEqual(p.map(c=>c.rgb),[[14,18,19],[230,152,62],[220,235,240]]);
+ assert.equal(p.reduce((n,c)=>n+c.weight,0),10000);
+ const black=mergeDyeColours([{rgb:[0,0,0],weight:10000}]);assert.equal(black.length,1,'A truly black image must not acquire invented colours');
+});

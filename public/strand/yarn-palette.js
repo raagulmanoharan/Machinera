@@ -11,7 +11,17 @@ export function mergeDyeColours(samples,{maxColours=5,minShare=.04}={}){
  for(const s of sorted){let match=null,best=Infinity;for(const g of groups){const d=distance(g.lab,s.lab);if(d<best&&similar(g.lab,s.lab)){match=g;best=d;}}if(match)combine(match,s);else groups.push({...s,rgb:s.rgb.slice()});}
  // Merge residual near-duplicates after centroids move. No pixel weight is lost.
  for(let i=groups.length-1;i>=0;i--)for(let j=0;j<i;j++)if(similar(groups[i].lab,groups[j].lab)){combine(groups[j],groups[i]);groups.splice(i,1);break;}
- groups.sort((a,b)=>b.weight-a.weight);const keep=groups.filter((g,i)=>i===0||g.weight/total>=minShare).slice(0,maxColours),rest=groups.filter(g=>!keep.includes(g));
+ groups.sort((a,b)=>b.weight-a.weight);
+ // A night photograph can contain meaningful lamps and warm windows occupying
+ // much less than 4% of its pixels. Keep a distinct small accent instead of
+ // folding every highlight into the dark ground. Pixel weights remain exact.
+ const major=groups.filter((g,i)=>i===0||g.weight/total>=minShare);
+ const accents=groups.filter(g=>!major.includes(g)&&g.weight/total>=.0025&&Math.min(...major.map(k=>Math.sqrt(distance(k.lab,g.lab))))>.12)
+  .sort((a,b)=>b.weight*Math.sqrt(distance(b.lab,groups[0].lab))-a.weight*Math.sqrt(distance(a.lab,groups[0].lab)));
+ const keep=major.slice(0,Math.max(1,maxColours-(accents.length&&maxColours>1?1:0)));
+ for(const g of accents)if(keep.length<maxColours)keep.push(g);
+ for(const g of major)if(keep.length<maxColours&&!keep.includes(g))keep.push(g);
+ const rest=groups.filter(g=>!keep.includes(g));
  for(const g of rest){let nearest=keep[0];for(const k of keep)if(distance(k.lab,g.lab)<distance(nearest.lab,g.lab))nearest=k;combine(nearest,g);}
  // Folding minor lots can move centroids back together. Validate the actual
  // rounded yarn dyes, restarting after every merge until every pair is distinct.
