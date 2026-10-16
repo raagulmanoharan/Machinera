@@ -1,9 +1,9 @@
-import {textileColourGLSL} from './textile-colour.js?v=120';
-import {yarnNoiseGLSL,yarnShadowGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=120';
-import {yarnPhase,YARN_TILE} from './fabric-coordinates.js?v=120';
-import {draftGLSL,THREAD_PITCH,WARP_ENDS,TILE_THREADS,YARN_RADIUS,YARN_HEIGHT,CROSSING_HEIGHT,yarnTile} from './yarn-structure.js?v=120';
-import {applyMatteTextile} from './matte-textile.js?v=120';
-import {textileAOGLSL} from './textile-ambient-occlusion.js?v=120';
+import {textileColourGLSL} from './textile-colour.js?v=124';
+import {yarnNoiseGLSL,yarnShadowGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=124';
+import {yarnPhase,YARN_TILE} from './fabric-coordinates.js?v=124';
+import {draftGLSL,THREAD_PITCH,WARP_ENDS,TILE_THREADS,YARN_RADIUS,YARN_HEIGHT,CROSSING_HEIGHT,yarnTile} from './yarn-structure.js?v=124';
+import {applyMatteTextile} from './matte-textile.js?v=124';
+import {textileAOGLSL} from './textile-ambient-occlusion.js?v=124';
 import * as T from 'three';
 const header=`uniform sampler2D yarnPosition;uniform sampler2D yarnNormal;uniform sampler2D yarnTangent;uniform vec2 yarnGrid;uniform float streamLength;
 vec2 yarnUV(vec3 p){return vec2(p.x/1.536+.5,clamp(-p.z/streamLength,0.,1.));}
@@ -40,7 +40,7 @@ transformedNormal=-transformedNormal;
 rp=(instanceMatrix*vec4(rp,1.)).xyz;
 #endif
 vFabricN=normalMatrix*yn;vFabricT=normalMatrix*yt;vYarnFiber=uv;vYarnKind=yarnRadial.z;vec2 yu=yarnUV(rp);vec3 yw=yarnPoint(yu)+yn*(rp.y+${CROSSING_HEIGHT+YARN_HEIGHT});vYarnStory=vec2(yu.x,-rp.z);vec4 mvPosition=modelViewMatrix*vec4(yw,1.);gl_Position=projectionMatrix*mvPosition;`);shader.vertexShader=shader.vertexShader.replace('#include <worldpos_vertex>','vec4 worldPosition=modelMatrix*vec4(yw,1.);');shader.fragmentShader=textileAOGLSL+'uniform sampler2D streamWarp;uniform sampler2D streamWeft;uniform float streamLength;uniform float streamRemaining;uniform float streamHead;varying vec2 vYarnStory;varying vec2 vYarnFiber;varying float vYarnKind;varying vec3 vFabricN;varying vec3 vFabricT;\n'+yarnShadowGLSL+textileColourGLSL+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
-if(vYarnStory.y>streamLength||vYarnStory.y<0.)discard;float materialQ=streamHead-vYarnStory.y;float colourV=(floor(materialQ/${THREAD_PITCH}+.5)*${THREAD_PITCH}-streamAtlasBase)/streamHistoryLength;float endU=(floor(clamp(vYarnStory.x,0.,.999999)*${WARP_ENDS.toFixed(1)})+.5)/${WARP_ENDS.toFixed(1)};vec3 dye;if(vYarnKind>.5)dye=texture2D(streamWarp,vec2(endU,colourV)).rgb;else dye=texture2D(streamWeft,vec2(.5,colourV)).rgb;diffuseColor.rgb*=textileDye(dye);float grainPhase=vYarnStory.x*3600.+materialQ*2400.;float grainVisibility=1.-smoothstep(.7,2.,fwidth(grainPhase));diffuseColor.rgb*=.98+.02*sin(grainPhase)*grainVisibility;
+if(vYarnStory.y>streamLength||vYarnStory.y<0.)discard;float materialQ=streamHead-vYarnStory.y;float colourV=(floor(materialQ/${THREAD_PITCH}+.5)*${THREAD_PITCH}-streamAtlasBase)/streamHistoryLength;float endU=(floor(clamp(vYarnStory.x,0.,.999999)*${WARP_ENDS.toFixed(1)})+.5)/${WARP_ENDS.toFixed(1)};vec3 dye;if(vYarnKind>.5)dye=texture2D(streamWarp,vec2(endU,colourV)).rgb;else dye=texture2D(streamWeft,vec2(endU,colourV)).rgb;diffuseColor.rgb*=textileDye(dye);float grainPhase=vYarnStory.x*3600.+materialQ*2400.;float grainVisibility=1.-smoothstep(.7,2.,fwidth(grainPhase));diffuseColor.rgb*=.98+.02*sin(grainPhase)*grainVisibility;
 vec2 fibreGrid=vec2(vYarnStory.x*${WARP_ENDS.toFixed(1)}-.5,materialQ/${THREAD_PITCH});
 bool fibreWarp=vYarnKind>.5;float fibreId=floor((fibreWarp?fibreGrid.x:fibreGrid.y)+.5),fibreAlong=fibreWarp?fibreGrid.y:fibreGrid.x;
 float dyeLot=yarnHash(vec2(fibreId,fibreWarp?117.:269.))-.5;
