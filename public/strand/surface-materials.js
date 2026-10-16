@@ -1,6 +1,6 @@
 import * as T from 'three';
 import { applySurfaceRelief } from './surface-relief.js?v=28';
-// Legacy hanging-study materials; stream-room.js loads the active scene maps.
+// Materials used by the separate legacy hanging study.
 export async function loadSurfaceMaterials(renderer){
  const response=await fetch('./assets/materials-provenance.json?v=27');
  if(!response.ok)throw Error('Material manifest could not load');

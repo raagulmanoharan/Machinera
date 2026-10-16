@@ -1,4 +1,5 @@
-export const THREAD_PITCH=.0192;
+import {THREAD_PITCH} from './yarn-structure.js?v=77';
+export {THREAD_PITCH};
 const order=[0,4,2,6,1,5,3,7];
 // A pick has one complete draft and one colour source. Never interpolate drafts
 // or old/new RGB. Two plain binding picks secure different structures first.
