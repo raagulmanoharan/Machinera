@@ -9,7 +9,7 @@ import {createStreamPipeline} from './stream-render-pipeline.js?v=55';
 import { loadRoomEnvironment } from './room-lighting.js?v=27';
 import { addTextileLights } from './textile-light-rig.js?v=60';
 import { addStreamRoom } from './stream-room.js?v=60';
-import { StreamCloth } from './stream-cloth.js?v=65';
+import { StreamCloth } from './stream-cloth.js?v=66';
 import { installClothInteraction } from './stream-interaction.js?v=61';
 import { FramePacer } from './frame-pacer.js?v=31';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
