@@ -8,7 +8,7 @@ The photo supplies dye lots. A loom recipe supplies shaft threading, treadling a
 
 ```js
 import {createWeavePattern, listWeavePatterns, generateLoomDraft}
-  from './weaving-patterns.js?v=94';
+  from './weaving-patterns.js?v=95';
 
 const pattern = createWeavePattern({
   seed: 240731,
@@ -63,3 +63,9 @@ Automatic composition always retains left/right colour symmetry and mirrored str
 `geometric-drafts.js` generates eleven distinct 16-shaft lift plans: diamond rings, stepped crosses, nested squares, diamond eyes, hourglasses, stepped chevrons, four-petal forms, window grids, cross medallions, diamond lattices and corner diamonds. A mandatory binding lattice limits cyclic floats to six yarns or fewer. These are independently generated single-layer structures, not printed reference images. The compiler now accepts up to 16 shafts, while repeats remain within 16×16 and CPU/GPU bitmask precision.
 
 Geometric plans use complementary dye allocations: each source colour's combined share across both systems is preserved, with mirrored integer rounding, while warp and weft contrast enough to reveal the lift pattern. This avoids placing the same dominant dye on both systems everywhere. The photograph still supplies every dye colour. Studio lights are neutral white and the renderer uses neutral tone mapping. Near-hue shade merging is conservative; empty/transparent images fail explicitly instead of producing a brown default.
+
+## Contrast-aware yarn planning
+
+`yarn-contrast.js` uses OKLab lightness and chromatic separation to score neighbouring dyes, and scores candidate warp/weft inventory splits by their expected crossing contrast. Only up to five source dyes are considered, so exhaustive evaluation is bounded. Weights and RGB dyes stay unchanged. Randomness remains in the shuffled structural draft deck and seeded whole-layout choices. Mirrored layouts put the dominant system dye at the centre; accent bands are paired away from the centre.
+
+The active extraction modules are `photo-colours.js` and `photo-colours-worker.js`. Sorted image-gradient strands, legacy palette painting, retired room/collision/tear-off prototypes and their tests are removed. Camera capture, the two-floor transition, scrolling and interactive cloth remain in the current dependency graph.

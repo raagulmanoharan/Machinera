@@ -1,13 +1,14 @@
-import {WEAVE_LIBRARY,warpOver} from './weave-library.js?v=94';
-import {createColourDesign,designYarns,freshDesignSeed} from './yarn-colour-design.js?v=94';
-export {compileLoomDraft,generateLoomDraft} from './loom-draft.js?v=94';
+import {splitYarnDyes} from './yarn-contrast.js?v=95';
+import {WEAVE_LIBRARY,warpOver} from './weave-library.js?v=95';
+import {createColourDesign,designYarns,freshDesignSeed} from './yarn-colour-design.js?v=95';
+export {compileLoomDraft,generateLoomDraft} from './loom-draft.js?v=95';
 export function patternIndices({family,symmetry='warp',maxFloat=7}={}){
  return WEAVE_LIBRARY.flatMap((draft,index)=>(!family||draft.family===family)&&(symmetry!=='warp'||draft.structuralSymmetry==='warp')&&draft.maxFloat<=maxFloat?[index]:[]);
 }
 export function listWeavePatterns(){return WEAVE_LIBRARY.map(d=>({id:d.id,name:d.name,family:d.family,shafts:d.shafts,width:d.width,height:d.height,maxFloat:d.maxFloat,symmetry:d.structuralSymmetry}));}
 export function createWeavePattern({draftId,seed=freshDesignSeed(),palette,warpEnds=48,weftPicks=120,firstPick=0,family,symmetry='warp',maxFloat=7}={}){
  if(!Number.isInteger(firstPick)||!Number.isInteger(seed)||!Number.isInteger(warpEnds)||warpEnds<2||!Number.isInteger(weftPicks)||weftPicks<1)throw new RangeError('Integer seed, ends and picks required');
- if(!palette?.length||palette.some(c=>!Array.isArray(c.rgb)||c.rgb.length!==3||c.rgb.some(v=>!Number.isFinite(v)||v<0||v>255)||!Number.isFinite(c.share)||c.share<0)||Math.abs(palette.reduce((n,c)=>n+c.share,0)-1)>1e-6)throw new RangeError('Provide RGB dye lots with shares summing to one');
+ if(!palette?.length||palette.length>5||palette.some(c=>!Array.isArray(c.rgb)||c.rgb.length!==3||c.rgb.some(v=>!Number.isFinite(v)||v<0||v>255)||!Number.isFinite(c.share)||c.share<0)||Math.abs(palette.reduce((n,c)=>n+c.share,0)-1)>1e-6)throw new RangeError('Provide RGB dye lots with shares summing to one');
  if(!['warp','weft','both','radial','auto'].includes(symmetry))throw new RangeError('Unknown composition symmetry');
  const candidates=patternIndices({family,symmetry:symmetry==='auto'?'warp':symmetry,maxFloat});let draftIndex;
  if(draftId!==undefined){draftIndex=WEAVE_LIBRARY.findIndex(d=>d.id===draftId);if(draftIndex<0)throw new RangeError('Unknown compiled draft');}
@@ -17,8 +18,8 @@ export function createWeavePattern({draftId,seed=freshDesignSeed(),palette,warpE
  // Each system contributes roughly half the length in a balanced cloth.
  // Split the dye mass between contrasting systems instead of duplicating the
  // same stripes on both axes; combined source proportions remain unchanged.
- let remaining=1;const warpShares=dyes.map(c=>{const share=Math.min(remaining,c.share*2);remaining-=share;return share;}),weftShares=dyes.map((c,i)=>Math.max(0,2*c.share-warpShares[i]));
- const geometric=draft.family==='geometric',wp=geometric?dyes.map((c,i)=>({...c,share:warpShares[i]})):dyes,fp=geometric?dyes.map((c,i)=>({...c,share:weftShares[i]})):dyes;
+ const geometric=draft.family==='geometric';const {warp:warpShares,weft:weftShares}=geometric?splitYarnDyes(dyes):{};
+ const wp=geometric?dyes.map((c,i)=>({...c,share:warpShares[i]})):dyes,fp=geometric?dyes.map((c,i)=>({...c,share:weftShares[i]})):dyes;
  const warp=freezeYarns(designYarns(wp,warpEnds,design,'warp')),weft=freezeYarns(designYarns(fp,weftPicks,design,'weft'));
  return Object.freeze({version:1,id:`${draft.id}:${seed>>>0}`,seed:seed>>>0,firstPick,draftIndex,draft,palette:dyes,design,warp,weft,allocation:draft.family==='geometric'?'contrasting-systems':'shared-systems',colourSymmetry:design.symmetry,rotationalOrder:design.symmetry==='radial'?2:undefined,symmetry:design.symmetry==='warp'&&draft.structuralSymmetry==='warp'?'warp-colour-and-structure':design.symmetry+'-colour',
   crossing:(end,pick)=>warpOver(end,pick+firstPick,draftIndex),

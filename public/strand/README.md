@@ -1,125 +1,15 @@
-# Strand — interactive photo to cloth
+# Strand
 
-Take or choose a photo to colour real woven yarns in a browser-based hanging carpet. Drag the cloth to pull it; release to let it settle. Pinch with two fingers to zoom, or drag beside the cloth to pan. The top edge stays attached to the rail. The wall prevents the fabric passing into the plaster.
+Tap the viewfinder to turn a photo into an interactive, continuous woven carpet. Every decoded pixel contributes to weighted, perceptually distinct dye lots. No photo is uploaded.
 
-Native camera and library inputs share one local processing path. Photo pixels colour the warp and weft directly at up to 4096 pixels on the longest edge, rather than being reduced to dominant palette colours. Replacing a photo reuses the same geometry, light rig and simulation. No photo upload, server render or offline processing job is needed.
+The core path is:
 
-## Guide-based renderer
+1. `photo-colours.js` and its worker scan every source pixel.
+2. `yarn-palette.js` merges similar colours and preserves their weights.
+3. `yarn-contrast.js` arranges and splits dyed yarn inventories for contrast.
+4. `weaving-patterns.js` creates immutable, seeded loom plans from the randomly shuffled draft library.
+5. `rug-archive.js` locks each print; `stream-yarn.js` renders the actual crossing yarns.
 
-The supplied hyperrealism guide informed the v16 revision. [GUIDE-IMPLEMENTATION.md](GUIDE-IMPLEMENTATION.md) maps its sections to implementation, checks and remaining limits. The original stripe design and proportions are retained; the generated photographic target remains a visual reference, not an exact match claim.
+Camera capture, animation/audio, cloth dragging, native history scrolling and matte lighting use the active runtime modules. See [weaving-patterns.md](./weaving-patterns.md) for the callable API.
 
-- A fixed-step position-based 25×39 cloth grid drives a shared position/normal deformation field. The surface, yarns, loose fibres, fringe and depth shaders follow that field. A CPU-deformed proxy supplies touch picking and broad moving wall shadows.
-- Full view uses reduced instanced yarn geometry with local AO and directional visibility baked at startup from the actual Blender weave tile. Close-up and export use the full yarn geometry. Both follow the same cloth field; a flat image never replaces the interactive weave.
-- Tile boundaries use matching ply twist phases and endpoint normals, avoiding disconnected yarn ends. Yarn materials combine real three-ply geometry, correlated thickness/dye variation, directional fibre normals, matte roughness variation and zero-sheen matte materials. Fringe length and curl vary subtly.
-- The photographic rig uses a broad rectangular window light, an aligned directional shadow caster and the bundled real HDR environment. AgX, linear half-float composition, sRGB output and FXAA handle display. AO is local and baked, not a dark full-screen outline filter.
-- The room has off-white plaster, a beveled wooden rail, brass pins, wood-grained skirting and oak flooring. Camera rotation remains disabled.
-
-This is a real-time approximation with bounded local dragging, not a full yarn mechanics or self-collision solver. Physical-phone capture and frame rates remain unverified. Full reference-level photorealism has not been demonstrated.
-
-## Run and checks
-
-In the standalone workspace, `npm run dev` serves `public/` at http://localhost:3000. In the Machinera repository, use its existing dev server and open `/strand/`; the entry is `public/strand/index.html`. Live: https://raagulmanoharan.github.io/Machinera/strand/.
-
-`node --test --test-isolation=none public/strand/hanging-physics.test.mjs` (or `public/hanging-physics.test.mjs` in the standalone workspace) checks invariant rail pins, finite bounded stretch, settling and wall collision. Browser checks cover mouse/touch drags, touch pinch, photo replacement, LODs, narrow-screen controls, shader compilation and 4K export. Save refreshes culling and uses full yarn geometry with the live photo and current cloth pose.
-
-## Assets and earlier experiments
-
-`blender/build_textile.py` is the reproducible Blender 4.3 authoring source for the reusable 8×8 three-ply weave tile. The glTF buffer is embedded in `assets/blender-poc/weave-tile.gltf`. The browser applies the v16 material, geometric variation and cloth simulation directly; Blender is not required at runtime. The older `blender-preview.html` contains historical v14 offline Cycles renders and is outside the current photo workflow.
-
-The weave, room geometry and procedural textures are original project assets. Studio fill uses [Poly Haven Studio Small 08](https://polyhaven.com/a/studio_small_08), Sergej Majboroda, CC0; see `assets/studio-license.json`. Three.js 0.170.0 and addons load from unpkg. The earlier 3D camera/printing scene remains separately at `camera.html`; the current entry uses native photo capture and the wall-hanging simulation.
-
-## Soft window light revision (v25)
-
-Window panes now add bright, softly diffused diagonal illumination instead of dark grey bands. The projector angle was calibrated against its wall-space projection; warm upper-wall bounce, HDR fill and a separate soft floor pool keep the room readable without raising exposure. The live deformed cloth still casts real moving shadows. Yarn receives a restrained share of the projected pane light to avoid bleached dye.
-
-The cloth uses 80×120 close-packed crossings, widened laterally while preserving its thin depth. This closes bright background pinholes without adding a backing sheet. Default colour bands remain independent of tile count; uploaded photos still supply pixel colours locally. Fine material normal/roughness maps, flyaways rooted on actual yarn triangles, three-ply cotton fringe and raised jute cords add surface detail. The foreground reuses the authored yarn geometry over a verified CC0 [Poly Haven Hessian 230](https://polyhaven.com/a/hessian_230) surface (Colormass / Rico Cilliers). Source URLs and checksums are in the material manifest.
-
-Sixteen local screenshots/variants informed a two-agent comparison/critique loop. The result improves positive daylight and opaque weave coverage, but does **not** match the supplied reference pixel for pixel. Yarn regularity, fringe and foreground braids remain visible differences. Added foreground/fringe geometry offsets some yarn savings; measured phone frame rates are still unverified.
-
-## Diffused daylight and interaction revision (v26)
-
-The left-side illumination now uses overlapping, gently curved Gaussian pools instead of straight window strips. Brightness changes blend across the wall and floor without crisp edges.
-
-The 25×39 simulation and seven constraint iterations remain unchanged. Packed constraint data and a scalar inner loop reduce local solver time from about 2.28ms to .96ms per step; a 900-step comparison reproduced the previous positions exactly. Static yarn instance buffers upload only when visibility changes. Conservative bounds and cached picking indices avoid repeated mesh bookkeeping. Shadow-only strand envelopes replace sub-texel fringe plies in the shadow maps; the visible high-detail fringe and yarn meshes remain intact.
-
-Interaction resets its idle clock, suppresses tap impulses during drags/pinch/cancellation, scales pull distance in close-ups, and adds hysteresis around the detailed-yarn threshold. Local browser checks measured about 14.3ms→7.9ms CPU frame submission and 2.73M→2.50M triangles during the same grab scenario. These software-browser measurements are not physical-phone FPS. Photo colouring, zoom and export retain their original resolution.
-
-## Scanned surface relief (v27)
-
-The wood floor, wooden rail/skirting, yarns and fringe now combine their existing normal maps with verified CC0 scanned height maps. A fragment bump layer adds fine relief over the tangent-space normals; it does not displace vertices or change the simulation. Wood grain uses physical UV scale instead of stretching a narrow texture strip across the rail and skirting. Normal strengths are calibrated for the shallow scanned wood maps. Textile dye still comes exclusively from the photo.
-
-## Fibre and visibility refinement (v28)
-
-Yarn relief now blends the scanned surface at a finer physical scale with derivative-filtered longitudinal microfibres. Fine flyaway strands have softly fading tips and restrained upper-left lighting variation, preserving their photo-derived dye. The main cloth, scanned surface relief, shadow rig and physics remain unchanged. Static raised floor-cord tiles are culled against conservatively transformed geometry bounds, keeping the same detailed mesh wherever it is visible. The canvas no longer preserves its drawing buffer between frames; export renders immediately before capturing the PNG.
-
-## Soft daylight and wood cavities (v29)
-
-Static room surfaces use a world-anchored, baked-style illumination field with broad Gaussian daylight streaks. It multiplies existing shaded radiance, preserving the moving cloth's shadow rather than placing an overlay above it. This is an art-directed approximation, not volumetric ray tracing or a Blender lightmap. The projector is retargeted with a lower energy and higher-contrast soft cookie. Wood now includes height-derived cavity shading over its scanned normal/bump detail, with less environment fill and calibrated roughness. No additional meshes, texture requests, shadow maps or full-screen passes are added; photo dye and cloth physics are unchanged.
-
-## Sustained interaction safeguards (v30)
-
-Rendering now polls a WebGL sync fence without blocking and submits a new interactive frame only after the previous frame has completed. It caps drawing at 60 fps to avoid excess sustained work on high-refresh screens, pauses while hidden, and resets its frame clock on return. Cloth simulation, geometry, materials, textures, shadows and export resolution are unchanged. Lost touch capture, tab hiding and window blur now clear gesture state so later touches cannot inherit a stale pinch.
-
-Validation: three repeated five-frame tugs in a software-rendered browser retained 22 geometries, 37 textures and 17 shader programs in both baseline and candidate; no progressive resource growth or GPU queue buildup reproduced in that scenario. Eight CPU-only repeated tugs settled in 3.58–3.64 seconds each. These checks do not establish physical-phone thermal behavior or prove the reported progressive slowdown resolved. Gate lifecycle/fallback tests, cloth tests and lost-capture gesture recovery pass.
-
-## Three-agent lag audit and scheduler correction (v31)
-
-Independent GPU, cloth/input and sustained-use reviews identified excessive per-frame GPU workload and a v30 pacing regression. The single-in-flight GPU fence is removed: polling it only at RAF boundaries can delay both physics and presentation an extra refresh. A deadline-accumulating 60fps pacer replaces the prior elapsed-time cap; deterministic tests retain 60fps average on 60/90/120/144Hz schedules (the old cap produced 45fps at 90Hz and 48fps at 144Hz).
-
-A front-face-only yarn trial exposed gaps in close-up comparisons and was rejected; double-sided yarns and their prior shadow rendering remain intact. Moving shadows are refreshed only when displayed deformation accumulates more than .25mm per coordinate from the last shadow snapshot, or caster membership changes. A 376-frame solver/display replay reduced refreshes from 376 to 335 (10.9%), all savings in the settling tail; active dragging still refreshes every frame. No visual geometry or texture resolution is reduced.
-
-The local short-run resource counts show no growing leak, and desktop physics steps take about .964ms. These findings do not establish phone GPU timings or thermal behavior; the scene still submits millions of yarn triangles and uses two live shadow maps. Software-browser CPU timings and a 15-frame replay are not sustained mobile FPS evidence. v30's GPU gate is retained as an unused module/test for history, not imported by the app.
-
-## Lower render cost (v32)
-
-The main soft directional light remains the live cloth/yarn shadow source. The projected daylight fill still illuminates the room and supplies its soft cookie, but no longer renders or samples a second overlapping shadow map. Baked-style daylight bands, HDR environment, visible yarn geometry, textures and cloth physics remain intact. The output canvas disables redundant native multisampling/depth/stencil storage because the scene renders into the composer's depth-enabled target and the final fullscreen output already uses FXAA.
-
-Same-camera close-up captures reduce shadow-refresh triangle submissions from 2,929,254 to 1,994,230 (31.9%), and draw calls from 41 to 26. Room-view shadow-refresh calls fall from 47 to 34; its triangle savings are small because it already uses a coarse cloth shadow proxy. These counts measure rendering work, not phone FPS. The single-shadow setup changes the fill's shadow contribution, so the images are visually compared rather than claimed pixel-identical.
-
-A packed normal/tangent field trial was rejected: strong tugs produced up to 11 degrees of interpolation error. The original three-texture deformation fields are retained. No false claim of fewer field samples or reduced physical geometry applies to this release.
-
-## Continuous colour stream (v34)
-
-The active entry is `stream-study.js`. The image-backed room is retired: the wall and oak floor are real 3D surfaces with the existing CC0 scanned normals, roughness and floor relief. The rail and pinned hanging composition are gone. One continuous woven strip enters from above the viewport, falls, and gathers on the floor.
-
-Choose **New moment**, take a photo or choose one, then **Show printing**. The camera view flips away and a new 1.35-metre colour section feeds into the same strip over four seconds. Colours retain spatial variation from the image, with a softened field and feathered joins rather than six dominant-colour swatches. Existing sections move down. Further photos queue behind an in-progress print. Capture is local; originals are reduced to a small colour field and are not uploaded. The camera preview is capped at 1024 pixels, media tracks stop when leaving capture, and 3D rendering pauses behind the viewfinder.
-
-`StreamPhysics` uses a fixed 19×137 grid, 90Hz steps, structural/shear/bend constraints, smoothed pointer grabbing, wall/floor collisions, friction and non-neighbouring floor-particle separation. A guided feed shape gathers the cloth in view. This is an interactive prototype, with particle-based fold separation rather than robust triangle-level cloth self-collision. Aggressive folding can still expose intersections.
-
-The existing authored three-ply yarn tile is instanced over the strip, with scanned wool normal/roughness maps, two geometric detail levels, frustum culling and GPU deformation from the shared cloth grid. The live shadow surface deforms with the cloth. Studio Small 08 HDRI and a soft top-left key illuminate the 3D room and yarns. No furniture, room photograph or baked room atlas is loaded.
-
-The simulation stays bounded to a 14-metre visible strip and one reusable 256×4096 colour-history texture. New photos continue to feed the visible colour stream; older off-view cloth is not simulated indefinitely. This avoids unbounded GPU geometry and retained photo textures. Rendering sleeps when settled using a bounded residual-motion threshold; displayed positions interpolate the 90Hz physics steps. This is not a measured iPhone frame-rate guarantee.
-
-Validation (13 tests): `node --test --test-isolation=none public/stream-physics.test.mjs public/frame-pacer.test.mjs public/hanging-physics.test.mjs`. Browser checks exercise camera/choose-photo, successive printing, hidden top entry, floor dragging and narrow layouts. The room bake tools and atlas introduced in v33 have been removed.
-
-## Five-photo mound and self-shadows (v35)
-
-Open `?demo=5&v=35` or choose **Try 5 photos**. Five bundled Unsplash photographs drive the photo-to-colour pipeline, producing a 12.95m interactive strip. Expand **Five moments · one cloth** to inspect the sources. Source URLs and license are in `assets/demo/credits.json`. The first photograph colours the starting strip too.
-
-Feeding inserts material at the inlet and advects existing positions/velocities using reusable scratch buffers. Constraints derive from actual sheet width/length, rather than the compressed floor seed. Deeper irregular folds, gravity/friction and spatially hashed point/triangle contacts between nonlocal folds form the pile. It can leave the view; the visible simulation remains bounded at 14m. Contact remains approximate rather than continuous collision detection.
-
-The moving cloth surface casts fold shadows at all distances. Close-up yarn instances use the same deformation in their shadow depth material. Zoom/pan refreshes detailed shadows. The top-left key has a 2048-square PCF shadow map and reduced unshadowed upper fill. Shadow-on/off browser comparison confirms that folds shade the yarn surfaces themselves.
-
-Validation: all 16 physics/frame-pacing tests pass, including physical rest lengths, material advection, touch, floor contact and sleep. Browser checks inspect the five-photo pile and deformed shadow rendering. No measured iPhone FPS claim.
-
-## Motion-first yarn rendering (v36)
-
-The yarn now uses one compact, three-sided strand geometry at every zoom level, retaining the longitudinal weave samples. This halves normal-view triangles and removes the high-detail geometry allocation and detailed yarn shadow pass. The complete moving cloth surface still casts and receives fold shadows; particle simulation, contact resolution, feeding and dragging are unchanged.
-
-Use MeshStandardMaterial instead of MeshPhysicalMaterial, a constant matte roughness, and one locally bundled 256px normal map. Remove the large wool roughness map and external normal-map request. The normal map is reduced from the existing CC0 Poly Haven scan and its tangent vectors are renormalized. Attribution/processing is recorded in `assets/yarn/provenance.json`. Combined yarn-map download goes from 2,538,716 bytes to 120,512 bytes (95% less). The reusable colour-history texture is 128×2048 instead of 256×4096 (75% fewer pixels). Zoom remains available, with deliberately reduced microscopic detail.
-
-The same five-photo, 720×1280 browser capture drops from 4,617,818 to 2,313,818 submitted scene/shadow triangles, with eight draw calls in both cases. This measures rendering workload, not phone FPS. Browser render has no shader errors; capture, successive photo feeding and floor-drag workflow are checked independently.
-
-## Full-sheet collision and safe-pose gate (v37)
-
-Fix collision holes that allowed the pile to clip: triangle contact now runs every physics step, covers raised cloth as well as floor folds, and constrains the grabbed point. Large triangles use a fallback list rather than being dropped from collision checks. Grab motion is bounded per step. A smaller 13×97 collider grid funds the additional checks while retaining the v36 yarn geometry/materials.
-
-The initial strip follows an arc-length-sampled, non-intersecting inlet/fold path instead of starting from a compressed, intersecting pile. A cached grid BVH checks the proposed displayed surface for face crossings and coplanar overlaps. Crossing faces get extra separation; unresolved moves are shortened or fall back to the last valid pose. Non-finite poses are rejected. The same gate is used during demo settling. Drag tests check both absence of accepted intersections and continued motion, to avoid solving clipping by freezing the cloth.
-
-GPU position sampling now uses the same two triangles per grid cell as the collider, instead of a bilinear patch that could bow through another fold. Normal interpolation remains smooth; yarn thickness is accommodated by the 3cm contact margin. The validator checks the finite sheet mesh, not a formal continuous-collision proof for every microscopic yarn contact.
-
-Validation: 20 tests across collision, physics and frame pacing; browser photo capture, repeated feeding, floor dragging, portrait five-photo render and 320px layout. Fast-drag regression validates each accepted surface pose; raised grabbed points and explicit crossing rejection have independent tests. No measured iPhone FPS guarantee.
-
-## Soft diffuse shadows (v38)
-
-Feather the existing directional shadow by widening its fixed-cost PCF radius from 4.5 to 9 and using a 1024-square map instead of 2048-square. This makes the world-space edge transition wider while reducing shadow-map texels by 75%. The filter sample count, shadow-casting light count and render passes are unchanged. Slightly reduce HDR environment fill (.16 to .15) and upper bounce (4 to 3.6) for deeper cores without increasing key-light highlights. This is uniform filtered shadow softness, not contact-dependent path-traced penumbrae; phone frame rates have not been measured. Verify in the five-photo browser render with live fold shadows.
+Run locally from this folder with `python3 -m http.server 3000`. Run retained checks with `node --test *.test.mjs`.

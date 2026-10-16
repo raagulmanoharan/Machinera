@@ -1,20 +1,11 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {yarnTile,THREAD_PITCH,TILE_THREADS,WARP_ENDS,CLOTH_WIDTH,YARN_HEIGHT,CROSSING_HEIGHT} from './yarn-structure.js';
-import {warpOver,yarnHeight} from './weave-types.js';
 test('yarn tiles close at both ends, with matching radius and normal',()=>{
- assert.equal(WARP_ENDS*THREAD_PITCH,CLOTH_WIDTH);
+ assert.equal(WARP_ENDS*THREAD_PITCH,CLOTH_WIDTH);assert.ok(CROSSING_HEIGHT>YARN_HEIGHT,'opposing yarn envelopes have clearance');
  for(const warp of [true,false]){const g=yarnTile(warp);for(let strand=0;strand<TILE_THREADS;strand++)for(let side=0;side<g.sides;side++){
  const a=(strand*(g.rings+1)*g.sides+side)*3,b=a+g.rings*g.sides*3;
  for(let k=0;k<3;k++){const step=k===(warp?1:0)?TILE_THREADS*THREAD_PITCH:0;assert.ok(Math.abs(g.position[b+k]-g.position[a+k]-step)<1e-10);assert.ok(Math.abs(g.normal[a+k]-g.normal[b+k])<1e-10);}
  }assert.ok(g.index.every(i=>i>=0&&i<g.position.length/3));}
-});
-test('all crossing drafts put opposing yarns on opposite sides without penetration',()=>{
- assert.ok(CROSSING_HEIGHT>YARN_HEIGHT,'clearance between the two yarn envelopes');
- for(let type=0;type<4;type++)for(let pick=-16;pick<16;pick++)for(let end=0;end<WARP_ENDS;end++){
- const warp=yarnHeight(pick,end,true,type),weft=yarnHeight(end,pick,false,type);
- assert.equal(warp,-weft);assert.equal(warp>weft,warpOver(end,pick,type));
- assert.ok(Math.abs(warp-weft)>2*YARN_HEIGHT);
- }
 });
 test('yarn triangle winding survives the cloth mapping handedness change',()=>{
  for(const warp of [true,false]){const g=yarnTile(warp);for(let i=0;i<g.index.length;i+=3){

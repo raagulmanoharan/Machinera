@@ -12,7 +12,7 @@ test('a real weave exposes its warp or weft yarn colour, never a blended gradien
  for(let pick=1;pick<150;pick++){const q=pick*THREAD_PITCH;if(q>=e.end)break;for(let end=0;end<WARP_ENDS;end++){const u=(end+.5)/WARP_ENDS,yarns=a.materialYarns(q,u),expected=warpOver(end,pick,3)?yarns.warp:yarns.weft;assert.deepEqual(a.sampleMaterial(q,u),expected);assert.ok(p.some(c=>c.rgb.join()===expected.join()));}}
  const warp=e.warp.slice(),weft=e.weft.slice(),bytes=e.baked.slice();a.append({palette:[{rgb:[20,170,40],share:1,weight:1}]},2.4,21);assert.deepEqual(e.warp,warp);assert.deepEqual(e.weft,weft);assert.deepEqual(e.baked,bytes);
 });
-import {createColourDistribution,accumulateColours,distributionPalette,result} from './palette-strands.js';
+import {createColourDistribution,accumulateColours,distributionPalette,result} from './photo-colours.js';
 test('complete pixel scans produce dye lots with conserved opacity weight',()=>{
  const rgba=new Uint8ClampedArray([180,30,25,255,200,40,35,255,20,50,180,128,0,0,0,0]),d=accumulateColours(createColourDistribution(),rgba),p=distributionPalette(d),r=result(d,4,1,1024);assert.equal(r.kind,'yarn-dye-palette');assert.equal(r.processedPixelCount,4);assert.equal(r.strands,undefined,'active pipeline does not generate gradient strips');assert.ok(Math.abs(p.reduce((s,c)=>s+c.weight,0)-(2+128/255))<1e-10);assert.equal(p.length,2);
 });

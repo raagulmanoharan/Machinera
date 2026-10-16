@@ -1,0 +1,226 @@
+{
+  "source": "Strand deployed v94",
+  "archiveCommit": "b0b5e5ede6b4b4cb5199390ed530a39ba2856e9e",
+  "files": [
+    {
+      "path": "app.js",
+      "bytes": 25873,
+      "sha256": "cab28664b9d10f4704a1f4b1a262e0e3ec8984baf6047f6ba686a193200213a1"
+    },
+    {
+      "path": "blender-preview.html",
+      "bytes": 793076,
+      "sha256": "91964affbf05d3558a7e3c17ac1dd66ed0567c23b01eeadc973c0171f5c94d9d"
+    },
+    {
+      "path": "camera.html",
+      "bytes": 4082,
+      "sha256": "3acbe4b8cbf52f45802b308749537523eaea796c051147d1a8c139b7fa9b2b6d"
+    },
+    {
+      "path": "cloth-deformation.js",
+      "bytes": 5330,
+      "sha256": "9732152a485b2e2425935955dd2b3ca4560e34d68b06a98b88b3a70c06be9375"
+    },
+    {
+      "path": "cloth-interaction.js",
+      "bytes": 4325,
+      "sha256": "0dd8bb68e90c4ff2e03f685778bea7c921f93da99ffbf6d6fbd51dc9ec2af8ef"
+    },
+    {
+      "path": "cloth-simulation.js",
+      "bytes": 3443,
+      "sha256": "acc200cce5a581e72920addaeab998678e68759e148ce18ddaf02bb5d5512d01"
+    },
+    {
+      "path": "cloth-simulation.test.mjs",
+      "bytes": 1373,
+      "sha256": "1db941b1a04fddd8770361166bd6d1397b24314f280f6e277bad54a6f09e56b0"
+    },
+    {
+      "path": "fabric.js",
+      "bytes": 17410,
+      "sha256": "5dfb2edba193c173febf2176618a744e07f0439832065ae1672d21d705ca0751"
+    },
+    {
+      "path": "gpu-frame-gate.js",
+      "bytes": 736,
+      "sha256": "1a955f27d94056c7017fd97f33c6155e211198514ac17516323a8153972dc292"
+    },
+    {
+      "path": "gpu-frame-gate.test.mjs",
+      "bytes": 1221,
+      "sha256": "8900190ddf79f8769da1b1d26d61e13751f65f5a83b8c0d9ccc35f9d276ef02d"
+    },
+    {
+      "path": "hanging-cloth.js",
+      "bytes": 6542,
+      "sha256": "d3d9f1239e67ff097b7ba1d7e3c43ee1b2d4375eeefc1bbc51e62dba80d5bd9a"
+    },
+    {
+      "path": "hanging-physics.js",
+      "bytes": 5252,
+      "sha256": "d1892e21e050b2b4eaa2f0907b1a326318dffa6d0d91e1d10bd9c4b923b4e439"
+    },
+    {
+      "path": "hanging-physics.test.mjs",
+      "bytes": 2464,
+      "sha256": "0225b6a2b7fc89dae1069b7cb50525caa3492dcccc54a26658947ca750b9b8e2"
+    },
+    {
+      "path": "optics.js",
+      "bytes": 5783,
+      "sha256": "ac61c85c08608a0045a35af16fcc0d5a0d2ae8599df9d9f203712e2d60af05e9"
+    },
+    {
+      "path": "palette-pixels-worker.js",
+      "bytes": 769,
+      "sha256": "a0baba3b2fda54f0e6b739c5c6adff12df4130cb5782ea2767c802d0eb3eed7a"
+    },
+    {
+      "path": "palette-strands.js",
+      "bytes": 5273,
+      "sha256": "b6b4b100c690c679cb43af024eb2f94e41cbffc040affe309194c6e3aba7cb62"
+    },
+    {
+      "path": "palette-strands.test.mjs",
+      "bytes": 2006,
+      "sha256": "9656bf57da60d1e243089c3bde85db264e2af64d4d60051b08617a1cffb38a1b"
+    },
+    {
+      "path": "print-follow.js",
+      "bytes": 220,
+      "sha256": "3404d7e45307260b86dc52b5f5de332ec27f16018f0809760b32dcdff6e9097a"
+    },
+    {
+      "path": "room-wood.js",
+      "bytes": 1681,
+      "sha256": "d2b466bf07928b0d4d3c0e5a432ea72db0dfe582e1abd43c56750abf43d6a756"
+    },
+    {
+      "path": "stream-carpet-roll.js",
+      "bytes": 6712,
+      "sha256": "71ff47f30ef8a202e1ed8faedbf6dc8acf2a86897cd47ca30e7f90a2ea0c4c2d"
+    },
+    {
+      "path": "stream-collision-wasm.test.mjs",
+      "bytes": 1519,
+      "sha256": "5527155149b67b102a0640267961097301e80367fd9ddc1997266a510e2ac5ea"
+    },
+    {
+      "path": "stream-collision.test.mjs",
+      "bytes": 4273,
+      "sha256": "964e056862b1fa04ee12db080345bbdd7ca2ea7690d39fd0c9587cf4f503f0ce"
+    },
+    {
+      "path": "stream-contact.js",
+      "bytes": 3448,
+      "sha256": "ec594ab8d5e6aa7c75acd4aa85db4e954757f5b8a5e1e9d3767972d08e0a88ea"
+    },
+    {
+      "path": "stream-floor-pile.js",
+      "bytes": 7697,
+      "sha256": "e77e0a470f948e418eb2f44f16a782766f517443d022eadfe3846aecee6db3d2"
+    },
+    {
+      "path": "stream-intersections.js",
+      "bytes": 11365,
+      "sha256": "9fd60c7f03586eba823c286ac1e1f60b11d182cac246a01a29c4a8092c14adad"
+    },
+    {
+      "path": "stream-material-window.js",
+      "bytes": 824,
+      "sha256": "a7e6072c27a893ac177410ecb6f2f8a2cba75cf9e2766433f8fe0fda343c90be"
+    },
+    {
+      "path": "stream-material-window.test.mjs",
+      "bytes": 1337,
+      "sha256": "e425ab58ac91e58c33df84369f158065ff6273634346d10a5da3d03df2e951c0"
+    },
+    {
+      "path": "stream-physics.js",
+      "bytes": 11029,
+      "sha256": "dd68279e340f3263bf0724f298c709e6ad55c139ff99e639a85775ebb885c578"
+    },
+    {
+      "path": "stream-physics.test.mjs",
+      "bytes": 6579,
+      "sha256": "acee6950d389fb4f9552ae686da4b4b8c6d2f5f79cde5a74c6407b3ac4ee1aff"
+    },
+    {
+      "path": "stream-simulation-worker.js",
+      "bytes": 2756,
+      "sha256": "a218f7f1910c7602a45b7049a315d582df3b9e09d311d59d6e80873fa1c15bd1"
+    },
+    {
+      "path": "stream-tear-gesture.js",
+      "bytes": 175,
+      "sha256": "7a80cc947f940097c11c1e7a5c16ec6c7aa42a38edfbf74b6350e9f53ea00a71"
+    },
+    {
+      "path": "stream-tear-gesture.test.mjs",
+      "bytes": 522,
+      "sha256": "2e29fd1e2c915a0596062319b15de22745af35491cea6893daf0eaf4b475acc8"
+    },
+    {
+      "path": "stream-worker-client.js",
+      "bytes": 3689,
+      "sha256": "5d578c901209ace02c4f54e5a0cd006aef06b6ad94e9760e356c11702441630e"
+    },
+    {
+      "path": "stream-worker.test.mjs",
+      "bytes": 1725,
+      "sha256": "3f0a97937a969c188828a82d066691acd85f8a055a37c5b5a1ba7704816426e5"
+    },
+    {
+      "path": "studio-environment.js",
+      "bytes": 134983,
+      "sha256": "626b8a10b97484e8a355ac6921dd275a6b19ebec48276951a7bc8f1c2f056c57"
+    },
+    {
+      "path": "style.css",
+      "bytes": 8926,
+      "sha256": "c64282f818fb161cf2a6f2186b7ffa4262197e63a11eb5ba4ffdf96122853f1c"
+    },
+    {
+      "path": "surface-materials.js",
+      "bytes": 1470,
+      "sha256": "42ce8551569829435a7238dfd448038033d115853060665bee3891b1f6ff47ef"
+    },
+    {
+      "path": "surface-relief.js",
+      "bytes": 1610,
+      "sha256": "30a4eea4a40dfaf2cc5bc7f8c308e85200e3b9bac5866e6a79a8732aa5b24a96"
+    },
+    {
+      "path": "textile-study.js",
+      "bytes": 118,
+      "sha256": "ffddeba6fa51f84a156da395e251b14bfdd6fc5e104c04c15ae564d3496d3a3a"
+    },
+    {
+      "path": "tools/benchmark-stream-collisions.mjs",
+      "bytes": 1969,
+      "sha256": "dbc920ed3b60b9512e41b417ccfe20f5bd28b61b2391fa4c014bd1f9d9373fad"
+    },
+    {
+      "path": "weave-bake.js",
+      "bytes": 4937,
+      "sha256": "5317a5bc98b783192f017f6513749b770673712171b6ef1404bb901b80f62fa8"
+    },
+    {
+      "path": "weave-model.js",
+      "bytes": 2296,
+      "sha256": "f6732e905fe0a5f6de220571af7bf7d75ad42b622f75c93c82982c54d1ed9256"
+    },
+    {
+      "path": "weave-types.js",
+      "bytes": 582,
+      "sha256": "5e6da29bf670e39e96d48956d23c4450d3d381b4638428750c028c4bdaf11d3a"
+    },
+    {
+      "path": "weave-types.test.mjs",
+      "bytes": 670,
+      "sha256": "17d1df07b8236675e722ef17f76b2caa083fd6e12b1207fc92927a2742b12acb"
+    }
+  ]
+}
