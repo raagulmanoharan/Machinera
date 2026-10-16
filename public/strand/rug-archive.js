@@ -1,4 +1,4 @@
-import {createWeavePattern} from './weaving-patterns.js?v=87';
+import {createWeavePattern} from './weaving-patterns.js?v=91';
 import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=87';
 import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=87';
 import {WARP_ENDS} from './yarn-structure.js?v=87';
@@ -10,7 +10,7 @@ export class RugArchive{
   const palette=Array.isArray(input)?paletteFromStrands(input):input.palette??paletteFromStrands(input.strands),previous=this.entries.at(-1),end=this.length+length,firstPick=Math.ceil(this.length/THREAD_PITCH),lastPick=Math.floor(end/THREAD_PITCH),pickCount=Math.max(1,lastPick-firstPick+1),recipe=WEAVE_LIBRARY[weave];
   // Count real warp ends and physical weft picks. Dominant dye lots own the most
   // yarns; complete yarns (not interpolated pixels) form coherent colour blocks.
-  const plan=createWeavePattern({draftId:recipe.id,seed:input.designSeed,palette,warpEnds:WARP_ENDS,weftPicks:pickCount,firstPick}),{design,warp,weft}=plan;
+  const plan=createWeavePattern({draftId:recipe.id,seed:input.designSeed,palette,warpEnds:WARP_ENDS,weftPicks:pickCount,firstPick,symmetry:input.symmetry??'auto'}),{design,warp,weft}=plan;
   const entry={plan,design,palette:palette.map(c=>({...c,rgb:c.rgb.slice()})),colours:palette.map(c=>c.rgb.slice()),length,end,weave,metadata,previous,firstPick,warp:warp.sequence,weft:weft.sequence,warpCounts:warp.counts,weftCounts:weft.counts};
   entry.rows=Math.ceil(length*PICKS_PER_METRE)+1;entry.baked=new Uint8Array(entry.rows*FABRIC_COLUMNS*4);entry.drafts=new Uint8Array(entry.rows*4);entry.newYarn=new Uint8Array(entry.rows);
   for(let y=0;y<entry.rows;y++){
