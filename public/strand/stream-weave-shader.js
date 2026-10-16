@@ -6,7 +6,5 @@ float weaveOverType(vec2 p,float type){vec2 span=fwidth(p);if(type>2.5){float tu
 float weaveOver(vec2 p){return weaveOverType(p,rugWeaveType);}
 vec2 wovenSurfaceType(vec2 p,float type){vec2 span=fwidth(p);float warp=weaveWave(p.x,span.x),weft=weaveWave(p.y,span.y),over=weaveOverType(p,type);float relief=mix(warp*.30+weft,warp+weft*.30,over);float fibres=weaveWave(p.x*5.3+p.y*.2,span.x*5.3+span.y*.2)*weaveWave(p.y*4.7,span.y*4.7);return vec2(relief*.00105+fibres*.000035,.94+relief*.065+fibres*.012);}
 vec2 wovenSurface(vec2 p){return wovenSurfaceType(p,rugWeaveType);}
-vec2 wovenSurfaceDraft(vec2 p,vec3 draft){return mix(wovenSurfaceType(p,floor(draft.g*255.+.5)),wovenSurfaceType(p,floor(draft.r*255.+.5)),draft.b);}
-float weaveMotif(vec2 p,float type){if(type<.5)return 0.;if(type<1.5)return (abs(fract(p.x/20.)-.5)*2.-.5)*.32;if(type<2.5)return (step(.5,fract(p.x/16.))+step(.5,fract(p.y/16.))-1.)*.12;return (abs(fract(p.x/32.)-.5)+abs(fract(p.y/32.)-.5)-.5)*.52;}
-float weaveMotifDraft(vec2 p,vec3 draft){return mix(weaveMotif(p,floor(draft.g*255.+.5)),weaveMotif(p,floor(draft.r*255.+.5)),draft.b);}
+vec2 wovenSurfaceDraft(vec2 p,vec3 draft){return wovenSurfaceType(p,floor(draft.r*255.+.5));}
 `;

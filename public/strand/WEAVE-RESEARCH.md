@@ -31,3 +31,9 @@ Each section now bakes its colour motif into immutable RGB pixels and stores its
 Raised yarn paths now have five curve samples per crossing (41 rings per eight-crossing tile); the earlier 21-ring path only had 2.5 despite its comment. Ply bump was previously filtered out at ordinary view distance because its twist frequency was too high. The restored lower-frequency ply detail remains matte.
 
 Drag targets now act locally against a softer resting spring, with corrected post-constraint velocities and a damped release. The free hem, wall/floor bounds and near-inextensible distance constraints remain. This is still bounded, guided cloth physics rather than a yarn-level material solver.
+
+## Pick-by-pick transition (v67)
+
+A join now selects one complete over/under draft per physical weft pick. Different structures begin with two plain binding picks, then use an ordered sequence of complete old/new picks before continuing in the new draft. Colours choose an old or a new yarn source per pick; no RGB crossfade or fractional draft blend is baked into the transition. The same-draft case changes yarn colours without inventing a binding structure.
+
+Raised yarn vertices calculate the exact crossing sign at consecutive pick centres, then curve the continuous yarn between those crossings. Weft crossings use the complementary sign. This is a structural change in interlacing, not interpolation between two material profiles. Screen-space filtering at subpixel edges remains for antialiasing. Historical baked sections remain unchanged.
