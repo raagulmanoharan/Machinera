@@ -1,17 +1,17 @@
-// A physical, balanced set: 128 warp ends across a 1.536 m cloth.
+// A physical, balanced set: 64 visibly interlaced yarn bundles across a 1.536 m cloth.
 // All relief, draft joins, surface shading and tile phases use this pitch.
 export const CLOTH_WIDTH=1.536;
-export const WARP_ENDS=128;
+export const WARP_ENDS=64;
 export const THREAD_PITCH=CLOTH_WIDTH/WARP_ENDS;
 export const TILE_THREADS=8;
 export const YARN_RADIUS=THREAD_PITCH*.45;
 export const YARN_HEIGHT=THREAD_PITCH*.20;
 export const CROSSING_HEIGHT=THREAD_PITCH*.28;
 export {draftGLSL} from './weave-library.js?v=80';
-// Seam-matched elliptical yarns. Two longitudinal segments per crossing,
+// Seam-matched elliptical yarns. Four longitudinal segments per crossing,
 // smooth analytical normals and shader plies avoid adding microscopic geometry.
 export function yarnTile(warp,sides=6){
- const position=[],normal=[],uv=[],radial=[],index=[],rings=TILE_THREADS*2;
+ const position=[],normal=[],uv=[],radial=[],index=[],rings=TILE_THREADS*4;
  for(let strand=0;strand<TILE_THREADS;strand++){
   const base=position.length/3;
   for(let ring=0;ring<=rings;ring++){
