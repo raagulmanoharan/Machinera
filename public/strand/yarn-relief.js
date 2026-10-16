@@ -1,10 +1,10 @@
-import {THREAD_PITCH,YARN_RADIUS,YARN_HEIGHT,CROSSING_HEIGHT,draftGLSL} from './yarn-structure.js?v=80';
+import {THREAD_PITCH,YARN_RADIUS,YARN_HEIGHT,CROSSING_HEIGHT,draftGLSL} from './yarn-structure.js?v=81';
 // Shared by displaced yarn centres and the directional visibility height field.
 // Coordinates are permanent end/pick indices, not time or recycled tile UVs.
 export const yarnNoiseGLSL=`
 float yarnHash(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
 float yarnNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(yarnHash(i),yarnHash(i+vec2(1.,0.)),f.x),mix(yarnHash(i+vec2(0.,1.)),yarnHash(i+1.),f.x),f.y);}
-float yarnLift(vec2 p){return (yarnNoise(p*.24)-.5)*.0010+(yarnNoise(p*.071+17.)-.5)*.0006;}
+float yarnLift(vec2 p){return (yarnNoise(p*.24)-.5)*${THREAD_PITCH/12}+(yarnNoise(p*.071+17.)-.5)*${THREAD_PITCH/20};}
 float yarnSizeFor(vec2 p,bool warp){
  float strand=floor((warp?p.x:p.y)+.5),along=warp?p.y:p.x;
  float seed=yarnHash(vec2(strand,warp?19.:73.));
@@ -36,13 +36,13 @@ float yarnDirectionalVisibility(vec2 p,vec3 light,vec3 baseNormal,vec3 tangent){
  vec2 along=vec2(dot(light,t),dot(light,b));float sideways=length(along),toward=dot(light,n);
  if(toward<=.03||sideways<.04)return 1.;
  vec2 direction=along/sideways;float rise=${THREAD_PITCH}*toward/sideways;
- float origin=yarnEnvelope(p)+.00030,visibility=1.;
+ float origin=yarnEnvelope(p)+${THREAD_PITCH*.025},visibility=1.;
  // Four bounded cone samples, not another geometry render or screen-space pass.
  // Cone width grows with distance to soften the penumbra from a broad source.
  for(int i=0;i<4;i++){
   float distance=.20+float(i)*.30;
   float blocker=yarnEnvelope(p+direction*distance),ray=origin+distance*rise;
-  float softness=.00040+distance*.00070;
+  float softness=${THREAD_PITCH/30}+distance*${THREAD_PITCH*7/120};
   visibility=min(visibility,smoothstep(-softness,softness,ray-blocker));
  }
  return mix(1.,.28+.72*visibility,resolved*yarnSelfShadowStrength);

@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {yarnTile,THREAD_PITCH,TILE_THREADS,WARP_ENDS,CLOTH_WIDTH,YARN_HEIGHT,CROSSING_HEIGHT} from './yarn-structure.js';
 import {warpOver,yarnHeight} from './weave-types.js';
-test('finer yarn tiles close at both ends, with matching radius and normal',()=>{
+test('yarn tiles close at both ends, with matching radius and normal',()=>{
  assert.equal(WARP_ENDS*THREAD_PITCH,CLOTH_WIDTH);
  for(const warp of [true,false]){const g=yarnTile(warp);for(let strand=0;strand<TILE_THREADS;strand++)for(let side=0;side<g.sides;side++){
  const a=(strand*(g.rings+1)*g.sides+side)*3,b=a+g.rings*g.sides*3;
@@ -23,7 +23,7 @@ test('yarn triangle winding survives the cloth mapping handedness change',()=>{
  assert.ok(dot<0,'mirrored cloth frame requires reversed local faces');
  }}
 });
-test('finer interlacing stays close to the previous triangle density',()=>{
+test('readable interlacing stays within the previous triangle density',()=>{
  const previousTileTriangles=8*40*6*2,previousTileArea=.1536**2;
  const g=yarnTile(true),density=(g.index.length/3)/(THREAD_PITCH*TILE_THREADS)**2;
  assert.ok(density/(previousTileTriangles/previousTileArea)<1.03,'no more than 3% additional yarn triangles per cloth area');
