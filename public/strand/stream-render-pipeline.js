@@ -19,7 +19,8 @@ export function createStreamPipeline(renderer, scene, camera,profile={samples:0,
   'gl_FragColor = ApplyFXAA( tDiffuse, resolution.xy, vUv );',
   `gl_FragColor = ApplyFXAA( tDiffuse, resolution.xy, vUv );
    float outputNoise=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))))-.5;
-   gl_FragColor.rgb=clamp(gl_FragColor.rgb+vec3(outputNoise/255.),0.,1.);`)};
+   gl_FragColor.rgb=clamp(gl_FragColor.rgb+vec3(outputNoise/255.),0.,1.);
+   ${profile.whiteBackground?'gl_FragColor.rgb=mix(vec3(1.),gl_FragColor.rgb,gl_FragColor.a);gl_FragColor.a=1.;':''}`)};
  const aa = new ShaderPass(outputAA);
  composer.addPass(aa);
  const metrics = {width:1, height:1, renderScale:profile.renderScale??1, canvasDpr:renderer.getPixelRatio(),deviceProfile:profile.name??'standard', samples:profile.samples, outputDither:true, postPasses:2};

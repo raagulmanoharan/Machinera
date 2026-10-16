@@ -64,3 +64,7 @@
 #stage{will-change:transform}
 
 #capture.returning-upstairs{transform:translate3d(0,var(--return-offset,-100vh),0)!important;opacity:1!important;transition:none!important;pointer-events:none;will-change:transform}
+
+#carpetScroll{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#b6b6b6 #fff;background:#fff;touch-action:pan-y}
+#carpetLength{width:1px;pointer-events:none}#carpetScroll #stage{touch-action:none}#stage canvas{touch-action:none}
+body:has(#capture:not([hidden])) #carpetScroll{overflow:hidden;pointer-events:none}
