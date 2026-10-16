@@ -30,7 +30,10 @@ export function createStreamPipeline(renderer, scene, camera,profile={samples:0,
   float grain=mix(mix(texture2D(paperMap,uv+paperOffset(i)).r,texture2D(paperMap,uv+paperOffset(i+vec2(1.,0.))).r,f.x),mix(texture2D(paperMap,uv+paperOffset(i+vec2(0.,1.))).r,texture2D(paperMap,uv+paperOffset(i+1.)).r,f.x),f.y);
   float sparse=smoothstep(.40,.78,paperNoise(p*6.7+11.));
   float tone=grain*paperTone.x+paperTone.y;
-  return vec3(clamp(mix(20./255.,tone,.12+.88*sparse),0.,1.));
+  float darkPatch=smoothstep(.32,.82,paperNoise(p*3.1+31.))*4.5/255.;
+  float fine=(paperHash(floor(pixel))-.5)*5.5/255.;
+  float pinholes=step(.985,paperHash(floor(pixel*.67)+71.))*3./255.;
+  return vec3(clamp(mix(20./255.,tone,.22+.78*sparse)-darkPatch+fine-pinholes,0.,1.));
  }
  `;
  const outputAA={...FXAAShader,fragmentShader:(paperGLSL+FXAAShader.fragmentShader).replace(
