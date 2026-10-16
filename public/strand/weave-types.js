@@ -1,4 +1,4 @@
-import {CROSSING_HEIGHT} from './yarn-structure.js?v=81';
+import {CROSSING_HEIGHT} from './yarn-structure.js?v=83';
 import {WEAVE_LIBRARY} from './weave-library.js?v=80';
 export {warpOver} from './weave-library.js?v=80';
 import {warpOver} from './weave-library.js?v=80';

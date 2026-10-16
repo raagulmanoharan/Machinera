@@ -1,6 +1,6 @@
-import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=81';
-import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=81';
-import {WARP_ENDS} from './yarn-structure.js?v=81';
+import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=83';
+import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=83';
+import {WARP_ENDS} from './yarn-structure.js?v=83';
 import {WEAVE_LIBRARY,warpOver} from './weave-library.js?v=80';
 import {paletteFromStrands,yarnSequence} from './yarn-palette.js?v=82';
 export class RugArchive{
