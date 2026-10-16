@@ -1,4 +1,4 @@
-import {THREAD_PITCH} from './yarn-structure.js?v=97';
+import {THREAD_PITCH} from './yarn-structure.js?v=98';
 export {THREAD_PITCH};
 const order=[0,4,2,6,1,5,3,7];
 // A pick has one complete draft and one colour source. Never interpolate drafts
