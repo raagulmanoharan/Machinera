@@ -1,4 +1,4 @@
-import {createColourDesign,designYarns,freshDesignSeed} from './yarn-colour-design.js?v=85';
+import {createColourDesign,designYarns,freshDesignSeed} from './yarn-colour-design.js?v=86';
 import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=83';
 import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=83';
 import {WARP_ENDS} from './yarn-structure.js?v=83';
