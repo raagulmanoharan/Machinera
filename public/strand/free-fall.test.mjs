@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {SlackSpan} from './stream-slack.js';
 test('the flowing rug has no floor bend, wall clamp or floor collider',()=>{
- const s=new SlackSpan({freeFall:true});
+ const s=new SlackSpan();
  assert.equal(s.floorLimit,-Infinity);assert.equal(s.wallLimit,Infinity);
  for(let row=0;row<s.ny;row++){
   const j=(row*s.nx+6)*3;

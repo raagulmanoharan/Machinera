@@ -15,7 +15,7 @@ test('a short first rug has a movable free hem and a fixed feed edge',()=>{
  const before=s.positions[j];s.release();s.advance(1/120);assert.ok(Math.abs(s.positions[j]-before)<.02,'release has no snap');
  settle(s,1200);assert.ok(Math.abs(s.positions[j]-rest[j])<1e-4,'free hem settles smoothly');
 });
-test('floor contact remains bounded during constrained long-rug interaction',()=>{
+test('a long freely hanging rug keeps finite positions during constrained interaction',()=>{
  const s=new SlackSpan(),j=(45*s.nx+6)*3,p=s.positions;
  s.hold(.5,45/96,[p[j]+.5,1,p[j+2]-.4]);settle(s,180);
  for(let i=0;i<p.length;i+=3){assert.ok(Number.isFinite(p[i]));assert.ok(p[i+1]<=s.wallLimit+1e-6);assert.ok(p[i+2]>=s.floorLimit-1e-6);}
