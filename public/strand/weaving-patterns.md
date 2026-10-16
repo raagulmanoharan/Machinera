@@ -8,7 +8,7 @@ The photo supplies dye lots. A loom recipe supplies shaft threading, treadling a
 
 ```js
 import {createWeavePattern, listWeavePatterns, generateLoomDraft}
-  from './weaving-patterns.js?v=93';
+  from './weaving-patterns.js?v=94';
 
 const pattern = createWeavePattern({
   seed: 240731,
@@ -30,9 +30,9 @@ pattern.crossing(12, 8);     // true: warp above weft
 pattern.yarnAt(12, 8);       // RGB of the visible dyed yarn
 ```
 
-The seed replays the same recipe for the same inputs. The returned `id` identifies the draft and seed; it is not a palette-content cache key. Everything in the returned recipe is frozen. Default selection requires mirrored threading, a repeat dividing 48 ends, and maximum floats of four yarns on either face. The warp colour inventory is mirrored too. Weft quotas use largest remainders; mirrored warp pairs approximate each dye share within two ends. No per-yarn colour randomisation or RGB gradients are used. Individual fibre irregularity remains a separate shading detail.
+The seed replays the same recipe for the same inputs. The returned `id` identifies the draft and seed; it is not a palette-content cache key. Everything in the returned recipe is frozen. Default selection requires mirrored threading, a repeat dividing 48 ends, and maximum floats of seven yarns on either face. The warp colour inventory is mirrored too. Shared-system designs use largest-remainder quotas; mirrored pairs approximate dye shares within two yarns. Geometric designs split the palette between contrasting warp/weft systems, preserving the combined dye shares across the two equally weighted systems. No per-yarn colour randomisation or RGB gradients are used. Individual fibre irregularity remains a separate shading detail.
 
-`listWeavePatterns()` lists the 30 compiled drafts: 24 original recipes and six generated mirrored recipes. The automatic photo workflow shuffles the seven eligible symmetric, short-float recipes without adjacent repetition. An explicit `draftId` can select another compiled study and overrides family/symmetry/float selection filters; the result reports its actual symmetry.
+`listWeavePatterns()` lists the 41 compiled drafts: 24 original recipes, six generated mirrored recipes and eleven geometric lift plans. The automatic photo workflow shuffles the 18 eligible symmetric recipes without adjacent repetition. An explicit `draftId` can select another compiled study and overrides family/symmetry/float selection filters; the result reports its actual symmetry.
 
 ## Generate and validate a draft
 
@@ -57,3 +57,9 @@ See [weave-library-notes.md](./weave-library-notes.md) for public Handweaving.ne
 The photo workflow now chooses a seeded composition mode automatically. The selected mode and counted yarn sequences are locked in the archive. Mirroring either yarn inventory uses paired quotas with less than two yarns of error per dye, without changing the source palette.
 
 Automatic composition always retains left/right colour symmetry and mirrored structural threading. It may add top/bottom mirroring or a centred medallion; top/bottom-only plans remain an explicit API option. Warp colour bands use one broad half-plan reflected around the centre, instead of repeating small blocks across the width.
+
+## Geometric block motifs and source colours
+
+`geometric-drafts.js` generates eleven distinct 16-shaft lift plans: diamond rings, stepped crosses, nested squares, diamond eyes, hourglasses, stepped chevrons, four-petal forms, window grids, cross medallions, diamond lattices and corner diamonds. A mandatory binding lattice limits cyclic floats to six yarns or fewer. These are independently generated single-layer structures, not printed reference images. The compiler now accepts up to 16 shafts, while repeats remain within 16×16 and CPU/GPU bitmask precision.
+
+Geometric plans use complementary dye allocations: each source colour's combined share across both systems is preserved, with mirrored integer rounding, while warp and weft contrast enough to reveal the lift pattern. This avoids placing the same dominant dye on both systems everywhere. The photograph still supplies every dye colour. Studio lights are neutral white and the renderer uses neutral tone mapping. Near-hue shade merging is conservative; empty/transparent images fail explicitly instead of producing a brown default.

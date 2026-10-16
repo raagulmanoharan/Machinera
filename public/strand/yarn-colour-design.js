@@ -1,4 +1,4 @@
-import {allocateYarns} from './yarn-palette.js?v=85';
+import {allocateYarns} from './yarn-palette.js?v=94';
 // A loom plan is made of ordered colour runs. Randomness selects the complete
 // repeat, never individual ends/picks or an independent order for each axis.
 export function designRandom(seed){let state=seed>>>0;return()=>{state+=0x6D2B79F5;let t=Math.imul(state^state>>>15,1|state);t^=t+Math.imul(t^t>>>7,61|t);return((t^t>>>14)>>>0)/4294967296;};}
@@ -28,7 +28,7 @@ export function designYarns(palette,count,design,axis){
  // Distribute each dye lot evenly between its planned bands. Remainder yarns
  // differ by at most one end/pick, keeping integer quotas exact and repeats tidy.
  for(const colour of plan){const occurrence=seen[colour]++,n=Math.floor((occurrence+1)*counts[colour]/total[colour])-Math.floor(occurrence*counts[colour]/total[colour]);for(let k=0;k<n;k++)sequence.push(colour);}
- if(mirror){const complete=[...sequence];if(count%2)complete.push(0);complete.push(...sequence.slice().reverse());return{counts:palette.map((_,i)=>complete.filter(c=>c===i).length),sequence:complete};}
+ if(mirror){const complete=[...sequence];if(count%2)complete.push(active[0]);complete.push(...sequence.slice().reverse());return{counts:palette.map((_,i)=>complete.filter(c=>c===i).length),sequence:complete};}
  return{counts,sequence};
 }
 export function freshDesignSeed(){const bits=new Uint32Array(1);globalThis.crypto.getRandomValues(bits);return bits[0];}

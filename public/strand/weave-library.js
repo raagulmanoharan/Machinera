@@ -1,4 +1,5 @@
-import {generatedDraftCatalogue,compileLoomDraft} from './loom-draft.js?v=87';
+import {geometricDrafts} from './geometric-drafts.js?v=94';
+import {generatedDraftCatalogue,compileLoomDraft} from './loom-draft.js?v=94';
 // Independently constructed loom drafts, studied against the public drawdowns
 // and structural metadata in Handweaving.net's Glossary, Twills and Satins.
 // Each recipe records threading, treadling and tie-up; no thumbnail is a texture.
@@ -34,7 +35,7 @@ const baseDrafts=[
  draft('granite-8','Granite study',8,seq(8),[0,3,6,1,4,7,2,5],[1,0,1,0,0,1,1,0],'crepe study'),
  draft('mw-point','M-and-W point twill',4,[0,1,2,3,2,1,2,3,2,1,0,1],[0,1,2,3,2,1,0,1,2,3,2,1],[1,1,0,0],'point twill')
 ];
-export const WEAVE_LIBRARY=Object.freeze([...baseDrafts,...generatedDraftCatalogue(baseDrafts)]);
+export const WEAVE_LIBRARY=Object.freeze([...baseDrafts,...generatedDraftCatalogue(baseDrafts),...geometricDrafts(compileLoomDraft,baseDrafts)]);
 export function warpOver(end,pick,type=0){const d=WEAVE_LIBRARY[type]??WEAVE_LIBRARY[0];return Math.floor(d.rows[mod(Math.round(pick),d.height)]/2**mod(Math.round(end),d.width))%2===1;}
 // Generate the GPU rules from these exact drawdown bits. A balanced decision
 // tree keeps the lookup to at most five pattern decisions, with no extra texture.
