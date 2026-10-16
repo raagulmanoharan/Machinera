@@ -1,10 +1,10 @@
-import {draftCrossing} from './photo-draft.js?v=129';
-import {createWeavePattern} from './weaving-patterns.js?v=129';
-import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=129';
-import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=129';
-import {WARP_ENDS} from './yarn-structure.js?v=129';
-import {WEAVE_LIBRARY} from './weave-library.js?v=129';
-import {paletteFromColours} from './yarn-palette.js?v=129';
+import {draftCrossing} from './photo-draft.js?v=130';
+import {createWeavePattern} from './weaving-patterns.js?v=130';
+import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=130';
+import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=130';
+import {WARP_ENDS} from './yarn-structure.js?v=130';
+import {WEAVE_LIBRARY} from './weave-library.js?v=130';
+import {paletteFromColours} from './yarn-palette.js?v=130';
 export class RugArchive{
  constructor(){this.entries=[];this.length=0;this.transition=.42;}
  append(input,length=2.4,weave=null,metadata=null){
@@ -21,6 +21,11 @@ export class RugArchive{
    for(let x=0;x<FABRIC_COLUMNS;x++){const u=(x+.5)/FABRIC_COLUMNS,weftRGB=this.weftColour(owner,join.nextColour?q:previous.end,u),rgb=draftCrossing(loom,Math.floor(u*WARP_ENDS),pick)?this.warpColour(owner,u):weftRGB;entry.baked.set([...rgb,255],(y*FABRIC_COLUMNS+x)*4);}
   }
   this.entries.push(entry);this.length=end;return entry;
+ }
+ restore(snapshots){
+  // Restore saved yarn inventories and baked pixels verbatim; never regenerate.
+  const entries=[];let length=0;for(const snapshot of snapshots){if(Math.abs(snapshot.end-(length+snapshot.length))>1e-6)throw new Error('Saved cloth sections are out of order');const entry={...snapshot,previous:entries.at(-1)};entries.push(entry);length=entry.end;}
+  this.entries=entries;this.length=length;return this;
  }
  locateMaterial(q){q=Math.max(0,Math.min(this.length,q));let lo=0,hi=this.entries.length-1;while(lo<hi){const mid=(lo+hi)>>1;if(this.entries[mid].end<q)lo=mid+1;else hi=mid;}const entry=this.entries[lo];return entry?{entry,index:lo,local:Math.max(0,Math.min(entry.length,entry.end-q))}:null;}
  locate(distance){return this.locateMaterial(this.length-distance);}
