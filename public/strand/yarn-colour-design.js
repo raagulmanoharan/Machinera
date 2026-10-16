@@ -1,14 +1,9 @@
-import {orderColours} from './yarn-contrast.js?v=95';
-import {allocateYarns} from './yarn-palette.js?v=95';
-// A loom plan is made of ordered colour runs. Randomness selects the complete
-// repeat, never individual ends/picks or an independent order for each axis.
-export function designRandom(seed){let state=seed>>>0;return()=>{state+=0x6D2B79F5;let t=Math.imul(state^state>>>15,1|state);t^=t+Math.imul(t^t>>>7,61|t);return((t^t>>>14)>>>0)/4294967296;};}
-export function createColourDesign(recipe,seed,symmetry='warp'){
- let identity=2166136261;for(const c of recipe?.id??'plain')identity=Math.imul(identity^c.charCodeAt(0),16777619);
- seed=(seed^identity)>>>0;const random=designRandom(seed),family=recipe?.family??'plain';
- const choices=family==='basket'?['checks','bordered-checks']:family==='rib'?['stripes','bordered-stripes']:family.includes('point')?['point-repeat','checks']:family.includes('twill')?['checks','point-repeat','stripes']:['stripes','checks'];
- if(symmetry==='auto')symmetry=['warp','both','both','radial'][(seed>>>0)%4];
- return {seed,symmetry,style:symmetry==='radial'?'medallion':choices[Math.floor(random()*choices.length)],repeat:2+Math.floor(random()*2)};
+import {orderColours} from './yarn-contrast.js?v=96';
+import {allocateYarns} from './yarn-palette.js?v=96';
+import {deriveColourDesign} from './photo-weave-design.js?v=96';
+export function createColourDesign(recipe,seed,symmetry='warp',palette){
+ const derived=palette?deriveColourDesign(palette):{symmetry:'both',style:recipe?.family==='basket'?'checks':'stripes',repeat:2};
+ return {seed,...derived,symmetry:symmetry==='auto'?derived.symmetry:symmetry};
 }
 export function designYarns(palette,count,design,axis){
  const symmetry=design.symmetry??'warp',mirror=symmetry==='both'||symmetry==='radial'||symmetry===axis,half=mirror?Math.floor(count/2):count;
@@ -31,4 +26,3 @@ export function designYarns(palette,count,design,axis){
  if(mirror){const complete=[...sequence];if(count%2)complete.push(active[0]);complete.push(...sequence.slice().reverse());return{counts:palette.map((_,i)=>complete.filter(c=>c===i).length),sequence:complete};}
  return{counts,sequence};
 }
-export function freshDesignSeed(){const bits=new Uint32Array(1);globalThis.crypto.getRandomValues(bits);return bits[0];}
