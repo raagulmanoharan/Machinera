@@ -1,4 +1,4 @@
-// One wall-clock timeline moves both floors, independently of cloth frame pacing.
+// Shared transforms follow rendered print progress; navigation uses wall time.
 // Quintic easing has zero velocity and acceleration at both ends.
 const ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*t*(t*(t*6-15)+10);};
 // Both floors and the photograph occupy one vertical coordinate system.
@@ -8,9 +8,20 @@ export function bridgePose(t,height,photoHeight,feed=true){
  const progress=ease(t),pan=progress*height;
  return {progress,pan,roomY:height-pan,photoY:feed?2*pan:0,screenPhotoY:feed?pan:-pan};
 }
+// Stretch only the remaining feed; retain exactly the length already shown.
+export function createPrintProgressReader(getPrint,remainingSeconds=3.6){
+ let state=null;
+ return()=>{
+  if(!state){const print=getPrint();if(!print)return 1;const fraction=Math.min(.99,print.time/print.duration);
+   print.duration=remainingSeconds/(1-fraction);print.time=fraction*print.duration;
+   state={print,start:print.time,span:print.duration-print.time};
+  }
+  return Math.max(0,Math.min(1,(state.print.time-state.start)/state.span));
+ };
+}
 export class PhotoRugBridge{
  constructor(stage){this.stage=stage;this.active=false;this.frame=null;}
- begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{}}={}){
+ begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null}={}){
   this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;
   if(!preview.hidden&&preview.width&&preview.height){const canvas=document.createElement('canvas');canvas.width=Math.min(768,preview.width);canvas.height=Math.round(canvas.width*preview.height/preview.width);canvas.getContext('2d').drawImage(preview,0,0,canvas.width,canvas.height);canvas.className='photo-feed-frame';canvas.setAttribute('aria-hidden','true');lens.append(canvas);this.canvas=canvas;
    if(feed){const dither=document.createElement('canvas');dither.width=canvas.width;dither.height=canvas.height;const ctx=dither.getContext('2d',{willReadFrequently:true});ctx.drawImage(canvas,0,0);const pixels=ctx.getImageData(0,0,dither.width,dither.height),bayer=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];for(let y=0;y<dither.height;y++)for(let x=0;x<dither.width;x++){const i=(y*dither.width+x)*4,threshold=(bayer[(y%4)*4+x%4]+.5)/16;for(let c=0;c<3;c++){const v=pixels.data[i+c]/255*3;pixels.data[i+c]=Math.min(3,Math.floor(v)+(v%1>threshold?1:0))*255/3;}}ctx.putImageData(pixels,0,0);dither.className='photo-dither';canvas.after(dither);canvas.remove();const holder=document.createElement('div');holder.className='photo-feed-frame';holder.append(canvas,dither);lens.append(holder);canvas.className='photo-feed-source';this.canvas=holder;this.dither=dither;}
@@ -26,13 +37,19 @@ export class PhotoRugBridge{
   const startPan=()=>{if(!this.active||this.token!==token)return;
    this.capture.classList.remove('capture-processing');this.stage.dataset.bridgePhase='panning';const duration=feed?2800:1500,origin=document.timeline.currentTime;
    const frames=fn=>Array.from({length:61},(_,i)=>({...fn(i/60),offset:i/60}));
-   const pan=(element,fn)=>{const animation=animate(element,frames(fn),duration);if(animation)animation.startTime=origin;return animation;};
+   const pan=(element,fn)=>{const animation=animate(element,frames(fn),duration);if(animation){if(feed&&readPrintProgress){animation.pause();animation.currentTime=0;}else animation.startTime=origin;}return animation;};
    const master=pan(this.capture,t=>({transform:`translate3d(0,${-ease(t)*this.height}px,0)`}));
    pan(this.stage,t=>({transform:`translate3d(0,${(1-ease(t))*this.height}px,0)`}));
    if(this.canvas)pan(this.canvas,t=>({transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).photoY}px,0)`}));
    pan(this.capture.querySelector('.camera-heading'),t=>({opacity:1-ease(t/.45)}));
    pan(this.capture.querySelector('.finder-markers'),t=>({opacity:.7*(1-ease(t/.6))}));
-   const tick=()=>{if(!this.active||this.token!==token)return;const elapsed=master?.currentTime??(document.timeline.currentTime-origin);this.update(Math.min(1,elapsed/duration),!master);if(this.active)this.frame=requestAnimationFrame(tick);};this.frame=requestAnimationFrame(tick);
+   // A print reveal follows submitted cloth progress, never a faster wall clock.
+   // Ordinary floor navigation keeps the independent compositor animation.
+   const tick=()=>{if(!this.active||this.token!==token)return;let progress;
+    if(feed&&readPrintProgress){progress=Math.max(0,Math.min(1,readPrintProgress()));for(const animation of this.animations)if(animation!==dither)animation.currentTime=progress*duration;}
+    else{const elapsed=master?.currentTime??(document.timeline.currentTime-origin);progress=Math.min(1,elapsed/duration);}
+    this.update(progress,!master);if(this.active)this.frame=requestAnimationFrame(tick);
+   };this.frame=requestAnimationFrame(tick);
   };
   const minimumDither=dither?dither.finished.catch(()=>{}):Promise.resolve();
   Promise.all([Promise.resolve(prepared),minimumDither]).then(()=>{if(this.active&&this.token===token)return onPrepared();}).then(startPan).catch(()=>{if(this.token===token)this.finish();});

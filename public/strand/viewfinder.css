@@ -31,11 +31,11 @@
 #capture.capture-frozen #aboutButton{visibility:hidden;pointer-events:none}
 #aboutDialog{position:fixed;inset:0;width:min(300px,calc(100vw - 64px));height:fit-content;max-width:none;max-height:calc(100dvh - 96px);margin:auto;border:0;border-radius:0;padding:0;overflow:auto;background:var(--paper);background-image:var(--camera-paper,none);background-size:cover;color:var(--ink);font:inherit}
 #aboutDialog::backdrop{background:#0009}
-#aboutDialog #aboutClose{top:8px;right:8px;background:transparent;border-radius:0}
+#aboutDialog #aboutClose{top:4px;right:4px;width:36px;height:36px;padding:10px;background:none;border:0;box-shadow:none;border-radius:0;outline:none}#aboutDialog #aboutClose svg{width:16px;height:16px}#aboutDialog #aboutClose:focus-visible{outline:1px solid #fff8;outline-offset:-5px}
 #aboutDialog article{padding:32px 20px 24px;overflow-y:auto;overscroll-behavior:contain;text-align:center;text-transform:uppercase}
-#aboutDialog h1{font-size:17px;font-weight:400;letter-spacing:.1em;margin:0 0 14px}
+#aboutDialog h1{outline:none;font-size:17px;font-weight:400;letter-spacing:.1em;margin:0 0 14px}
 #aboutDialog article>p{font-size:10px;line-height:1.7;letter-spacing:.025em;margin:0 0 12px}
 
 #aboutDialog article>p:last-child{margin-bottom:0}
 
-#soundToggle{position:fixed;z-index:40;left:24px;top:calc(env(safe-area-inset-top,0px) + 16px);width:40px;height:40px;border:0;background:none;color:#ddd;padding:8px;cursor:pointer;opacity:.7}#soundToggle svg{width:24px;height:24px}#soundToggle[data-enabled="true"] .sound-off{display:none}#soundToggle:focus-visible{outline:1px solid #ddd;outline-offset:3px}
+#soundToggle{position:fixed;z-index:40;left:calc(env(safe-area-inset-left) + 28px);top:calc(env(safe-area-inset-top) + 32px);width:44px;height:44px;display:grid;place-items:center;border:0;background:#0005;color:var(--ink);padding:12px;cursor:pointer}#soundToggle svg{width:20px;height:20px;stroke-width:1}#soundToggle[data-enabled="true"] .sound-off{display:none}#soundToggle:focus-visible{outline:1px solid #fff8;outline-offset:-3px}
