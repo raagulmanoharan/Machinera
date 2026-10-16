@@ -1,0 +1,33 @@
+{
+  "scope": "CPU mesh/texture data preparation only, not full-frame GPU time or phone FPS",
+  "environment": "Headless Chromium, 390x844 mobile viewport, DPR 1",
+  "method": {
+    "warmupUploads": 80,
+    "batches": 15,
+    "uploadsPerBatch": 20
+  },
+  "results": [
+    {
+      "uploadMedianMs": 0.325,
+      "uploadP90Ms": 0.3799999998882413,
+      "simNodes": 1261,
+      "constraints": 4716,
+      "visualNodes": 1261,
+      "triangles": 1926986,
+      "drawCalls": 13,
+      "finite": true,
+      "mode": "baseline"
+    },
+    {
+      "uploadMedianMs": 0.27000000011175873,
+      "uploadP90Ms": 0.3,
+      "simNodes": 1261,
+      "constraints": 4716,
+      "visualNodes": 2425,
+      "triangles": 1929290,
+      "drawCalls": 13,
+      "finite": true,
+      "mode": "candidate"
+    }
+  ]
+}
