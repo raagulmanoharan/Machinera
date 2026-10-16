@@ -37,10 +37,10 @@ float yarnDirectionalVisibility(vec2 p,vec3 light,vec3 baseNormal,vec3 tangent){
  if(toward<=.03||sideways<.04)return 1.;
  vec2 direction=along/sideways;float rise=${THREAD_PITCH}*toward/sideways;
  float origin=yarnEnvelope(p)+${THREAD_PITCH*.025},visibility=1.;
- // Four bounded cone samples, not another geometry render or screen-space pass.
+ // Six bounded cone samples, not another geometry render or screen-space pass.
  // Cone width grows with distance to soften the penumbra from a broad source.
- for(int i=0;i<4;i++){
-  float distance=.20+float(i)*.30;
+ for(int i=0;i<6;i++){
+  float distance=.15+float(i)*.22;
   float blocker=yarnEnvelope(p+direction*distance),ray=origin+distance*rise;
   float softness=${THREAD_PITCH/30}+distance*${THREAD_PITCH*7/120};
   visibility=min(visibility,smoothstep(-softness,softness,ray-blocker));
