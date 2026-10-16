@@ -23,3 +23,11 @@ Every photo section keeps its chosen draft and source-pixel metadata. New choice
 All pixels in the decoded original file or captured video frame are scanned at their native dimensions in bounded 256×256 tiles. No preview crop, image resize or pixel stride enters colour analysis. Alpha weights RGB contributions. A 32,768-bin weighted colour distribution is compressed into 1,024 proportional colour strands; this is not a claim to render a separate physical thread for each source pixel. Source/processed counts are retained with each section. Preview styling never modifies source colours.
 
 Six-sided yarn tubes, five path samples per crossing, per-section over/under profiles and filtered ply micro-bump restore close detail while keeping the matte material. The fixed cloth grid uses local springs with four bounded distance-constraint passes and a free lower hem. Wall/floor bounds remain; no self-collision/pile solver was reintroduced.
+
+## Material lock correction (v66)
+
+Each section now bakes its colour motif into immutable RGB pixels and stores its crossing recipe once. All rendering uses a permanent material coordinate measured from the first rug's hem. New prints move the fabric through the room without rephasing existing motifs, ply twist or grain. The live atlas uses a shared absolute pick grid aligned through six mip levels; scrolling its cache window cannot change an existing pick. Older section bytes are regression-tested after further photos. New-section transition bands sample the already baked preceding edge, leaving the preceding section untouched.
+
+Raised yarn paths now have five curve samples per crossing (41 rings per eight-crossing tile); the earlier 21-ring path only had 2.5 despite its comment. Ply bump was previously filtered out at ordinary view distance because its twist frequency was too high. The restored lower-frequency ply detail remains matte.
+
+Drag targets now act locally against a softer resting spring, with corrected post-constraint velocities and a damped release. The free hem, wall/floor bounds and near-inextensible distance constraints remain. This is still bounded, guided cloth physics rather than a yarn-level material solver.
