@@ -37,3 +37,9 @@ Drag targets now act locally against a softer resting spring, with corrected pos
 A join now selects one complete over/under draft per physical weft pick. Different structures begin with two plain binding picks, then use an ordered sequence of complete old/new picks before continuing in the new draft. Colours choose an old or a new yarn source per pick; no RGB crossfade or fractional draft blend is baked into the transition. The same-draft case changes yarn colours without inventing a binding structure.
 
 Raised yarn vertices calculate the exact crossing sign at consecutive pick centres, then curve the continuous yarn between those crossings. Weft crossings use the complementary sign. This is a structural change in interlacing, not interpolation between two material profiles. Screen-space filtering at subpixel edges remains for antialiasing. Historical baked sections remain unchanged.
+
+## Rounded playback and cotton surface (v68)
+
+Playback previously shaded a sinusoidal grid with screen-dependent height derivatives. Replace that with elliptical yarn sections, complementary crossing heights and analytical normals driven by the archived discrete draft. A reused CC0 Poly Haven wool normal adds filtered fibre breakup; the live geometry also receives this normal and slight periodic radius variation without adding vertices. Both remain matte. Playback stays a single on-demand pass rather than running the full room renderer.
+
+Remove the broad checkerboard colour-source offsets for newly baked basket sections and greatly reduce offsets for twill drafts. Their structural crossings remain distinct. Existing baked colours/drafts are never regenerated. This restores rounded detail but does not claim microscopic fibres or a pixel-perfect photographic match.
