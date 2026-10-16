@@ -21,3 +21,14 @@ test('compiler rejects unbound ends and unsafe repeat floats',()=>{
 test('archive uses the callable recipe and retains old sections',()=>{
  const archive=new RugArchive(),index=patternIndices()[0],a=archive.append({palette,designSeed:42},3.8,index),before=a.baked.slice();assert.equal(a.plan.draftIndex,index);assert.deepEqual(a.warp,a.plan.warp.sequence);archive.append({palette,designSeed:87},2.4,patternIndices()[1]);assert.deepEqual(a.baked,before);
 });
+
+test('composition supports top-bottom, both axes and half-turn medallions',()=>{
+ const modes=new Set();for(let seed=1;seed<=80;seed++){
+  const plan=createWeavePattern({seed,palette,symmetry:'auto'});modes.add(plan.colourSymmetry);
+  for(const [axis,n] of [['warp',48],['weft',120]]){const yarn=plan[axis];assert.equal(yarn.sequence.length,n);const mirrored=plan.colourSymmetry===axis||['both','radial'].includes(plan.colourSymmetry);if(mirrored)assert.deepEqual(yarn.sequence,yarn.sequence.slice().reverse());
+   for(let i=0;i<palette.length;i++)assert.ok(Math.abs(yarn.counts[i]-palette[i].share*n)<(mirrored?2:1));
+  }
+  if(plan.colourSymmetry==='radial'){assert.equal(plan.design.style,'medallion');assert.equal(plan.rotationalOrder,2);}
+ }
+ assert.deepEqual([...modes].sort(),['both','radial','warp','weft']);
+});

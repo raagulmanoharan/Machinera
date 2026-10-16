@@ -8,7 +8,7 @@ The photo supplies dye lots. A loom recipe supplies shaft threading, treadling a
 
 ```js
 import {createWeavePattern, listWeavePatterns, generateLoomDraft}
-  from './weaving-patterns.js?v=87';
+  from './weaving-patterns.js?v=91';
 
 const pattern = createWeavePattern({
   seed: 240731,
@@ -49,3 +49,9 @@ A generated draft is a data recipe, not automatically a GPU registration. Render
 ## Sources and limits
 
 See [weave-library-notes.md](./weave-library-notes.md) for public Handweaving.net study references. These algorithms implement structural principles, not downloaded subscription drafts. No claim is made to reproduce a named cultural carpet solely through a twill or basket interlacing. Pile knotting, double cloth, leno and supplementary-weft structures need additional yarn systems and are not simulated here.
+
+## Composition symmetry
+
+`createWeavePattern` accepts `symmetry: 'warp' | 'weft' | 'both' | 'radial' | 'auto'`. Warp means left/right colour mirroring, weft means top/bottom, both mirrors both yarn inventories, and radial builds a centred medallion with 180-degree rotational colour composition. The long rectangular strip is not a circular rug or a 90-degree rotational weave. Underlying twill binding and directional lighting can remain directional; `colourSymmetry` reports the composition separately from structural symmetry.
+
+The photo workflow now chooses a seeded composition mode automatically. The selected mode and counted yarn sequences are locked in the archive. Mirroring either yarn inventory uses paired quotas with less than two yarns of error per dye, without changing the source palette.
