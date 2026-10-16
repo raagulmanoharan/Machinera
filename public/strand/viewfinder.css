@@ -9,3 +9,5 @@
 #preview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.86) sepia(.08);border-radius:6px}
 
 #stage.pan-room{animation:panRoom63 .6s cubic-bezier(.2,.75,.2,1)}@keyframes panRoom63{from{transform:translateX(24%)}to{transform:translateX(0)}}@media(prefers-reduced-motion:reduce){#stage.pan-room{animation:none}}
+
+.camera-shell.processing #weavePhoto{animation:processing65 1.4s ease-in-out infinite}@keyframes processing65{50%{filter:brightness(1.45)}}@media(prefers-reduced-motion:reduce){.camera-shell.processing #weavePhoto{animation:none}}
