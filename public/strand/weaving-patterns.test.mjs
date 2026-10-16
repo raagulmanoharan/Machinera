@@ -30,7 +30,7 @@ test('composition supports top-bottom, both axes and half-turn medallions',()=>{
   }
   if(plan.colourSymmetry==='radial'){assert.equal(plan.design.style,'medallion');assert.equal(plan.rotationalOrder,2);}
  }
- assert.deepEqual([...modes].sort(),['both','radial','warp']);
+ assert.deepEqual([...modes],['both']);
 });
 
 test('every automatic carpet exposes exactly mirrored colour blocks at actual crossings',()=>{

@@ -1,5 +1,5 @@
-import {geometricDrafts} from './geometric-drafts.js?v=95';
-import {generatedDraftCatalogue,compileLoomDraft} from './loom-draft.js?v=95';
+import {geometricDrafts} from './geometric-drafts.js?v=96';
+import {generatedDraftCatalogue,compileLoomDraft} from './loom-draft.js?v=96';
 // Independently constructed loom drafts, studied against the public drawdowns
 // and structural metadata in Handweaving.net's Glossary, Twills and Satins.
 // Each recipe records threading, treadling and tie-up; no thumbnail is a texture.
@@ -43,7 +43,3 @@ const f=n=>n.toFixed(1);
 function lookup(d){let expression='0.';for(let y=d.height-1;y>=0;y--)expression=`row<${f(y+.5)}?${f(d.rows[y])}:(${expression})`;return `{float row=mod(pick,${f(d.height)});float mask=${expression};return mod(floor(mask/exp2(mod(end,${f(d.width)}))),2.)>.5?1.:-1.;}`;}
 function branch(lo,hi){if(lo===hi)return lookup(WEAVE_LIBRARY[lo]);const mid=(lo+hi)>>1;return `if(type<${f(mid+.5)}){${branch(lo,mid)}}else{${branch(mid+1,hi)}}`;}
 export const draftGLSL=`float warpCrossing(float end,float pick,float type){end=floor(end+.5);pick=floor(pick+.5);${branch(0,WEAVE_LIBRARY.length-1)}}\n`;
-export class DraftDeck{
- constructor(random=()=>{const bits=new Uint32Array(1);globalThis.crypto.getRandomValues(bits);return bits[0]/4294967296;},indices=null){this.random=random;this.indices=indices??seq(WEAVE_LIBRARY.length);this.remaining=[];this.last=null;}
- next(){if(!this.remaining.length){this.remaining=this.indices.slice();for(let i=this.remaining.length-1;i>0;i--){const j=Math.floor(this.random()*(i+1));[this.remaining[i],this.remaining[j]]=[this.remaining[j],this.remaining[i]];}if(this.remaining.at(-1)===this.last)[this.remaining[0],this.remaining[this.remaining.length-1]]=[this.remaining.at(-1),this.remaining[0]];}return this.last=this.remaining.pop();}
-}
