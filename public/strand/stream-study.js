@@ -1,23 +1,23 @@
-import {captureWindow} from './camera-framing.js?v=107';
-import * as StrandWeaving from './weaving-patterns.js?v=107';
+import {captureWindow} from './camera-framing.js?v=110';
+import * as StrandWeaving from './weaving-patterns.js?v=110';
 globalThis.StrandWeaving=StrandWeaving;
-import {CarpetScroll} from './carpet-scroll.js?v=107';
-import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=107';
-import {FloorReturn} from './floor-return.js?v=107';
-import {LoomAudio} from './loom-audio.js?v=107';
-import {PhotoRugBridge} from './photo-rug-bridge.js?v=107';
-import {preparePhotoPalette} from './photo-colours.js?v=107';
-import {TLRViewfinder} from './tlr-viewfinder.js?v=107';
-import {streamDeviceProfile} from './stream-device-profile.js?v=107';
+import {CarpetScroll} from './carpet-scroll.js?v=110';
+import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=110';
+import {FloorReturn} from './floor-return.js?v=110';
+import {LoomAudio} from './loom-audio.js?v=110';
+import {PhotoRugBridge} from './photo-rug-bridge.js?v=110';
+import {preparePhotoPalette} from './photo-colours.js?v=110';
+import {TLRViewfinder} from './tlr-viewfinder.js?v=110';
+import {streamDeviceProfile} from './stream-device-profile.js?v=110';
 const deviceProfile=streamDeviceProfile();
 import * as T from 'three';
-import {createStreamPerformance} from './stream-performance.js?v=107';
-import {createStreamPipeline} from './stream-render-pipeline.js?v=107';
-import { loadRoomEnvironment } from './room-lighting.js?v=107';
-import { addTextileLights } from './textile-light-rig.js?v=107';
-import { StreamCloth } from './stream-cloth.js?v=107';
-import { installClothInteraction } from './stream-interaction.js?v=107';
-import { FramePacer } from './frame-pacer.js?v=107';
+import {createStreamPerformance} from './stream-performance.js?v=110';
+import {createStreamPipeline} from './stream-render-pipeline.js?v=110';
+import { loadRoomEnvironment } from './room-lighting.js?v=110';
+import { addTextileLights } from './textile-light-rig.js?v=110';
+import { StreamCloth } from './stream-cloth.js?v=110';
+import { installClothInteraction } from './stream-interaction.js?v=110';
+import { FramePacer } from './frame-pacer.js?v=110';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
 const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,deviceProfile.canvasDpr));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=1.0;renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.shadowMap.autoUpdate=false;stage.append(renderer.domElement);
 const scene=new T.Scene();scene.background=null;renderer.setClearColor(0x141414,0);const camera=new T.PerspectiveCamera(32,innerWidth/innerHeight,.03,40);camera.up.set(0,0,1);
@@ -49,19 +49,19 @@ async function startCamera(facing=cameraFacing){const request=++cameraRequest;le
 switchCamera.onclick=async()=>{if(!ready||processingPhoto||switchingCamera||capture.hidden||bridge.active)return;const previous=cameraFacing;switchingCamera=true;switchCamera.disabled=true;shutter.disabled=true;lens.setAttribute('aria-disabled','true');stopCamera();try{const started=await startCamera(previous==='environment'?'user':'environment');if(!started&&!capture.hidden&&!bridge.active&&!processingPhoto)await startCamera(previous);}finally{switchingCamera=false;if(!capture.hidden&&!bridge.active&&!processingPhoto){switchCamera.disabled=false;shutter.disabled=!ready;lens.setAttribute('aria-disabled',String(!ready));}}};
 function stopCamera(){cameraRequest++;finder.stop();media?.getTracks().forEach(t=>t.stop());media=null;video.srcObject=null;shell.classList.remove('has-camera');}
 async function openCapture(){flowVersion++;processingPhoto=false;audio.stop();stopCamera();capture.hidden=false;capture.classList.remove('flipped','capture-frozen','capture-departing','capture-bridging');bridge.dispose();cameraTarget.z=1.5;camera.position.z=1.5;camera.lookAt(cameraTarget);camera.updateMatrixWorld();capture.dataset.captureState='capturing';updateMemoryCount();stage.classList.remove('room-entering');stage.classList.add('behind-camera');selected=null;preview.hidden=true;shutter.hidden=false;weavePhoto.hidden=true;shell.classList.remove('photo-ready','processing');shutter.disabled=!ready;secondFloor.disabled=!ready;lens.setAttribute('aria-disabled',String(!ready));await startCamera();}
-async function closeCapture(){
+async function closeCapture(prepared=Promise.resolve(),onPrepared=()=>{}){
  if(capture.hidden||bridge.active)return;const version=flowVersion;secondFloor.disabled=true;
  if(!selected&&media&&video.videoWidth){preview.width=video.videoWidth;preview.height=video.videoHeight;preview.getContext('2d').drawImage(video,0,0);preview.hidden=false;}
  stopCamera();capture.dataset.captureState='transition';stage.classList.remove('behind-camera','room-entering');
  if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
   const section=cloth.version===0?FIRST_PRINT_LENGTH:NEXT_PRINT_LENGTH;
-  const complete=bridge.begin(preview,lens,section,{feed:!!(processingPhoto&&selected),onFrame:()=>render()});capture.classList.add('flipped','capture-bridging');render(true);await complete;
- }else{capture.classList.add('flipped');await new Promise(resolve=>requestAnimationFrame(resolve));}
+  const complete=bridge.begin(preview,lens,section,{feed:!!(processingPhoto&&selected),onFrame:()=>render(),prepared,onPrepared});capture.classList.add('flipped','capture-bridging');render(true);await complete;
+ }else{await prepared;onPrepared();capture.classList.add('flipped');await new Promise(resolve=>requestAnimationFrame(resolve));}
  if(version!==flowVersion)return;capture.hidden=true;capture.dataset.captureState='printing';render(true);
 }
 secondFloor.onclick=()=>{if(ready&&!processingPhoto&&!upstairs.active)closeCapture();};
 document.querySelector('#firstFloor').onclick=()=>{if(ready&&!processingPhoto&&!bridge.active&&!upstairs.active){upstairs.pull(0);upstairs.end(true);}};
-async function commit(){if(!selected||!ready||processingPhoto)return;const source=selected,version=flowVersion;processingPhoto=true;secondFloor.disabled=true;weavePhoto.disabled=true;lens.setAttribute('aria-disabled','true');shell.classList.add('processing');audio.setMode('processing');const scan=new Promise(resolve=>setTimeout(resolve,950));try{const [prepared]=await Promise.all([preparePhotoPalette(source,{onProgress:p=>{capture.dataset.processing=String(Math.round(p*100));}}),scan]);if(version!==flowVersion)return;stage.dataset.sourcePixels=String(prepared.sourcePixelCount);stage.dataset.processedPixels=String(prepared.processedPixelCount);stage.dataset.dyeLots=String(prepared.palette?.length??0);scroller?.reset();printQueue.push(prepared);await closeCapture();if(version!==flowVersion)return;selected=null;capture.dataset.captureState='printing';render(true);}catch(error){if(version===flowVersion){status.textContent='This photo could not be processed. Tap to try another photo.';status.hidden=false;selected=null;capture.classList.remove('capture-frozen');preview.hidden=true;shutter.hidden=false;shutter.disabled=false;secondFloor.disabled=false;lens.setAttribute('aria-disabled','false');capture.dataset.captureState='capturing';}console.error(error);}finally{if(version===flowVersion){processingPhoto=false;shell.classList.remove('processing');if(!cloth?.print)audio.stop();}}}
+async function commit(){if(!selected||!ready||processingPhoto)return;const source=selected,version=flowVersion;processingPhoto=true;secondFloor.disabled=true;weavePhoto.disabled=true;lens.setAttribute('aria-disabled','true');shell.classList.add('processing');audio.setMode('processing');try{const preparation=preparePhotoPalette(source,{onProgress:p=>{capture.dataset.processing=String(Math.round(p*100));}});let prepared;const resolved=preparation.then(value=>{prepared=value;});await closeCapture(resolved,()=>{if(version!==flowVersion)return;stage.dataset.sourcePixels=String(prepared.sourcePixelCount);stage.dataset.processedPixels=String(prepared.processedPixelCount);stage.dataset.dyeLots=String(prepared.palette?.length??0);scroller?.reset();printQueue.push(prepared);render(true);});await preparation;if(version!==flowVersion)return;selected=null;capture.dataset.captureState='printing';render(true);}catch(error){bridge.dispose();if(version===flowVersion){capture.hidden=false;capture.classList.remove('flipped','capture-bridging');stage.classList.add('behind-camera');status.textContent='This photo could not be processed. Tap to try another photo.';status.hidden=false;selected=null;capture.classList.remove('capture-frozen');preview.hidden=true;shutter.hidden=false;shutter.disabled=false;secondFloor.disabled=false;lens.setAttribute('aria-disabled','false');capture.dataset.captureState='capturing';}console.error(error);}finally{if(version===flowVersion){processingPhoto=false;shell.classList.remove('processing');if(!cloth?.print)audio.stop();}}}
 weavePhoto.onclick=commit;
 function selectImage(image){if(processingPhoto)return;const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height,aspect=document.querySelector('.lens').clientWidth/document.querySelector('.lens').clientHeight;let w=width,h=height;if(w/h>aspect)w=h*aspect;else h=w/aspect;selected=image;preview.width=Math.round(Math.min(w,1536));preview.height=Math.round(preview.width/aspect);const ctx=preview.getContext('2d');const optics=finder.renderer?.domElement;if(optics&&optics.width){finder.resize();finder.renderer.render(finder.scene,finder.camera);ctx.drawImage(optics,0,0,preview.width,preview.height);}else ctx.drawImage(image,(width-w)/2,(height-h)/2,w,h,0,0,preview.width,preview.height);stopCamera();preview.hidden=false;shutter.hidden=true;weavePhoto.hidden=true;capture.classList.add('capture-frozen');capture.dataset.captureState='frozen';shell.classList.add('photo-ready','shutter-flash');setTimeout(()=>shell.classList.remove('shutter-flash'),240);audio.shutter();commit();}
 shutter.onclick=()=>{if(!ready||processingPhoto||switchingCamera)return;audio.unlock();if(video.srcObject&&video.videoWidth){const c=document.createElement('canvas');const crop=captureWindow(video.videoWidth,video.videoHeight,lens.clientWidth,lens.clientHeight);c.width=Math.round(crop.width);c.height=Math.round(crop.height);c.getContext('2d').drawImage(video,crop.x,crop.y,crop.width,crop.height,0,0,c.width,c.height);selectImage(c);}else document.querySelector('#cameraPhoto').click();};
