@@ -1,6 +1,7 @@
-import {CROSSING_HEIGHT} from './yarn-structure.js?v=77';
-export const WEAVE_STUDIES=['Bhavani-inspired bands, plain weave','Kharad-inspired chevrons, twill study','Bhujodi-inspired accents, basket study','Diamond twill'];
-export const WEAVES=['plain','twill','basket','diamond twill'];
-export function warpOver(x,y,type=0){if(type===3){const turn=Math.abs(((y%8)+8)%8-4);return ((x+turn)%4+4)%4<2;}if(type===1)return ((x+y)%4+4)%4<2;return type===2?((Math.floor(x/2)+Math.floor(y/2))%2+2)%2===0:((x+y)%2+2)%2===0;}
+import {CROSSING_HEIGHT} from './yarn-structure.js?v=80';
+import {WEAVE_LIBRARY} from './weave-library.js?v=80';
+export {warpOver} from './weave-library.js?v=80';
+import {warpOver} from './weave-library.js?v=80';
+export const WEAVES=WEAVE_LIBRARY.map(d=>d.id);
+export const WEAVE_STUDIES=WEAVE_LIBRARY.map(d=>d.name);
 export function yarnHeight(along,strand,warp,type=0){const a=Math.floor(along),t=along-a,ease=.5-.5*Math.cos(t*Math.PI),height=i=>(warp?warpOver(strand,i,type):!warpOver(i,strand,type))?CROSSING_HEIGHT:-CROSSING_HEIGHT;return height(a)*(1-ease)+height(a+1)*ease;}
-export function weaveIcon(type){let lines='';for(let y=0;y<6;y++)for(let x=0;x<8;x++){const over=warpOver(x,y,type),cx=8+x*10,cy=7+y*9;const h=`<path d="M${cx-5} ${cy}h10" stroke="#8a7153" stroke-width="6"/><path d="M${cx-5} ${cy-1}h10" stroke="#c4b08b" stroke-width="4"/>`,v=`<path d="M${cx} ${cy-4.5}v9" stroke="#3a4140" stroke-width="6"/><path d="M${cx-1} ${cy-4.5}v9" stroke="#788477" stroke-width="4"/>`;lines+=over?h+v:v+h;}return `<svg viewBox="0 0 87 61" aria-hidden="true">${lines}</svg>`;}
