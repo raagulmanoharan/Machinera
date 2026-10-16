@@ -1,8 +1,8 @@
-import {createColourDesign,designYarns,freshDesignSeed} from './yarn-colour-design.js?v=86';
-import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=83';
-import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=83';
-import {WARP_ENDS} from './yarn-structure.js?v=83';
-import {WEAVE_LIBRARY,warpOver} from './weave-library.js?v=80';
+import {createWeavePattern} from './weaving-patterns.js?v=87';
+import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=87';
+import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=87';
+import {WARP_ENDS} from './yarn-structure.js?v=87';
+import {WEAVE_LIBRARY,warpOver} from './weave-library.js?v=87';
 import {paletteFromStrands} from './yarn-palette.js?v=85';
 export class RugArchive{
  constructor(){this.entries=[];this.length=0;this.transition=.42;}
@@ -10,8 +10,8 @@ export class RugArchive{
   const palette=Array.isArray(input)?paletteFromStrands(input):input.palette??paletteFromStrands(input.strands),previous=this.entries.at(-1),end=this.length+length,firstPick=Math.ceil(this.length/THREAD_PITCH),lastPick=Math.floor(end/THREAD_PITCH),pickCount=Math.max(1,lastPick-firstPick+1),recipe=WEAVE_LIBRARY[weave];
   // Count real warp ends and physical weft picks. Dominant dye lots own the most
   // yarns; complete yarns (not interpolated pixels) form coherent colour blocks.
-  const design=createColourDesign(recipe,input.designSeed??freshDesignSeed()),warp=designYarns(palette,WARP_ENDS,design,'warp'),weft=designYarns(palette,pickCount,design,'weft');
-  const entry={design,palette:palette.map(c=>({...c,rgb:c.rgb.slice()})),colours:palette.map(c=>c.rgb.slice()),length,end,weave,metadata,previous,firstPick,warp:warp.sequence,weft:weft.sequence,warpCounts:warp.counts,weftCounts:weft.counts};
+  const plan=createWeavePattern({draftId:recipe.id,seed:input.designSeed,palette,warpEnds:WARP_ENDS,weftPicks:pickCount,firstPick}),{design,warp,weft}=plan;
+  const entry={plan,design,palette:palette.map(c=>({...c,rgb:c.rgb.slice()})),colours:palette.map(c=>c.rgb.slice()),length,end,weave,metadata,previous,firstPick,warp:warp.sequence,weft:weft.sequence,warpCounts:warp.counts,weftCounts:weft.counts};
   entry.rows=Math.ceil(length*PICKS_PER_METRE)+1;entry.baked=new Uint8Array(entry.rows*FABRIC_COLUMNS*4);entry.drafts=new Uint8Array(entry.rows*4);entry.newYarn=new Uint8Array(entry.rows);
   for(let y=0;y<entry.rows;y++){
    const local=y/(entry.rows-1)*length,q=end-local,join=previous?transitionPick(q,previous.end,weave,previous.weave,Math.min(this.transition,length*.3)):{draft:weave,nextColour:true};entry.newYarn[y]=+join.nextColour;entry.drafts.set([join.draft,join.draft,255,255],y*4);
