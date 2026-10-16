@@ -1,4 +1,4 @@
-import {yarnShadowFunctionsGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=78';
+import {yarnShadowFunctionsGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=79';
 import {THREAD_PITCH,WARP_ENDS} from './yarn-structure.js?v=77';
 import {SmoothClothGrid} from './smooth-cloth-grid.js?v=74';
 import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=73';
@@ -7,7 +7,7 @@ import {applyMatteTextile} from './matte-textile.js?v=77';
 import {textileAOGLSL} from './textile-ambient-occlusion.js?v=77';
 import * as T from 'three';
 import {paintPalette} from './palette-strands.js?v=65';
-import {addRaisedYarn} from './stream-yarn.js?v=78';
+import {addRaisedYarn} from './stream-yarn.js?v=79';
 import {wovenSurfaceGLSL} from './stream-weave-shader.js?v=77';
 import {RugArchive} from './rug-archive.js?v=77';
 import {SlackSpan} from './stream-slack.js?v=77';

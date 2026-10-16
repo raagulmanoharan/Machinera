@@ -5,7 +5,13 @@ export const yarnNoiseGLSL=`
 float yarnHash(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
 float yarnNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(yarnHash(i),yarnHash(i+vec2(1.,0.)),f.x),mix(yarnHash(i+vec2(0.,1.)),yarnHash(i+1.),f.x),f.y);}
 float yarnLift(vec2 p){return (yarnNoise(p*.24)-.5)*.0010+(yarnNoise(p*.071+17.)-.5)*.0006;}
-float yarnSize(vec2 p){return 1.+(yarnNoise(p*.31+41.)-.5)*.065;}
+float yarnSizeFor(vec2 p,bool warp){
+ float strand=floor((warp?p.x:p.y)+.5),along=warp?p.y:p.x;
+ float seed=yarnHash(vec2(strand,warp?19.:73.));
+ float spinning=yarnNoise(vec2(strand*1.73+11.,along*.12));
+ float slub=smoothstep(.67,.88,spinning);
+ return clamp(.94+.09*seed+.035*slub+.025*(spinning-.5),.91,1.06);
+}
 `;
 export const yarnShadowFunctionsGLSL=yarnNoiseGLSL+`
 uniform float yarnSelfShadowStrength;
@@ -17,10 +23,10 @@ float yarnEnvelope(vec2 p){
  // The opposite strand uses the same crossings, with its relief sign reversed.
  float fh0=-warpCrossing(a.x,cell.y,dc)*${CROSSING_HEIGHT};
  float fh1=-warpCrossing(a.x+1.,cell.y,dc)*${CROSSING_HEIGHT};
- vec2 across=p-cell,radius=vec2(${YARN_RADIUS/THREAD_PITCH})*yarnSize(p);
+ vec2 across=p-cell,size=vec2(yarnSizeFor(p,true),yarnSizeFor(p,false)),radius=vec2(${YARN_RADIUS/THREAD_PITCH})*size;
  vec2 dome=sqrt(max(vec2(0.),1.-pow(across/radius,vec2(2.))));
- float warp=abs(across.x)<radius.x?mix(wh0,wh1,e.y)+lift+dome.x*${YARN_HEIGHT}:-.02;
- float weft=abs(across.y)<radius.y?mix(fh0,fh1,e.x)+lift+dome.y*${YARN_HEIGHT}:-.02;
+ float warp=abs(across.x)<radius.x?mix(wh0,wh1,e.y)+lift+dome.x*${YARN_HEIGHT}*size.x:-.02;
+ float weft=abs(across.y)<radius.y?mix(fh0,fh1,e.x)+lift+dome.y*${YARN_HEIGHT}*size.y:-.02;
  return max(warp,weft);
 }
 float yarnDirectionalVisibility(vec2 p,vec3 light,vec3 baseNormal,vec3 tangent){
