@@ -1,5 +1,5 @@
-import {geometricDrafts} from './geometric-drafts.js?v=100';
-import {generatedDraftCatalogue,compileLoomDraft} from './loom-draft.js?v=100';
+import {geometricDrafts} from './geometric-drafts.js?v=104';
+import {generatedDraftCatalogue,compileLoomDraft} from './loom-draft.js?v=104';
 // Independently constructed loom drafts, studied against the public drawdowns
 // and structural metadata in Handweaving.net's Glossary, Twills and Satins.
 // Each recipe records threading, treadling and tie-up; no thumbnail is a texture.

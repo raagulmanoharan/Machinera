@@ -1,22 +1,23 @@
-import * as StrandWeaving from './weaving-patterns.js?v=100';
+import {captureWindow} from './camera-framing.js?v=104';
+import * as StrandWeaving from './weaving-patterns.js?v=104';
 globalThis.StrandWeaving=StrandWeaving;
-import {CarpetScroll} from './carpet-scroll.js?v=100';
-import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=100';
-import {FloorReturn} from './floor-return.js?v=100';
-import {LoomAudio} from './loom-audio.js?v=100';
-import {PhotoRugBridge} from './photo-rug-bridge.js?v=100';
-import {preparePhotoPalette} from './photo-colours.js?v=100';
-import {TLRViewfinder} from './tlr-viewfinder.js?v=100';
-import {streamDeviceProfile} from './stream-device-profile.js?v=100';
+import {CarpetScroll} from './carpet-scroll.js?v=104';
+import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=104';
+import {FloorReturn} from './floor-return.js?v=104';
+import {LoomAudio} from './loom-audio.js?v=104';
+import {PhotoRugBridge} from './photo-rug-bridge.js?v=104';
+import {preparePhotoPalette} from './photo-colours.js?v=104';
+import {TLRViewfinder} from './tlr-viewfinder.js?v=104';
+import {streamDeviceProfile} from './stream-device-profile.js?v=104';
 const deviceProfile=streamDeviceProfile();
 import * as T from 'three';
-import {createStreamPerformance} from './stream-performance.js?v=100';
-import {createStreamPipeline} from './stream-render-pipeline.js?v=100';
-import { loadRoomEnvironment } from './room-lighting.js?v=100';
-import { addTextileLights } from './textile-light-rig.js?v=100';
-import { StreamCloth } from './stream-cloth.js?v=100';
-import { installClothInteraction } from './stream-interaction.js?v=100';
-import { FramePacer } from './frame-pacer.js?v=100';
+import {createStreamPerformance} from './stream-performance.js?v=104';
+import {createStreamPipeline} from './stream-render-pipeline.js?v=104';
+import { loadRoomEnvironment } from './room-lighting.js?v=104';
+import { addTextileLights } from './textile-light-rig.js?v=104';
+import { StreamCloth } from './stream-cloth.js?v=104';
+import { installClothInteraction } from './stream-interaction.js?v=104';
+import { FramePacer } from './frame-pacer.js?v=104';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
 const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,deviceProfile.canvasDpr));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=1.0;renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.shadowMap.autoUpdate=false;stage.append(renderer.domElement);
 const scene=new T.Scene();scene.background=null;renderer.setClearColor(0x141414,0);const camera=new T.PerspectiveCamera(32,innerWidth/innerHeight,.03,40);camera.up.set(0,0,1);
@@ -37,8 +38,9 @@ function frame(time){pending=false;if(document.hidden||(!capture.hidden&&!captur
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();pipeline.resize(innerWidth,innerHeight);if(cloth)cloth.viewportTick=0;scroller?.refresh();render(true);});
 const lens=document.querySelector('.lens');
 const finder=new TLRViewfinder(lens,video),shell=document.querySelector('.camera-shell'),weavePhoto=document.querySelector('#weavePhoto'),shutter=document.querySelector('#shutter'),secondFloor=document.querySelector('#secondFloor');
+document.querySelector('#choosePhoto').onclick=()=>{if(ready&&!processingPhoto)document.querySelector('#photoFile').click();};
 function stopCamera(){cameraRequest++;finder.stop();media?.getTracks().forEach(t=>t.stop());media=null;video.srcObject=null;shell.classList.remove('has-camera');}
-async function openCapture(){flowVersion++;processingPhoto=false;audio.stop();stopCamera();capture.hidden=false;capture.classList.remove('flipped','capture-frozen','capture-departing','capture-bridging');bridge.dispose();cameraTarget.z=1.5;camera.position.z=1.5;camera.lookAt(cameraTarget);camera.updateMatrixWorld();capture.dataset.captureState='capturing';stage.classList.remove('room-entering');stage.classList.add('behind-camera');selected=null;preview.hidden=true;shutter.hidden=false;weavePhoto.hidden=true;shell.classList.remove('photo-ready','processing');shutter.disabled=!ready;secondFloor.disabled=!ready;lens.setAttribute('aria-disabled',String(!ready));const request=++cameraRequest;try{const next=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false});if(capture.hidden||request!==cameraRequest){next.getTracks().forEach(t=>t.stop());return;}media=next;video.srcObject=next;await video.play();if(request!==cameraRequest)return;finder.start();shell.classList.add('has-camera');}catch{shell.dataset.camera='file';}}
+async function openCapture(){flowVersion++;processingPhoto=false;audio.stop();stopCamera();capture.hidden=false;capture.classList.remove('flipped','capture-frozen','capture-departing','capture-bridging');bridge.dispose();cameraTarget.z=1.5;camera.position.z=1.5;camera.lookAt(cameraTarget);camera.updateMatrixWorld();capture.dataset.captureState='capturing';document.querySelector('#photoCount').textContent=`PHOTO ${String((cloth?.version??0)+1).padStart(3,'0')}`;stage.classList.remove('room-entering');stage.classList.add('behind-camera');selected=null;preview.hidden=true;shutter.hidden=false;weavePhoto.hidden=true;shell.classList.remove('photo-ready','processing');shutter.disabled=!ready;secondFloor.disabled=!ready;lens.setAttribute('aria-disabled',String(!ready));const request=++cameraRequest;try{const next=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false});if(capture.hidden||request!==cameraRequest){next.getTracks().forEach(t=>t.stop());return;}media=next;video.srcObject=next;await video.play();if(request!==cameraRequest)return;finder.start();shell.classList.add('has-camera');}catch{shell.dataset.camera='file';}}
 async function closeCapture(){
  if(capture.hidden||bridge.active)return;const version=flowVersion;secondFloor.disabled=true;
  if(!selected&&media&&video.videoWidth){preview.width=video.videoWidth;preview.height=video.videoHeight;preview.getContext('2d').drawImage(video,0,0);preview.hidden=false;}
@@ -54,7 +56,7 @@ document.querySelector('#firstFloor').onclick=()=>{if(ready&&!processingPhoto&&!
 async function commit(){if(!selected||!ready||processingPhoto)return;const source=selected,version=flowVersion;processingPhoto=true;secondFloor.disabled=true;weavePhoto.disabled=true;lens.setAttribute('aria-disabled','true');shell.classList.add('processing');audio.setMode('processing');const scan=new Promise(resolve=>setTimeout(resolve,950));try{const [prepared]=await Promise.all([preparePhotoPalette(source,{onProgress:p=>{capture.dataset.processing=String(Math.round(p*100));}}),scan]);if(version!==flowVersion)return;stage.dataset.sourcePixels=String(prepared.sourcePixelCount);stage.dataset.processedPixels=String(prepared.processedPixelCount);stage.dataset.dyeLots=String(prepared.palette?.length??0);scroller?.reset();printQueue.push(prepared);await closeCapture();if(version!==flowVersion)return;selected=null;capture.dataset.captureState='printing';render(true);}catch(error){if(version===flowVersion){status.textContent='This photo could not be processed. Tap to try another photo.';status.hidden=false;selected=null;capture.classList.remove('capture-frozen');preview.hidden=true;shutter.hidden=false;shutter.disabled=false;secondFloor.disabled=false;lens.setAttribute('aria-disabled','false');capture.dataset.captureState='capturing';}console.error(error);}finally{if(version===flowVersion){processingPhoto=false;shell.classList.remove('processing');if(!cloth?.print)audio.stop();}}}
 weavePhoto.onclick=commit;
 function selectImage(image){if(processingPhoto)return;const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height,aspect=document.querySelector('.lens').clientWidth/document.querySelector('.lens').clientHeight;let w=width,h=height;if(w/h>aspect)w=h*aspect;else h=w/aspect;selected=image;preview.width=Math.round(Math.min(w,1536));preview.height=Math.round(preview.width/aspect);const ctx=preview.getContext('2d');const optics=finder.renderer?.domElement;if(optics&&optics.width){finder.resize();finder.renderer.render(finder.scene,finder.camera);ctx.drawImage(optics,0,0,preview.width,preview.height);}else ctx.drawImage(image,(width-w)/2,(height-h)/2,w,h,0,0,preview.width,preview.height);stopCamera();preview.hidden=false;shutter.hidden=true;weavePhoto.hidden=true;capture.classList.add('capture-frozen');capture.dataset.captureState='frozen';shell.classList.add('photo-ready','shutter-flash');setTimeout(()=>shell.classList.remove('shutter-flash'),240);audio.shutter();commit();}
-shutter.onclick=()=>{if(!ready||processingPhoto)return;audio.unlock();if(video.srcObject&&video.videoWidth){const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;c.getContext('2d').drawImage(video,0,0);selectImage(c);}else document.querySelector('#cameraPhoto').click();};
+shutter.onclick=()=>{if(!ready||processingPhoto)return;audio.unlock();if(video.srcObject&&video.videoWidth){const c=document.createElement('canvas');const crop=captureWindow(video.videoWidth,video.videoHeight,lens.clientWidth,lens.clientHeight);c.width=Math.round(crop.width);c.height=Math.round(crop.height);c.getContext('2d').drawImage(video,crop.x,crop.y,crop.width,crop.height,0,0,c.width,c.height);selectImage(c);}else document.querySelector('#cameraPhoto').click();};
 async function selectFile(file){if(!file||selecting)return;selecting=true;const url=URL.createObjectURL(file);try{const image=new Image();image.src=url;await image.decode();selectImage(image);}catch{status.textContent='Unable to open this photo.';}finally{selecting=false;URL.revokeObjectURL(url);}}
 for(const id of ['photoFile','cameraPhoto'])document.querySelector('#'+id).onchange=e=>{selectFile(e.target.files?.[0]);e.target.value='';};
 
