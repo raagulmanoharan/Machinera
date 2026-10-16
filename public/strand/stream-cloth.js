@@ -1,13 +1,13 @@
-import {PICKS_PER_METRE,FABRIC_COLUMNS,ATLAS_ROWS,atlasBase} from './fabric-coordinates.js?v=66';
+import {PICKS_PER_METRE,FABRIC_COLUMNS,ATLAS_ROWS,atlasBase} from './fabric-coordinates.js?v=68';
 import {applyMatteTextile} from './matte-textile.js?v=64';
 import {textileAOGLSL} from './textile-ambient-occlusion.js?v=60';
 import * as T from 'three';
 import {paintPalette} from './palette-strands.js?v=65';
-import {addRaisedYarn} from './stream-yarn.js?v=67';
+import {addRaisedYarn} from './stream-yarn.js?v=68';
 import {wovenSurfaceGLSL} from './stream-weave-shader.js?v=67';
-import {RugArchive} from './rug-archive.js?v=67';
+import {RugArchive} from './rug-archive.js?v=68';
 import {SlackSpan} from './stream-slack.js?v=66';
-import {RugPlayback} from './rug-playback.js?v=67';
+import {RugPlayback} from './rug-playback.js?v=68';
 export class StreamCloth{
  constructor(scene,renderer){this.scene=scene;this.renderer=renderer;this.sim=new SlackSpan();this.display=this.sim.positions;this.version=0;this.print=null;this.archive=new RugArchive();this.maxSpan=this.sim.length;this.sim.length=.02;this.sim.shape();this.sim.pose();this.historyLength=ATLAS_ROWS/PICKS_PER_METRE;this.texture=new T.DataTexture(new Uint8Array(FABRIC_COLUMNS*ATLAS_ROWS*4),FABRIC_COLUMNS,ATLAS_ROWS);this.texture.colorSpace=T.SRGBColorSpace;this.texture.generateMipmaps=true;this.texture.minFilter=T.LinearMipmapLinearFilter;this.texture.magFilter=T.LinearFilter;this.texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());this.texture.needsUpdate=true;this.weaveTexture=new T.DataTexture(new Uint8Array(4*ATLAS_ROWS),1,ATLAS_ROWS);this.weaveTexture.minFilter=this.weaveTexture.magFilter=T.NearestFilter;this.weaveTexture.needsUpdate=true;this.story={streamHead:{value:0},streamAtlasBase:{value:0},streamWeave:{value:this.weaveTexture},streamStory:{value:this.texture},streamHistoryLength:{value:this.historyLength},streamRemaining:{value:0}};this.weaveType=0;this.weaveUniform={value:0};this.uniforms={rugWeaveType:this.weaveUniform,streamLength:{value:this.sim.length}};this.viewportMask=new Uint8Array(this.sim.ny).fill(1);const geometry=new T.PlaneGeometry(this.sim.width,1,this.sim.nx-1,this.sim.ny-1);for(let i=0;i<geometry.attributes.uv.count;i++)geometry.attributes.uv.setY(i,1-geometry.attributes.uv.getY(i));this.hit=new T.Mesh(geometry,new T.MeshBasicMaterial({colorWrite:false,depthWrite:false,side:T.DoubleSide}));this.hit.castShadow=true;this.hit.frustumCulled=false;scene.add(this.hit);this.playback=new RugPlayback(this.archive,()=>{this.wake?.();},this.weaveUniform);this.rebuildPalette();this.upload();}
  get totalLength(){return this.archive.length;}
