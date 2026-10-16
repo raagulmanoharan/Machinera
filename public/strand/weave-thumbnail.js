@@ -7,7 +7,7 @@ export function drawWeaveThumbnail(canvas){
  const noise=(x,y)=>{let n=Math.imul(x+1,374761393)^Math.imul(y+1,668265263);n=Math.imul(n^(n>>>13),1274126177);return((n^(n>>>16))>>>0)/4294967295;};
  const crossing=(x,y)=>draftCrossing(draft,x,y)?1:-1,smooth=t=>(1-Math.cos(t*Math.PI))*.5;
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
-  const u=x/pitch,v=y/pitch,ix=Math.round(u),iy=Math.round(v),dx=u-ix,dy=v-iy,ax=Math.floor(u),ay=Math.floor(v),warpRadius=.43+(noise(ix,7)-.5)*.025,weftRadius=.43+(noise(iy,19)-.5)*.025;
+  const u=(draft.width-1)/2+(x-(width-1)/2)/pitch,v=(draft.height-1)/2+(y-(height-1)/2)/pitch,ix=Math.round(u),iy=Math.round(v),dx=u-ix,dy=v-iy,ax=Math.floor(u),ay=Math.floor(v),warpRadius=.43+(noise(Math.min(((ix%draft.width)+draft.width)%draft.width,draft.width-1-((ix%draft.width)+draft.width)%draft.width),7)-.5)*.025,weftRadius=.43+(noise(Math.min(((iy%draft.height)+draft.height)%draft.height,draft.height-1-((iy%draft.height)+draft.height)%draft.height),19)-.5)*.025;
   const warpDome=Math.sqrt(Math.max(0,1-(dx/warpRadius)**2)),weftDome=Math.sqrt(Math.max(0,1-(dy/weftRadius)**2));
   const warpLift=crossing(ix,ay)*(1-smooth(v-ay))+crossing(ix,ay+1)*smooth(v-ay),weftLift=-crossing(ax,iy)*(1-smooth(u-ax))-crossing(ax+1,iy)*smooth(u-ax);
   const warpH=Math.abs(dx)<warpRadius?warpLift*.36+warpDome*.42:-10,weftH=Math.abs(dy)<weftRadius?weftLift*.36+weftDome*.42:-10;
