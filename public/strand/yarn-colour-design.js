@@ -1,6 +1,6 @@
-import {orderColours} from './yarn-contrast.js?v=96';
-import {allocateYarns} from './yarn-palette.js?v=96';
-import {deriveColourDesign} from './photo-weave-design.js?v=96';
+import {orderColours} from './yarn-contrast.js?v=97';
+import {allocateYarns} from './yarn-palette.js?v=97';
+import {deriveColourDesign} from './photo-weave-design.js?v=97';
 export function createColourDesign(recipe,seed,symmetry='warp',palette){
  const derived=palette?deriveColourDesign(palette):{symmetry:'both',style:recipe?.family==='basket'?'checks':'stripes',repeat:2};
  return {seed,...derived,symmetry:symmetry==='auto'?derived.symmetry:symmetry};
