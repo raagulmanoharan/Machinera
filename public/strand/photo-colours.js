@@ -1,7 +1,7 @@
-import {mergeDyeColours,areDyeColoursDistinct,oklab} from './yarn-palette.js?v=156';
+import {mergeDyeColours} from './yarn-palette.js?v=156';
 // Every decoded source pixel is visited. Colour-space bins retain weighted means;
-// A bounded grid averages patches for palette extraction and measures complexity;
-// every original pixel still contributes its opacity weight.
+// Similar-colour samples are averaged after hue separation, never across a
+// mixed-colour image patch. The spatial grid only guides complexity and scanning.
 const BIN_COUNT=32768;
 const LINEAR=Float64Array.from({length:256},(_,v)=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});
 export function createColourDistribution(width=0,height=0){const spatial=width&&height?new Float64Array(96*Math.min(160,Math.max(24,Math.round(96*height/width)))*4):null;return{width,height,lightSum:0,lightSquared:0,luminanceHistogram:new Float64Array(64),spatial,spatialAccent:spatial?new Float32Array(spatial.length):null,values:new Float64Array(BIN_COUNT*4),pixels:0,opaqueWeight:0};}
@@ -10,14 +10,10 @@ export function imageDimensions(image){return[image.naturalWidth||image.videoWid
 export function isPreparedPalette(value){return(value?.kind==='yarn-dye-palette'&&Array.isArray(value.palette));}
 function colourSamples(values){const samples=[];for(let i=0;i<values.length;i+=4)if(values[i+3])samples.push({rgb:[values[i]/values[i+3],values[i+1]/values[i+3],values[i+2]/values[i+3]],weight:values[i+3]});return samples;}
 export function distributionPalette(distribution){
- const raw=colourSamples(distribution.values),patches=distribution.spatial;if(!patches?.some((v,i)=>i%4===3&&v>0))return mergeDyeColours(raw);
- const regional=mergeDyeColours(colourSamples(patches)),pixelPalette=mergeDyeColours(raw),accents=pixelPalette.filter(c=>c.share>=.0025&&c.share<.15&&regional.every(g=>areDyeColoursDistinct(c.rgb,g.rgb)));
- if(!accents.length)return regional;
- // Recover genuine small accents that patch averaging washed out. Assign each
- // original histogram bin once, preserving total colour mass without boosting it.
- const anchors=[...regional,...accents].map(c=>({lab:oklab(c.rgb),sum:[0,0,0],weight:0}));
- for(const sample of raw){const lab=oklab(sample.rgb);let nearest=anchors[0],best=Infinity;for(const anchor of anchors){const distance=lab.reduce((n,v,i)=>n+(v-anchor.lab[i])**2*(i===0?.35:1),0);if(distance<best){best=distance;nearest=anchor;}}nearest.weight+=sample.weight;for(let i=0;i<3;i++)nearest.sum[i]+=sample.rgb[i]*sample.weight;}
- return mergeDyeColours(anchors.filter(a=>a.weight).map(a=>({rgb:a.sum.map(v=>v/a.weight),weight:a.weight})));
+ // Bin within a narrow RGB range, then merge perceptually similar dye lots.
+ // Every source pixel contributes its full opacity weight. Spatial patch means
+ // must never become palette colours: red + green detail is not brown yarn.
+ return mergeDyeColours(colourSamples(distribution.values));
 }
 
 export function distributionFeatures(d){
@@ -33,5 +29,5 @@ function tileContext(){const canvas=document.createElement('canvas');canvas.widt
 function scanTile(ctx,image,x,y,width,height,distribution){ctx.clearRect(0,0,256,256);ctx.drawImage(image,x,y,width,height,0,0,width,height);accumulateColours(distribution,ctx.getImageData(0,0,width,height).data,{x,y,width});}
 // Bounded 256² readbacks avoid a second full-resolution RGBA allocation. No resize,
 // cropping, stride sampling, random sampling or texture-size cap is applied.
-export async function preparePhotoPalette(image,{onProgress}={}){if(isPreparedPalette(image))return image;const[width,height]=imageDimensions(image);if(!(width>0&&height>0))throw new Error('Photo has no decoded pixels');if(typeof Worker!=='undefined'&&typeof createImageBitmap==='function'&&typeof OffscreenCanvas!=='undefined'){let worker,bitmap;try{bitmap=await createImageBitmap(image);worker=new Worker(new URL('./photo-colours-worker.js?v=177',import.meta.url),{type:'module'});return await new Promise((resolve,reject)=>{worker.onmessage=({data})=>{if(data.progress!==undefined){onProgress?.(data.progress);return;}data.error?reject(new Error(data.error)):resolve(data);};worker.onerror=event=>reject(new Error(event.message||'Photo worker failed'));worker.postMessage({bitmap},[bitmap]);});}catch{/* Safari capability failures use the same complete tiled scan below. */}finally{worker?.terminate();bitmap?.close();}}
+export async function preparePhotoPalette(image,{onProgress}={}){if(isPreparedPalette(image))return image;const[width,height]=imageDimensions(image);if(!(width>0&&height>0))throw new Error('Photo has no decoded pixels');if(typeof Worker!=='undefined'&&typeof createImageBitmap==='function'&&typeof OffscreenCanvas!=='undefined'){let worker,bitmap;try{bitmap=await createImageBitmap(image);worker=new Worker(new URL('./photo-colours-worker.js?v=179',import.meta.url),{type:'module'});return await new Promise((resolve,reject)=>{worker.onmessage=({data})=>{if(data.progress!==undefined){onProgress?.(data.progress);return;}data.error?reject(new Error(data.error)):resolve(data);};worker.onerror=event=>reject(new Error(event.message||'Photo worker failed'));worker.postMessage({bitmap},[bitmap]);});}catch{/* Safari capability failures use the same complete tiled scan below. */}finally{worker?.terminate();bitmap?.close();}}
  const ctx=tileContext(),distribution=createColourDistribution(width,height);for(let y=0;y<height;y+=256){for(let x=0;x<width;x+=256)scanTile(ctx,image,x,y,Math.min(256,width-x),Math.min(256,height-y),distribution);onProgress?.(Math.min(1,(y+256)/height));await new Promise(resolve=>setTimeout(resolve,0));}return result(distribution,width,height);}
