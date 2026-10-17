@@ -1,10 +1,10 @@
-import {draftCrossing} from './photo-draft.js?v=133';
-import {createWeavePattern} from './weaving-patterns.js?v=133';
-import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=133';
-import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=133';
-import {WARP_ENDS} from './yarn-structure.js?v=133';
-import {WEAVE_LIBRARY} from './weave-library.js?v=133';
-import {paletteFromColours} from './yarn-palette.js?v=133';
+import {draftCrossing} from './photo-draft.js?v=134';
+import {createWeavePattern} from './weaving-patterns.js?v=134';
+import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=134';
+import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=134';
+import {WARP_ENDS} from './yarn-structure.js?v=134';
+import {WEAVE_LIBRARY} from './weave-library.js?v=134';
+import {paletteFromColours} from './yarn-palette.js?v=134';
 export class RugArchive{
  constructor(){this.entries=[];this.length=0;this.transition=.42;}
  append(input,length=2.4,weave=null,metadata=null){
@@ -18,7 +18,7 @@ export class RugArchive{
   for(let y=0;y<entry.rows;y++){
    const local=y/(entry.rows-1)*length,q=end-local,join=previous?transitionPick(q,previous.end,weave,previous.weave,Math.min(this.transition,length*.3)):{draft:weave,nextColour:true};entry.newYarn[y]=+join.nextColour;const code=join.draft>=256?240:join.draft;entry.drafts.set([code,code,255,255],y*4);
    const loom=join.draft===weave?plan.draft:join.draft===previous?.weave?previous.plan.draft:WEAVE_LIBRARY[join.draft];const owner=join.nextColour?entry:previous,pick=Math.floor(q/THREAD_PITCH+.5);
-   for(let x=0;x<FABRIC_COLUMNS;x++){const u=(x+.5)/FABRIC_COLUMNS,weftRGB=this.weftColour(owner,join.nextColour?q:previous.end,u),rgb=draftCrossing(loom,Math.floor(u*WARP_ENDS),pick)?this.warpColour(owner,u):weftRGB;entry.baked.set([...rgb,255],(y*FABRIC_COLUMNS+x)*4);}
+   for(let x=0;x<FABRIC_COLUMNS;x++){const u=(x+.5)/FABRIC_COLUMNS,weftRGB=this.weftColour(owner,join.nextColour?q:previous.end,u),rgb=draftCrossing(loom,Math.floor(u*WARP_ENDS),pick)?this.warpColour(owner,u):weftRGB;const at=(y*FABRIC_COLUMNS+x)*4;entry.baked[at]=rgb[0];entry.baked[at+1]=rgb[1];entry.baked[at+2]=rgb[2];entry.baked[at+3]=255;}
   }
   this.entries.push(entry);this.length=end;return entry;
  }
