@@ -14,7 +14,7 @@ export function createPrintProgressReader(getPrint,remainingSeconds=8){
  return()=>{
   if(!state){const print=getPrint();if(!print)return 1;const fraction=Math.min(.99,print.time/print.duration);
    print.duration=remainingSeconds/(1-fraction);print.time=fraction*print.duration;print.hold=false;
-   state={print,start:feed(fraction),end:feed(fraction+(1-fraction)*.68)};
+   state={print,start:feed(fraction),end:1};
   }
   // Match submitted material displacement, including its acceleration, rather
   // than applying a second, unrelated ease to the simulation clock.
