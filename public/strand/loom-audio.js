@@ -1,4 +1,4 @@
-import {GenerativeScore} from './generative-score.js?v=142';
+import {GenerativeScore} from './generative-score.js?v=144';
 // Native Web Audio only. Acoustic layers are baked once, never synthesized on RAF.
 // Original instrumental atmosphere inspired by drone, plucked strings and breath;
 // not a rendition of a traditional composition or a claim to reproduce a ghazal.

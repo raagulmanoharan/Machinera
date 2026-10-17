@@ -1,5 +1,5 @@
 // Original instrumental grammar, not a transcription or a complete raga model.
-// Returning cadences and varied couplet-like calls/responses provide continuity.
+// Evolving arpeggios and an independent counterline retain a shared pulse.
 // Equal-tempered note vocabularies, suitable for harmonium-like synthesis.
 // These are raga-inspired palettes, not full rules for performing those ragas.
 const mode=(id,notes,anchors,voicings)=>{const base=notes.map(n=>2**(n/12));return Object.freeze({id,notes:Object.freeze(notes),anchors:Object.freeze(anchors),voicings:Object.freeze(voicings.map(Object.freeze)),ratios:Object.freeze([.5,base[4]/2,...base,2,...base.slice(1,5).map(r=>r*2)])});};
@@ -9,62 +9,57 @@ export const SCORE_MODES=Object.freeze({
  yaman:mode('yaman',[0,2,4,6,7,9,11],[0,2,6],[[2,6,9],[2,4,6],[4,6,8],[2,4,9]])
 });
 export class GenerativeScore{
- constructor(seed,modeId){this.seed=seed>>>0||1;this.mode=modeId?SCORE_MODES[modeId]:this.pick([SCORE_MODES.bhairavi,SCORE_MODES.kafi]);if(!this.mode)throw new Error('Unknown musical mode');this.ratios=this.mode.ratios;this.phrases=0;this.queue=[];this.recent=[];this.anchor=[0,this.pick([1,2,3]),this.pick([3,4,5]),this.pick([1,2,3]),0];this.section='invocation';this.sectionLeft=2;this.reset(0);}
+ constructor(seed,modeId){this.seed=seed>>>0||1;this.mode=modeId?SCORE_MODES[modeId]:this.pick([SCORE_MODES.bhairavi,SCORE_MODES.kafi]);if(!this.mode)throw new Error('Unknown musical mode');this.ratios=this.mode.ratios;this.reset(0);}
  random(){let n=this.seed;n^=n<<13;n^=n>>>17;n^=n<<5;this.seed=n>>>0;return this.seed/4294967296;}
  pick(a){return a[Math.floor(this.random()*a.length)];}
- reset(now){this.queue.length=0;this.nextDrone=now+.04;this.nextCloud=now+.08;this.nextAir=now+3;this.nextPhrase=now+2;this.nextArp=[now+.1,now+.55,now+3.7];this.arpStep=[0,0,0];this.harmony=0;this.nextHarmony=now+.1+43.2;this.started=now;}
- event(name,time,volume,degree,pan=0,glide=0){return{name,time,volume,rate:this.ratios[degree],pan,glide};}
- // Notes are scale-degree walks, with a remembered contour and cadential anchors.
- phrase(time){
-  if(this.sectionLeft--<=0){this.section=this.section==='invocation'?'couplet':this.section==='couplet'?this.pick(['elaboration','repose']):this.section==='elaboration'?'repose':this.pick(['couplet','elaboration']);this.sectionLeft=2+Math.floor(this.random()*4);}
-  const opening=this.section==='invocation',answer=this.answerNext,energy=({invocation:.15,couplet:.4,elaboration:.72,repose:.12}[this.section])+this.random()*.15;
-  const length=4+Math.floor(this.random()*(answer?4:6));let degree=answer?this.pick([0,2,3]):this.pick(this.mode.anchors);
-  const contour=[];for(let i=0;i<length;i++){
-   if(i===length-1)degree=answer?0:this.pick(this.mode.anchors);
-   else if(i&&this.random()<.24)degree=this.anchor[i%this.anchor.length];
-   else if(i)degree=Math.max(0,Math.min(energy>.6?9:7,degree+this.pick(answer?[-2,-1,-1,0,1]:[-1,0,1,1,2])));
-   contour.push(degree);
+ reset(now){this.nextDrone=now+.04;this.nextCloud=now+.08;this.nextAir=now+3;this.nextArp=[now+.1,now+.55];this.arpStep=[0,0];this.harmony=0;this.nextHarmony=now+.1+43.2;this.started=now;this.pattern=[2,4,6,8,9,8,6,4];this.nextMutation=this.pick([4,8]);this.nextCounter=now+1.45;this.counterStep=0;this.counterDegree=6;this.leadDegree=2;this.mutations=0;}
+ event(name,time,volume,degree,pan=0,glide=0){return{name,time,volume,degree,rate:this.ratios[degree],pan,glide};}
+ evolve(){
+  const before=this.pattern.slice(),slots=[1,2,3,4,5,6],changed=[];
+  const count=this.pick([1,2]);for(let i=0;i<count;i++){
+   const slot=this.pick(slots.filter(s=>!changed.includes(s))),old=this.pattern[slot];
+   const candidates=[old-2,old-1,old+1,old+2].filter(d=>d>=2&&d<=10);
+   this.pattern[slot]=this.pick(candidates);changed.push(slot);
   }
-  // Remember the question; responses reshape rather than replay it literally.
-  if(!answer)this.anchor=contour.slice();
-  const fingerprint=contour.join(',');if(this.recent.includes(fingerprint)&&contour.length>3)contour[1]=(contour[1]+1)%5;
-  this.recent.push(contour.join(','));if(this.recent.length>12)this.recent.shift();
-  const events=[];let t=time;const voice=answer?'string':'breath';
-  for(let i=0;i<contour.length;i++){
-   const interval=(answer?1.25:1.75)+this.random()*1.25,d=contour[i]+2,pan=answer?-.22:.18;
-   events.push(this.event(voice,t,(answer?.09:.13)*( .85+this.random()*.3),d,pan,(i&&this.random()<.45)?(this.random()-.5)*.055:0));
-   // A quiet, independent answering voice enters only in developed passages.
-   if(!opening&&!answer&&i>1&&i<contour.length-1&&this.random()<energy*.35)events.push(this.event('string',t+.35+this.random()*.5,.055,2+Math.max(0,contour[i]-2),-.32));
-   t+=interval*(i===contour.length-1?1.5:1);
-  }
-  this.phrases++;this.answerNext=!answer&&this.random()<.8;
-  this.nextPhrase=t+(this.section==='repose'?10+this.random()*10:this.answerNext?2+this.random()*3:5+this.random()*8);
-  return{events,contour,answer:!!answer,energy,end:t,section:this.section};
+  this.mutations++;return{before,after:this.pattern.slice(),changed};
+ }
+ counterpoint(time){
+  const lead=this.leadDegree,nextLead=this.pattern[this.arpStep[0]%this.pattern.length],direction=Math.sign(nextLead-lead),last=this.counterDegree;
+  const pitch=d=>12*Math.log2(this.ratios[d]),strong=this.counterStep%4===0;
+  let candidates=[2,3,4,5,6,7,8].filter(d=>{
+   const interval=((Math.round(pitch(d)+12-pitch(lead))%12)+12)%12,move=pitch(d)-pitch(last);
+   return d!==last&&Math.abs(move)<=7&&[0,3,4,7,8,9].includes(interval);
+  });
+  // Prefer contrary motion; short passing steps connect the sustained tones.
+  const contrary=candidates.filter(d=>Math.sign(d-last)===-direction);if(direction&&contrary.length)candidates=contrary;
+  let degree=candidates.length?this.pick(candidates):last;
+  if(!strong&&this.counterStep%3===2)degree=Math.max(2,Math.min(8,last+this.pick([-1,1])));
+  if(this.counterStep%16===15)degree=this.pick([2,6]);
+  this.counterDegree=degree;this.counterStep++;const duration=this.pick([1.8,1.8,2.7,.9]);this.nextCounter=time+duration;
+  return this.event('breath',time,.085,degree,.24,-.012);
  }
  eventsUntil(now,horizon=now+.22){const out=[];
   // Short scheduling horizon bounds live sources; long phrase plans stay as data.
   if(this.nextHarmony<horizon){this.harmony=(this.harmony+this.pick([1,1,3]))%this.mode.voicings.length;this.nextHarmony+=43.2;}
-  // A shared 900 ms pulse: repeating six-note broken chords, a half-speed
-  // answer and sparse flute. Harmony changes only after eight complete cycles.
-  // D, F, A, C / D, G, A / Bb, D, F: open minor colours, never a chord loop.
+  // 4/4 at a 900 ms quarter-note pulse. Change one or two inner notes
+  // every one or two bars, retaining the bass, cadence and rhythmic identity.
   const shapes=[[2,4,6,8],[2,5,6,9],[7,9,11,6],[2,4,8,9]];
-  for(let layer=0;layer<3;layer++)if(this.nextArp[layer]<horizon){
-   const shape=shapes[this.harmony],walk=[0,1,2,3,2,1],step=this.arpStep[layer]++;
-   let degree=shape[walk[(step+layer*2)%walk.length]];
-   if(layer===1)degree=[0,2,4,6][walk[step%walk.length]];
-   
-   out.push(this.event(layer===2?'breath':'arp',Math.max(now,this.nextArp[layer]),[.19,.075,.045][layer]*(step%6===0?1:.85),degree,[-.32,.3,.08][layer],layer===2?-.012:(step%3===1?.018:0)));
-   this.nextArp[layer]+=[.9,1.8,3.6][layer];
-   if(this.nextArp[layer]<now)this.nextArp[layer]=now+[.9,1.8,3.6][layer];
+  for(let layer=0;layer<2;layer++)if(this.nextArp[layer]<horizon){
+   const step=this.arpStep[layer]++;
+   if(layer===0&&step>=this.nextMutation){this.evolve();this.nextMutation=step+this.pick([4,8]);}
+   let degree=layer===0?this.pattern[step%8]:shapes[this.harmony][[0,2,1,3][step%4]];
+   this.leadDegree=layer===0?degree:this.leadDegree;
+   out.push(this.event('arp',Math.max(now,this.nextArp[layer]),[.19,.065][layer]*(step%4===0?1:.85),degree,[-.32,-.05][layer],step%3===1?.018:0));
+   this.nextArp[layer]+=[.9,1.8][layer];if(this.nextArp[layer]<now)this.nextArp[layer]=now+[.9,1.8][layer];
   }
+  if(this.nextCounter<horizon)out.push(this.counterpoint(Math.max(now,this.nextCounter)));
   if(this.nextDrone<horizon){out.push(this.event('string',Math.max(now,this.nextDrone),.095+this.random()*.035,0,-.12));this.nextDrone=Math.max(now,this.nextDrone)+7.2;}
   if(this.nextCloud<horizon){
    const voicing=this.mode.voicings[this.harmony];
-   for(let i=0;i<voicing.length;i++)out.push(this.event('cloud',Math.max(now,this.nextCloud)+i*.12,.1+this.random()*.025,voicing[i],(i-1)*.28));
+   for(let i=0;i<voicing.length;i++)out.push(this.event('cloud',Math.max(now,this.nextCloud)+i*.12,.07+this.random()*.015,voicing[i],(i-1)*.28));
    this.nextCloud=Math.max(now,this.nextCloud)+12+this.random()*5;
   }
   if(this.nextAir<horizon){out.push(this.event('air',Math.max(now,this.nextAir),.09,2,(this.random()-.5)*.65));this.nextAir=Math.max(now,this.nextAir)+5+this.random()*5;}
-  this.queue.sort((a,b)=>a.time-b.time);while(this.queue.length&&this.queue[0].time<horizon){const e=this.queue.shift();if(e.time>=now-.15)out.push(e);}
   return out.sort((a,b)=>a.time-b.time);
  }
 }
