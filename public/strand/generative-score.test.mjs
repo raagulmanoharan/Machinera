@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {GenerativeScore,SCORE_MODES} from './generative-score.js';
 function run(seed,seconds=180,mode){const score=new GenerativeScore(seed,mode),events=[],changes=[];let last=score.mutations;for(let now=0;now<seconds;now+=.1){events.push(...score.eventsUntil(now));if(score.mutations!==last){changes.push(score.arpStep[0]-1);last=score.mutations;}}return{score,events,changes};}
 const a=run(123),b=run(123),other=run(987);assert.deepEqual(a,b,'Seeded diagnosis is reproducible');assert.notDeepEqual(a.events,other.events,'Different sessions produce different music');
-const lead=a.events.filter(e=>e.name==='arp'&&e.pan===-.32),melody=a.events.filter(e=>e.name==='breath');
-for(let i=1;i<lead.length;i++)assert.ok(Math.abs(lead[i].time-lead[i-1].time-.9)<1e-8,'Steady lead pulse');
+const lead=a.events.filter(e=>e.part==='lead'),melody=a.events.filter(e=>e.part==='counter');
+for(let i=1;i<lead.length;i++)assert.ok(Math.abs((lead[i].time-lead[i-1].time)/.9-Math.round((lead[i].time-lead[i-1].time)/.9))<1e-8,'Steady lead pulse');
 let prior=0;for(const step of a.changes){assert.ok([4,8].includes(step-prior),'Mutation after one or two four-beat bars');prior=step;}
 assert.ok(a.changes.length>20);const patterns=new Set();const evolution=new GenerativeScore(42);for(let i=0;i<200;i++){const m=evolution.evolve();assert.ok([1,2].includes(m.changed.length));assert.equal(m.after[0],2);assert.equal(m.after[7],2);assert.equal(m.after.filter((d,k)=>d!==m.before[k]).length,m.changed.length);patterns.add(m.after.join(','));}assert.ok(patterns.size>80);
 assert.ok(melody.length>60);assert.ok(new Set(melody.map(e=>e.degree)).size>=5,'Independent melodic range');assert.ok(new Set(melody.slice(1).map((e,i)=>(e.time-melody[i].time).toFixed(1))).size>=3,'Melody has its own varied rhythm');assert.ok(melody.some(e=>Math.abs((e.time-.1)/.9-Math.round((e.time-.1)/.9))>.1),'Counterpoint is offset from the lead');
@@ -12,5 +12,7 @@ for(const id of Object.keys(SCORE_MODES)){const {score,events}=run(33,1800,id);f
 for(let seed=1;seed<50;seed++)assert.equal(new GenerativeScore(seed).mode.notes[2],3,'Default uses a minor third');
 console.log({leadNotes:lead.length,counterpointNotes:melody.length,mutations:a.changes.length,uniquePatterns:patterns.size,contrary,opportunities});
 
-for(const e of a.events.filter(e=>e.name==='arp'||e.name==='breath')){const tick=(e.time-.1)/.45;assert.ok(Math.abs(tick-Math.round(tick))<1e-8,'Both melodies quantize to the same eighth-note grid');assert.equal(e.glide,0);assert.ok(e.timbre.release>=2.7&&e.timbre.release<=5);assert.ok(e.timbre.cutoff>=1500&&e.timbre.cutoff<=3700);assert.ok(e.timbre.noiseMix>=.008&&e.timbre.noiseMix<=.044);}
+for(const e of a.events.filter(e=>e.part==='lead'||e.part==='counter')){const tick=(e.time-.1)/.45;assert.ok(Math.abs(tick-Math.round(tick))<1e-8,'Both melodies quantize to the same eighth-note grid');assert.equal(e.glide,0);assert.ok(e.timbre.release>=1.1&&e.timbre.release<=4.1);assert.ok(e.timbre.cutoff>=1900&&e.timbre.cutoff<=3600);assert.ok(e.timbre.noiseMix>=.012&&e.timbre.noiseMix<=.036);}
 assert.ok(new Set(lead.map(e=>e.timbre.cutoff.toFixed(0))).size>40,'Cutoff evolves smoothly across phrases');
+
+assert.ok(lead.some((e,i)=>i&&e.time-lead[i-1].time>2),'Lead has breathing pauses');assert.ok(lead.every(e=>e.name==='breath'&&e.degree>=4&&e.degree<=9),'Lead uses a moderate higher flute register');assert.ok(melody.every(e=>e.degree<=6),'Answer stays lower');assert.ok(lead.some(e=>melody.some(m=>m.time>e.time&&m.time<e.time+e.timbre.release)),'The two melodies genuinely overlap');

@@ -1,4 +1,4 @@
-import {GenerativeScore} from './generative-score.js?v=148';
+import {GenerativeScore} from './generative-score.js?v=150';
 // Native Web Audio only. Acoustic layers are baked once, never synthesized on RAF.
 // Original instrumental atmosphere inspired by drone, plucked strings and breath;
 // not a rendition of a traditional composition or a claim to reproduce a ghazal.
@@ -32,7 +32,7 @@ export function makeSoundBank(context){
  };
  const irRate=context.sampleRate||rate,ir=context.createBuffer(2,Math.ceil(irRate*3.8),irRate);
  for(let channel=0;channel<2;channel++){const a=ir.getChannelData(channel);let low=0;for(let i=0;i<a.length;i++){low+=.25*(noise()-low);const t=i/irRate;a[i]=i<irRate*.023?0:low*Math.exp(-t*1.8)*.38;}}bank.room=ir;
- bank.arp=bank.string;return bank;
+ return bank;
 }
 export class LoomAudio{
  constructor(){this.context=null;this.master=null;this.timer=null;this.nodes=new Set();const seed=globalThis.crypto?.getRandomValues?.(new Uint32Array(1))[0]??Math.floor(Math.random()*4294967296);this.score=new GenerativeScore(seed);this.disposed=false;this.suspendTimer=null;this.enabled=true;try{this.enabled=localStorage.getItem('machinera-sound')!=='off';}catch{}}
