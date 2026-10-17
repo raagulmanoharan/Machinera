@@ -75,7 +75,7 @@ export class PhotoRugBridge{
 // Screen-space geometry keeps every dot the same 11px diameter as the reticle.
 export function photoScanRows(width,height,random=Math.random){
  const count=Math.max(1,Math.floor(height/11)),gap=11,top=(height-(count-1)*gap)/2;
- return Array.from({length:count},(_,i)=>{const clusters=width>=280?2+Math.floor(random()*2):1,segment=width/clusters,dots=[];for(let c=0;c<clusters;c++){const total=3+Math.floor(random()*3),span=(total-1)*11.5,start=c*segment+5.5+random()*Math.max(0,segment-11-span);for(let k=0;k<total;k++)dots.push(start+k*11.5);}return{y:top+i*gap,reverse:i%2===1,dots};});
+ return Array.from({length:count},(_,i)=>{const clusters=width>=280?2+Math.floor(random()*2):1,segment=width/clusters,dots=[];for(let c=0;c<clusters;c++){const total=3+Math.floor(random()*3),span=(total-1)*11,start=c*segment+5.5+random()*Math.max(0,segment-11-span);for(let k=0;k<total;k++)dots.push(start+k*11);}return{y:top+i*gap,reverse:i%2===1,dots};});
 }
 // Reuse the bounded spatial grid already collected during the full pixel scan.
 // Major contiguous colour runs position clusters; no extra image readbacks.
@@ -85,7 +85,7 @@ export function colourScanRows(width,height,map,palette,random=Math.random){
  for(const row of rows){const my=Math.min(map.height-1,Math.floor(((1-cropH)/2+row.y/height*cropH)*map.height)),runs=[];let start=0,last=-1;
   for(let x=0;x<=map.width;x++){const sx=Math.min(map.width-1,Math.floor(((1-cropW)/2+x/map.width*cropW)*map.width)),label=x===map.width?-1:map.labels[my*map.width+sx];if(label!==last){if(last>=0)runs.push({start,end:x,label:last});start=x;last=label;}}
   const major=runs.filter(r=>(r.end-r.start)/map.width*width>=34).sort((a,b)=>(b.end-b.start)-(a.end-a.start)).slice(0,3).sort((a,b)=>a.start-b.start);if(!major.length)continue;
-  row.dots=[];row.colours=[];for(const run of major){const left=run.start/map.width*width,right=run.end/map.width*width,total=Math.max(3,Math.min(5,Math.floor((right-left-11)/11.5)+1)),span=(total-1)*11.5,first=left+5.5+random()*Math.max(0,right-left-11-span);for(let k=0;k<total;k++){row.dots.push(first+k*11.5);row.colours.push(palette[run.label].rgb);}}
+  row.dots=[];row.colours=[];for(const run of major){const left=run.start/map.width*width,right=run.end/map.width*width,total=Math.max(3,Math.min(5,Math.floor((right-left-11)/11)+1)),span=(total-1)*11,first=left+5.5+random()*Math.max(0,right-left-11-span);for(let k=0;k<total;k++){row.dots.push(first+k*11);row.colours.push(palette[run.label].rgb);}}
  }
  return rows;
 }
@@ -94,7 +94,7 @@ function createPhotoScan(holder,lens,prepared,onScanStart){
  svg.classList.add('photo-scan');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('aria-hidden','true');holder.append(svg);const maskId=addDotGrain(svg,ns);
  const finished=Promise.resolve(prepared).then(data=>{if(cancelled)return;stopSound=onScanStart()??(()=>{});const rows=colourScanRows(width,height,data?.scanMap,data?.palette),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:19200/(rows.length+1);
   for(const [i,row] of rows.entries()){
-   const group=document.createElementNS(ns,'g'),line=document.createElementNS(ns,'path');line.setAttribute('d',`M0 ${row.y}H${width}`);line.setAttribute('fill','none');line.setAttribute('stroke','white');line.setAttribute('stroke-width','.35');group.append(line);
+   const group=document.createElementNS(ns,'g'),line=document.createElementNS(ns,'path');line.setAttribute('d',`M0 ${row.y}H${width}`);line.setAttribute('fill','none');line.setAttribute('stroke','white');line.setAttribute('stroke-width','.75');line.setAttribute('stroke-opacity','.24');group.append(line);
    for(const [k,x] of row.dots.entries()){const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',row.y);dot.setAttribute('r','5.5');dot.setAttribute('mask',`url(#${maskId})`);dot.setAttribute('fill',row.colours?.[k]?`rgb(${row.colours[k].join(',')})`:'white');group.append(dot);}
    svg.append(group);const hidden=row.reverse?'inset(0 0 0 100%)':'inset(0 100% 0 0)';animations.push(group.animate([{clipPath:hidden},{clipPath:'inset(0 0 0 0)'}],{duration,delay:i*duration/2,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'}));
   }
