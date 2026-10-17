@@ -92,7 +92,7 @@ export function colourScanRows(width,height,map,palette,random=Math.random){
 }
 function createPhotoScan(holder,lens,prepared,onScanStart){
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,animations=[];let cancelled=false,stopSound=()=>{};
- const status=document.createElement('p');status.className='scan-status';status.setAttribute('role','status');status.textContent='Extracting colours…';holder.append(status);
+ const status=document.createElement('p');status.className='scan-status';status.setAttribute('role','status');status.textContent='Extracting colours…';lens.closest('#capture').append(status);
  svg.classList.add('photo-scan');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('aria-hidden','true');holder.append(svg);const maskId=addDotGrain(svg,ns);
  const finished=Promise.resolve(prepared).then(data=>{if(cancelled)return;stopSound=onScanStart()??(()=>{});const rows=colourScanRows(width,height,data?.scanMap,data?.palette),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:(19200/1.3)/(rows.length+1);
   for(const [i,row] of rows.entries()){
@@ -103,7 +103,7 @@ function createPhotoScan(holder,lens,prepared,onScanStart){
   for(const [fraction,label] of [[.3,'Making yarns…'],[.65,'Designing the weave…']])animations[Math.floor((animations.length-1)*fraction)].finished.then(()=>{if(!cancelled)status.textContent=label;}).catch(()=>{});
   return Promise.all(animations.map(a=>a.finished.catch(()=>{}))).finally(()=>{stopSound();if(!cancelled)status.textContent='Preparing the loom…';});
  });
- return{finished,hideStatus(){status.hidden=true;},cancel(){cancelled=true;stopSound();for(const animation of animations)animation.cancel();}};
+ return{finished,hideStatus(){status.hidden=true;},cancel(){cancelled=true;status.remove();stopSound();for(const animation of animations)animation.cancel();}};
 }
 
 let scanGrain=null;
