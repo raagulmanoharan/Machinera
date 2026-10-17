@@ -41,8 +41,3 @@
 #soundToggle,#aboutButton{top:calc(env(safe-area-inset-top) + 32px);width:44px;height:44px;display:grid;place-items:center;border:0;background:#0005;color:var(--ink);padding:12px;cursor:pointer}#soundToggle{position:fixed;z-index:40;left:calc(env(safe-area-inset-left) + 28px)}#aboutButton{right:calc(env(safe-area-inset-right) + 28px)}#soundToggle svg,#aboutButton svg{width:20px;height:20px;stroke-width:1}#soundToggle[data-enabled="true"] .sound-off{display:none}#soundToggle:focus-visible,#aboutButton:focus-visible{outline:1px solid #fff8;outline-offset:-3px}
 
 #privacyNote{opacity:.72}#storageNotice{position:fixed;z-index:50;bottom:calc(env(safe-area-inset-bottom) + 20px);left:24px;right:24px;margin:0;padding:12px 16px;background:var(--paper);color:var(--ink);font-size:11px;line-height:1.5;text-align:center;pointer-events:none}
-
-@property --strip-scale{syntax:'<number>';inherits:true;initial-value:1}
-#capture.capture-panning{background:transparent}
-#capture.capture-panning .camera-shell,#capture.capture-panning .lens{overflow:visible;background:transparent}
-#capture.capture-panning .camera-panel:before{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background-color:var(--paper);background-image:var(--camera-paper,none);background-size:100vw 100vh;background-position:center bottom;transform:scaleY(var(--strip-scale,1));transform-origin:center bottom;will-change:transform}
