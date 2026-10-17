@@ -1,4 +1,4 @@
-import {GenerativeScore} from './generative-score.js?v=134';
+import {GenerativeScore} from './generative-score.js?v=137';
 // Native Web Audio only. Acoustic layers are baked once, never synthesized on RAF.
 // Original instrumental atmosphere inspired by drone, plucked strings and breath;
 // not a rendition of a traditional composition or a claim to reproduce a ghazal.
@@ -14,12 +14,12 @@ export function makeSoundBank(context){
   cloud:bake(10,(t,n,l)=>{const e=Math.sin(Math.PI*t/10)**2,p=TAU*146.832*t;return e*(.14*Math.sin(p+.3*Math.sin(TAU*.071*t))+.09*Math.sin(p*1.0021)+.09*Math.sin(p*.9983)+.03*Math.sin(p*2.001)+.09*l);}),
   air:bake(8,(t,n,l)=>Math.sin(Math.PI*t/8)**2*(.18*l+.008*n)*(.7+.3*Math.sin(TAU*.19*t))),
   // Damped partials with unequal decay approximate a sympathetic plucked string.
-  string:bake(5,(t)=>{let v=0;for(let h=1;h<=9;h++)v+=Math.sin(TAU*146.832*h*(1+.00008*h*h)*t+.3*h)*Math.exp(-t*(.65+h*.19))/(h**1.45);return .45*v*(1-Math.exp(-t*160))*(1-Math.exp(-(5-t)*15));}),
+  string:bake(8,(t,n,l)=>{let v=0;for(let h=1;h<=7;h++)v+=Math.sin(TAU*146.832*h*(1+.000035*h*h)*t+.12*h)*Math.exp(-t*(.32+h*.095))/(h**1.8);return .55*v*(1-Math.exp(-t*24))*(1-Math.exp(-(8-t)*8))+.009*l*Math.exp(-t*1.4);}),
   breath:bake(5,(t,n,l)=>{const e=Math.sin(Math.PI*t/5)**2,phase=TAU*146.832*t+.027*Math.sin(TAU*4.6*t);return e*(.28*Math.sin(phase)+.055*Math.sin(2*phase)+.025*Math.sin(3*phase)+.028*l);})
  };
  const irRate=context.sampleRate||rate,ir=context.createBuffer(2,Math.ceil(irRate*3.8),irRate);
  for(let channel=0;channel<2;channel++){const a=ir.getChannelData(channel);let low=0;for(let i=0;i<a.length;i++){low+=.25*(noise()-low);const t=i/irRate;a[i]=i<irRate*.023?0:low*Math.exp(-t*1.8)*.38;}}bank.room=ir;
- return bank;
+ bank.arp=bank.string;return bank;
 }
 export class LoomAudio{
  constructor(){this.context=null;this.master=null;this.timer=null;this.nodes=new Set();const seed=globalThis.crypto?.getRandomValues?.(new Uint32Array(1))[0]??Math.floor(Math.random()*4294967296);this.score=new GenerativeScore(seed);this.disposed=false;this.suspendTimer=null;this.enabled=true;try{this.enabled=localStorage.getItem('machinera-sound')!=='off';}catch{}}

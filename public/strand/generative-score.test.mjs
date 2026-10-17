@@ -12,7 +12,7 @@ for(let i=0;i<200;i++){
 assert.ok(signatures.size>160,'Generate varied contours instead of a short motif playlist');assert.notDeepEqual([...signatures].slice(0,20),otherSignatures.slice(0,20));assert.ok(answers>30&&answers<150);assert.equal(sections.size,4);assert.ok(multiVoice>0,'Developed passages include an independent reply');
 const score=new GenerativeScore(42);let maxQueue=0,total=0;const voices=new Set();
 for(let now=0;now<1800;now+=.1){const events=score.eventsUntil(now);maxQueue=Math.max(maxQueue,score.queue.length);total+=events.length;for(const e of events){assert.ok(e.time>=now-.15&&e.time<now+.5);assert.ok(Number.isFinite(e.rate));voices.add(e.name);}}
-assert.ok(maxQueue<32,'Long-running music has a bounded event queue');assert.ok(total>100);assert.deepEqual([...voices].sort(),['air','breath','cloud','string']);score.reset(10000);assert.equal(score.queue.length,0);assert.ok(score.eventsUntil(10000).every(e=>e.time>=10000),'Resume never replays missed notes');
+assert.ok(maxQueue<32,'Long-running music has a bounded event queue');assert.ok(total>100);assert.deepEqual([...voices].sort(),['air','arp','breath','cloud','string']);score.reset(10000);assert.equal(score.queue.length,0);assert.ok(score.eventsUntil(10000).every(e=>e.time>=10000),'Resume never replays missed notes');
 console.log(JSON.stringify({uniqueContours:signatures.size,phrases:200,sections:[...sections],answers,multiVoice,maxQueue}));
 
 for(const id of Object.keys(SCORE_MODES)){
@@ -20,3 +20,5 @@ for(const id of Object.keys(SCORE_MODES)){
  assert.equal(composer.ratios[2],1);assert.equal(composer.ratios[9],2);assert.ok(Math.abs(composer.ratios[1]*2-composer.ratios[6])<1e-12,'Drone fifth matches the ensemble tuning');
 }
 assert.equal(SCORE_MODES.yaman.notes[3],6);assert.equal(SCORE_MODES.bhairavi.notes[1],1);assert.equal(SCORE_MODES.kafi.notes[1],2);
+
+for(let seed=1;seed<50;seed++){const score=new GenerativeScore(seed);assert.equal(score.mode.notes[2],3,"Default atmosphere retains a minor third");}
