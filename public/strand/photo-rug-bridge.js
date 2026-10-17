@@ -90,7 +90,7 @@ export function colourScanRows(width,height,map,palette,random=Math.random){
  return rows;
 }
 function createPhotoScan(holder,lens,prepared,onScanStart){
- const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,animations=[];let cancelled=false,stopSound=()=>{};
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,animations=[];let cancelled=false,stopSound=()=>{},soundFrame=null;
  svg.classList.add('photo-scan');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('aria-hidden','true');holder.append(svg);const maskId=addDotGrain(svg,ns);
  const finished=Promise.resolve(prepared).then(data=>{if(cancelled)return;stopSound=onScanStart()??(()=>{});const rows=colourScanRows(width,height,data?.scanMap,data?.palette),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:19200/(rows.length+1);
   for(const [i,row] of rows.entries()){
@@ -98,9 +98,10 @@ function createPhotoScan(holder,lens,prepared,onScanStart){
    for(const [k,x] of row.dots.entries()){const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',row.y);dot.setAttribute('r','5.5');dot.setAttribute('mask',`url(#${maskId})`);dot.setAttribute('fill',row.colours?.[k]?`rgb(${row.colours[k].join(',')})`:'white');group.append(dot);}
    svg.append(group);const hidden=row.reverse?'inset(0 0 0 100%)':'inset(0 100% 0 0)';animations.push(group.animate([{clipPath:hidden},{clipPath:'inset(0 0 0 0)'}],{duration,delay:i*duration/2,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'}));
   }
-  return Promise.all(animations.map(a=>a.finished.catch(()=>{}))).finally(()=>stopSound());
+  const motion=new Map();let lastSoundTime=performance.now();const soundTick=()=>{if(cancelled)return;const now=performance.now(),elapsed=Math.max(1,now-lastSoundTime);lastSoundTime=now;const time=animations[0]?.currentTime??0,index=Math.floor(time/(duration/2));let level=0,pan=0;for(const i of [index-1,index]){const animation=animations[i];if(!animation)continue;const p=animation.effect.getComputedTiming().progress??0,previous=motion.get(i)??p,speed=Math.min(1,Math.abs(p-previous)/elapsed*duration*.4);motion.set(i,p);if(speed>level){level=speed;pan=(i%2?-1:1)*(p*2-1)*.35;}}stopSound.update?.({level,pan});soundFrame=requestAnimationFrame(soundTick);};if(duration) soundFrame=requestAnimationFrame(soundTick);
+  return Promise.all(animations.map(a=>a.finished.catch(()=>{}))).finally(()=>{if(soundFrame!==null)cancelAnimationFrame(soundFrame);stopSound();});
  });
- return{finished,cancel(){cancelled=true;stopSound();for(const animation of animations)animation.cancel();}};
+ return{finished,cancel(){cancelled=true;if(soundFrame!==null)cancelAnimationFrame(soundFrame);stopSound();for(const animation of animations)animation.cancel();}};
 }
 
 let scanGrain=null;

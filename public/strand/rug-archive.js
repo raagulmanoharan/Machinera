@@ -1,5 +1,5 @@
 import {draftCrossing} from './photo-draft.js?v=156';
-import {createWeavePattern} from './weaving-patterns.js?v=156';
+import {createWeavePattern} from './weaving-patterns.js?v=171';
 import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=156';
 import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=156';
 import {WARP_ENDS} from './yarn-structure.js?v=156';
@@ -11,7 +11,7 @@ export class RugArchive{
   const palette=Array.isArray(input)?paletteFromColours(input):input.palette,previous=this.entries.at(-1),end=this.length+length,firstPick=Math.ceil(this.length/THREAD_PITCH),lastPick=Math.floor(end/THREAD_PITCH),pickCount=Math.max(1,lastPick-firstPick+1),recipe=weave===null?null:WEAVE_LIBRARY[weave];
   // Count real warp ends and physical weft picks. Dominant dye lots own the most
   // yarns; complete yarns (not interpolated pixels) form coherent colour blocks.
-  const plan=createWeavePattern({draftId:recipe?.id,seed:input.designSeed,palette,analysis:input.analysis,warpEnds:WARP_ENDS,weftPicks:pickCount,firstPick,symmetry:input.symmetry??'auto',composition:weave===null}),{design,warp,weft}=plan;
+  const plan=createWeavePattern({draftId:recipe?.id,seed:input.designSeed,palette,analysis:input.analysis,warpEnds:WARP_ENDS,weftPicks:pickCount,firstPick,symmetry:input.symmetry??'auto',composition:weave===null,recentFamilies:this.entries.slice(-2).map(e=>e.plan.motif?.family).filter(Boolean)}),{design,warp,weft}=plan;
   weave=plan.draftIndex;
   const entry={plan,design,palette:palette.map(c=>({...c,rgb:c.rgb.slice()})),length,end,weave,metadata,previous,firstPick,warp:warp.sequence,weft:weft.sequence,warpCounts:warp.counts,weftCounts:weft.counts};
   // Tie new warp ends in staggered groups, hiding each splice under tabby
