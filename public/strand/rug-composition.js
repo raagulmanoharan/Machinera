@@ -2,9 +2,11 @@ import {photoDesignMetrics} from './photo-weave-design.js?v=156';
 import {orderColours} from './yarn-contrast.js?v=156';
 // A small yarn-cell map, not a photo texture. Each row becomes contiguous local
 // weft runs. Symmetry groups are assigned whole source dyes by weighted rank.
-export function composeRug(palette,width,height,analysis=null){
- const m=photoDesignMetrics(palette,analysis),family=m.dominant>.62?'medallion':m.complexity>.55?'diamond-lattice':m.contrast>.23?'stepped-diamonds':'nested-lozenges';
- const columns=family==='medallion'?1:m.complexity>.7?3:2,rows=family==='medallion'?1:Math.max(2,Math.round(height/width*columns*.8)),border=2+(m.contrast>.3?1:0),groups=[];
+export function composeRug(palette,width,height,analysis=null,{avoidFamilies=[]}={}){
+ const m=photoDesignMetrics(palette,analysis);let hash=2166136261;for(const char of JSON.stringify([palette.map(c=>[c.rgb,Math.round(c.share*1e6)]),m.brightness,m.contrast,m.complexity]))hash=Math.imul(hash^char.charCodeAt(0),16777619)>>>0;
+ const preferred=m.dominant>.62?'medallion':m.complexity>.55?'diamond-lattice':m.contrast>.23?'stepped-diamonds':'nested-lozenges',families=['medallion','diamond-lattice','stepped-diamonds','nested-lozenges','chevron-bands','window-checks','cross-lattice'];
+ const candidates=families.filter(f=>!avoidFamilies.includes(f));const family=(candidates.length?candidates:families).sort((a,b)=>{const score=f=>{const i=families.indexOf(f);let v=Math.imul(hash^Math.imul(i+1,0x9e3779b9),0x85ebca6b)>>>0;v=Math.imul(v^(v>>>16),0xc2b2ae35)>>>0;const phase=v/4294967296;return phase+(f===preferred?-.2:0);};return score(a)-score(b);})[0];
+ const columns=family==='medallion'?1:1+((hash>>>8)%3),rows=family==='medallion'?1:Math.max(2,Math.round(height/width*columns*(.65+((hash>>>16)%3)*.15))),border=2+(m.contrast>.3?1:0),groups=[];
  const innerW=Math.max(2,width-2*border),innerH=Math.max(2,height-2*border),halfX=Math.ceil(width/2),halfY=Math.ceil(height/2);
  for(let y=0;y<halfY;y++)for(let x=0;x<halfX;x++){
   const edge=Math.min(x,width-1-x,y,height-1-y),u=(x-border+.5)/innerW,v=(y-border+.5)/innerH;
@@ -13,6 +15,9 @@ export function composeRug(palette,width,height,analysis=null){
   if(family==='medallion'){const cx=Math.abs((x+.5-width/2)/(innerW/2)),cy=Math.abs((y+.5-height/2)/(innerH/2));field=2-((cx+cy)*(1-m.brightness*.35)+Math.max(cx,cy)*m.brightness*.7);}
   else if(family==='diamond-lattice')field=a+b+.20*Math.min(a,b);
   else if(family==='stepped-diamonds')field=Math.floor((a+b)*6)/6+.08*(a+b);
+  else if(family==='chevron-bands')field=Math.abs(b-a*.7);
+  else if(family==='window-checks')field=Math.max(a,b)+.12*Math.min(a,b);
+  else if(family==='cross-lattice')field=Math.min(a,b)+.12*Math.max(a,b);
   else field=Math.max(a,b)*.65+(a+b)*.35;
   // The enclosing bands share a rank across their entire length. No noise,
   // independently coloured pixels or broken islands enter the composition.
