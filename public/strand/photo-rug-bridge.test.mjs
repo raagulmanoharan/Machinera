@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {bridgePose,createPrintProgressReader,photoScanRows} from './photo-rug-bridge.js';
+import {bridgePose,createPrintProgressReader,photoScanRows,colourScanRows} from './photo-rug-bridge.js';
 test('photo and camera share one pace with no gap between floors',()=>{
  let previous=-1;
  for(let i=0;i<=200;i++){
@@ -29,4 +29,6 @@ test('pan matches actual material displacement, stalls with feed and arrives dur
 
 test('scan traverses the full image in alternating directions',()=>{const rows=photoScanRows(390,660,()=>.5);assert.equal(rows.length,60);assert.ok(rows[0].y===5.5);assert.ok(rows.at(-1).y===654.5);for(const [i,row]of rows.entries()){assert.equal(row.reverse,i%2===1);assert.ok(row.dots.every(x=>x>=5.5&&x<=384.5));assert.ok(row.dots.length>=6);}});
 
-test('scan spacing equals dot diameter and dots form adjacent clusters',()=>{const rows=photoScanRows(390,660,()=>.5);for(let i=1;i<rows.length;i++)assert.equal(rows[i].y-rows[i-1].y,11);for(const row of rows){for(let i=0;i<row.dots.length;i+=4){assert.equal(row.dots[i+1]-row.dots[i],13);assert.equal(row.dots[i+2]-row.dots[i+1],13);assert.equal(row.dots[i+3]-row.dots[i+2],13);}}});
+test('scan spacing equals dot diameter and dots form adjacent clusters',()=>{const rows=photoScanRows(390,660,()=>.5);for(let i=1;i<rows.length;i++)assert.equal(rows[i].y-rows[i-1].y,11);for(const row of rows){for(let i=0;i<row.dots.length;i+=4){assert.equal(row.dots[i+1]-row.dots[i],11.5);assert.equal(row.dots[i+2]-row.dots[i+1],11.5);assert.equal(row.dots[i+3]-row.dots[i+2],11.5);}}});
+
+test('coloured clusters follow the major image regions',()=>{const palette=[{rgb:[230,40,20]},{rgb:[20,50,220]}],labels=Uint8Array.from({length:96*96},(_,i)=>i%96<48?0:1),rows=colourScanRows(390,390,{width:96,height:96,aspect:1,labels},palette,()=>.5);for(const row of rows){for(let i=0;i<row.dots.length;i++)assert.deepEqual(row.colours[i],palette[row.dots[i]<195?0:1].rgb);}});

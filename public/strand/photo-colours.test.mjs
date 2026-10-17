@@ -24,3 +24,5 @@ test('complexity distinguishes a busy repeat from simple bands with the same pal
 test('tiled and whole scans yield identical light and complexity analysis',async()=>{
  const {result}=await import('./photo-colours.js');const w=96,h=48,bytes=Uint8ClampedArray.from({length:w*h*4},(_,i)=>i%4===3?255:(i*17)%256),a=createColourDistribution(w,h),b=createColourDistribution(w,h);accumulateColours(a,bytes,{x:0,y:0,width:w});for(let y=0;y<h;y++)accumulateColours(b,bytes.subarray(y*w*4,(y+1)*w*4),{x:0,y,width:w});assert.deepEqual(result(a,w,h).analysis,result(b,w,h).analysis);
 });
+
+test('scan labels reuse spatial analysis and identify dominant regions',async()=>{const {result}=await import('./photo-colours.js');const d=createColourDistribution(96,96);for(let y=0;y<96;y++){const row=new Uint8ClampedArray(384);for(let x=0;x<96;x++)row.set(x<48?[230,40,20,255]:[20,50,220,255],x*4);accumulateColours(d,row,{x:0,y,width:96});}const r=result(d,96,96);assert.equal(r.scanMap.width,96);assert.equal(r.scanMap.height,96);assert.ok(r.scanMap.labels.byteLength<=15360);for(const x of [12,80])assert.deepEqual(r.palette[r.scanMap.labels[x]].rgb,x<48?[230,40,20]:[20,50,220]);});
