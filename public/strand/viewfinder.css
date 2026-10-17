@@ -31,9 +31,9 @@
 #capture.capture-frozen #aboutButton{visibility:hidden;pointer-events:none}
 #aboutDialog{position:fixed;inset:0;width:min(300px,calc(100vw - 64px));height:fit-content;max-width:none;max-height:calc(100dvh - 96px);margin:auto;border:0;border-radius:0;padding:0;overflow:auto;background:var(--paper);background-image:var(--camera-paper,none);background-size:cover;color:var(--ink);font:inherit}
 #aboutDialog::backdrop{background:#0009}
-#aboutDialog #aboutClose{top:4px;right:4px;width:36px;height:36px;padding:10px;background:none;border:0;box-shadow:none;border-radius:0;outline:none}#aboutDialog #aboutClose svg{width:16px;height:16px}#aboutDialog #aboutClose:focus-visible{outline:1px solid #fff8;outline-offset:-5px}
-#aboutDialog article{padding:32px 20px 24px;overflow-y:auto;overscroll-behavior:contain;text-align:center;text-transform:none}
-#aboutDialog h1{outline:none;font-size:var(--app-font-size);font-weight:400;letter-spacing:inherit;margin:0 0 14px}
+#aboutDialog #aboutClose{top:22px;right:12px;width:36px;height:36px;padding:10px;background:none;border:0;box-shadow:none;border-radius:0;outline:none}#aboutDialog #aboutClose svg{width:16px;height:16px}#aboutDialog #aboutClose:focus-visible{outline:1px solid #fff8;outline-offset:-5px}
+#aboutDialog article{padding:32px 20px 24px;overflow-y:auto;overscroll-behavior:contain;text-align:left;text-transform:none}
+#aboutDialog h1{padding-right:36px;outline:none;font-size:var(--app-font-size);font-weight:400;letter-spacing:inherit;margin:0 0 14px}
 #aboutDialog article>p{text-align:justify;text-justify:inter-word;font-size:var(--app-font-size);line-height:1.25;letter-spacing:inherit;margin:0 0 8px}
 
 #aboutDialog article>p:last-child{margin-bottom:0}
