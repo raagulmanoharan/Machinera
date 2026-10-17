@@ -6,7 +6,7 @@ globalThis.StrandWeaving=StrandWeaving;
 import {CarpetScroll} from './carpet-scroll.js?v=134';
 import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=134';
 import {FloorReturn} from './floor-return.js?v=134';
-import {LoomAudio} from './loom-audio.js?v=134';
+import {LoomAudio} from './loom-audio.js?v=137';
 import {PhotoRugBridge,createPrintProgressReader} from './photo-rug-bridge.js?v=136';
 import {preparePhotoPalette} from './photo-colours.js?v=134';
 import {TLRViewfinder} from './tlr-viewfinder.js?v=134';
@@ -34,11 +34,11 @@ const savedMemories=memories.load().catch(error=>{storageFailure(error);return[]
 const printQueue=[];const bridge=new PhotoRugBridge(stage);const audio=new LoomAudio();let processingPhoto=false,flowVersion=0;
 const soundButton=document.querySelector('#soundToggle');
 function updateSound(){soundButton.setAttribute('aria-pressed',String(audio.enabled));soundButton.setAttribute('aria-label',audio.enabled?'Mute sound':'Enable sound');soundButton.dataset.enabled=String(audio.enabled);}
-// Precompute the acoustic bank while idle, not inside the first shutter gesture.
-const warmAudio=()=>{if(!processingPhoto)audio.prepare();};
-if('requestIdleCallback' in window)requestIdleCallback(warmAudio,{timeout:2500});else setTimeout(warmAudio,1200);
+// Attempt launch playback; gesture listeners retry when browser autoplay is blocked.
+const warmAudio=()=>{if(!processingPhoto)audio.unlock();};
+setTimeout(warmAudio,0);
 soundButton.onclick=()=>{audio.setEnabled(!audio.enabled);updateSound();};updateSound();
-// Any deliberate touch unlocks Safari audio; no autoplay before interaction.
+// Safari may require a deliberate touch before allowing the launch score.
 document.addEventListener('pointerdown',event=>{if(!event.target.closest('#soundToggle'))audio.unlock();},{passive:true});
 document.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')audio.unlock();});
 let scroller,scrollVersion=-1;
