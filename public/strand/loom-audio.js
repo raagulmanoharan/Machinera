@@ -1,4 +1,4 @@
-import {GenerativeScore} from './generative-score.js?v=152';
+import {GenerativeScore} from './generative-score.js?v=154';
 // Native Web Audio only. Acoustic layers are baked once, never synthesized on RAF.
 // Original instrumental atmosphere inspired by drone, plucked strings and breath;
 // not a rendition of a traditional composition or a claim to reproduce a ghazal.
@@ -33,12 +33,12 @@ export function makeSoundBank(context){
   })
  };
  const irRate=context.sampleRate||rate,ir=context.createBuffer(2,Math.ceil(irRate*3.8),irRate);
- for(let channel=0;channel<2;channel++){const a=ir.getChannelData(channel);let low=0;for(let i=0;i<a.length;i++){low+=.25*(noise()-low);const t=i/irRate;a[i]=i<irRate*.023?0:low*Math.exp(-t*1.8)*.38;}}bank.room=ir;
+ for(let channel=0;channel<2;channel++){const a=ir.getChannelData(channel);let low=0;for(let i=0;i<a.length;i++){low+=.25*(noise()-low);const t=i/irRate;a[i]=i<irRate*.023?0:low*Math.exp(-t*1.25)*.38;}}bank.room=ir;
  return bank;
 }
 export class LoomAudio{
  constructor(){this.context=null;this.master=null;this.timer=null;this.nodes=new Set();const seed=globalThis.crypto?.getRandomValues?.(new Uint32Array(1))[0]??Math.floor(Math.random()*4294967296);this.score=new GenerativeScore(seed);this.disposed=false;this.suspendTimer=null;this.enabled=true;try{this.enabled=localStorage.getItem('machinera-sound')!=='off';}catch{}}
- prepare(){if(this.disposed||!this.enabled||document.hidden||this.context)return;try{if(!this.context){const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;const c=this.context=new Audio({latencyHint:'playback'});this.bank=makeSoundBank(c);this.master=c.createGain();this.master.gain.value=0;const high=c.createBiquadFilter();high.type='highpass';high.frequency.value=38;const limiter=c.createDynamicsCompressor();limiter.threshold.value=-16;limiter.knee.value=15;limiter.ratio.value=3;limiter.attack.value=.012;limiter.release.value=.28;this.master.connect(high);high.connect(limiter);limiter.connect(c.destination);this.music=c.createGain();this.music.gain.value=.46;this.effects=c.createGain();this.effects.gain.value=.8;const dry=c.createGain();dry.gain.value=.68;this.music.connect(dry);dry.connect(this.master);this.effects.connect(this.master);const room=c.createConvolver();room.buffer=this.bank.room;const wet=c.createGain();wet.gain.value=.35;const damp=c.createBiquadFilter();damp.type='lowpass';damp.frequency.value=2800;room.connect(damp);damp.connect(wet);wet.connect(this.master);this.music.connect(room);const send=c.createGain();send.gain.value=.12;this.effects.connect(send);send.connect(room);const delay=c.createDelay(2),feedback=c.createGain(),echo=c.createGain(),dark=c.createBiquadFilter();delay.delayTime.value=.73;feedback.gain.value=.28;echo.gain.value=.22;dark.type='lowpass';dark.frequency.value=1900;this.music.connect(delay);delay.connect(dark);dark.connect(feedback);feedback.connect(delay);dark.connect(echo);echo.connect(this.master);echo.connect(room);}
+ prepare(){if(this.disposed||!this.enabled||document.hidden||this.context)return;try{if(!this.context){const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;const c=this.context=new Audio({latencyHint:'playback'});this.bank=makeSoundBank(c);this.master=c.createGain();this.master.gain.value=0;const high=c.createBiquadFilter();high.type='highpass';high.frequency.value=38;const limiter=c.createDynamicsCompressor();limiter.threshold.value=-16;limiter.knee.value=15;limiter.ratio.value=3;limiter.attack.value=.012;limiter.release.value=.28;this.master.connect(high);high.connect(limiter);limiter.connect(c.destination);this.music=c.createGain();this.music.gain.value=.46;this.effects=c.createGain();this.effects.gain.value=.8;const dry=c.createGain();dry.gain.value=.62;this.music.connect(dry);dry.connect(this.master);this.effects.connect(this.master);const room=c.createConvolver();room.buffer=this.bank.room;const wet=c.createGain();wet.gain.value=.43;const damp=c.createBiquadFilter();damp.type='lowpass';damp.frequency.value=2800;room.connect(damp);damp.connect(wet);wet.connect(this.master);this.music.connect(room);const send=c.createGain();send.gain.value=.12;this.effects.connect(send);send.connect(room);const delay=c.createDelay(2),feedback=c.createGain(),echo=c.createGain(),dark=c.createBiquadFilter();delay.delayTime.value=.73;feedback.gain.value=.34;echo.gain.value=.28;dark.type='lowpass';dark.frequency.value=1900;this.music.connect(delay);delay.connect(dark);dark.connect(feedback);feedback.connect(delay);dark.connect(echo);echo.connect(this.master);echo.connect(room);}
 }catch{this.context?.close().catch(()=>{});this.context=null;}}
  unlock(){if(this.disposed||!this.enabled||document.hidden)return;this.prepare();if(!this.context)return;try{
  const c=this.context;if(this.suspendTimer!==null){clearTimeout(this.suspendTimer);this.suspendTimer=null;for(const v of this.nodes){try{v.source.stop();}catch{}v.source.onended?.();}}return c.resume().then(()=>{if(this.disposed||!this.enabled||document.hidden)return;this.master.gain.cancelScheduledValues(c.currentTime);this.master.gain.setTargetAtTime(.38,c.currentTime,.55);if(this.timer===null){this.score.reset(c.currentTime);this.schedule();}}).catch(()=>{});
@@ -50,9 +50,18 @@ export class LoomAudio{
  let filter=null,noise=null,noiseGain=null,end=null;gain.gain.value=volume;
  if(timbre){
   const duration=Math.min(source.buffer.duration/rate,timbre.release),attack=timbre.part==='counter'?.3:.12;
-  gain.gain.setValueAtTime(.0001,at);gain.gain.exponentialRampToValueAtTime(volume,at+Math.min(attack,duration*.2));gain.gain.setValueAtTime(volume,at+duration*.52);gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
+  gain.gain.setValueAtTime(.0001,at);
+  const phase=timbre.phase??0,pressure=timbre.pressure??.045;
+  // Native audio automation, independent of animation frame rate. Each breath
+  // settles into pitch, wavers slightly and fades through an uneven air stream.
+  for(let t=.04;t<duration+.039;t+=.04){const u=Math.min(duration,t),tail=Math.max(0,(u-duration*.62)/(duration*.38)),envelope=Math.min(1,u/attack)*(.5+.5*Math.cos(Math.PI*tail));
+   const air=1+pressure*Math.sin(u*7.1+phase)+pressure*.4*Math.sin(u*13.7+phase*.7);
+   gain.gain.exponentialRampToValueAtTime(Math.max(.0001,volume*envelope*air),at+u);
+   const vibrato=(timbre.vibrato??4)*(1-Math.exp(-u*2))*Math.sin(TAU*(timbre.vibratoRate??4.6)*u+phase),drift=2*Math.sin(u*1.7+phase)-3*Math.exp(-u*8);
+   source.playbackRate.exponentialRampToValueAtTime(rate*2**(((timbre.cents??0)+vibrato+drift)/1200),at+u);
+  }
   filter=c.createBiquadFilter();filter.type='lowpass';filter.frequency.setValueAtTime(timbre.cutoff,at);filter.frequency.exponentialRampToValueAtTime(timbre.cutoff*.6,at+duration);source.connect(filter);filter.connect(gain);
-  noise=c.createBufferSource();noise.buffer=this.bank.air;noise.loop=true;noiseGain=c.createGain();noiseGain.gain.value=timbre.noiseMix;noise.connect(noiseGain);noiseGain.connect(filter);noise.start(at,2);end=at+duration+.02;
+  noise=c.createBufferSource();noise.buffer=this.bank.air;noise.loop=true;noiseGain=c.createGain();noiseGain.gain.value=timbre.noiseMix;noise.connect(noiseGain);noiseGain.connect(filter);noise.start(at,2+(phase/(Math.PI*2))*2);end=at+duration+.02;
  }else source.connect(gain);
  let stereo=null;if(c.createStereoPanner){stereo=c.createStereoPanner();stereo.pan.value=pan;gain.connect(stereo);stereo.connect(music?this.music:this.effects);}else gain.connect(music?this.music:this.effects);
  const voice={source,gain,music,name,filter,noise,timbre};this.nodes.add(voice);source.onended=()=>{try{noise?.stop();}catch{}source.disconnect();noise?.disconnect();noiseGain?.disconnect();filter?.disconnect();gain.disconnect();stereo?.disconnect();this.nodes.delete(voice);};source.start(at);if(end!==null)source.stop(end);return voice;
