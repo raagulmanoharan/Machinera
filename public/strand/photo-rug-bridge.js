@@ -9,12 +9,14 @@ export function bridgePose(t,height,photoHeight,feed=true){
  return {progress,pan,roomY:height-pan,photoY:feed?2*pan:0,screenPhotoY:feed?pan:-pan};
 }
 // Stretch only the remaining feed; retain exactly the length already shown.
-export function createPrintProgressReader(getPrint,remainingSeconds=3.6){
+export function createPrintProgressReader(getPrint,remainingSeconds=6.4){
  let state=null;
  return()=>{
   if(!state){const print=getPrint();if(!print)return 1;const fraction=Math.min(.99,print.time/print.duration);
    print.duration=remainingSeconds/(1-fraction);print.time=fraction*print.duration;
-   state={print,start:print.time,span:print.duration-print.time};
+   print.hold=false;
+   // Arrive while the feed is still in progress, then finish printing in view.
+   state={print,start:print.time,span:(print.duration-print.time)*.45};
   }
   return Math.max(0,Math.min(1,(state.print.time-state.start)/state.span));
  };
