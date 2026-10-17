@@ -18,12 +18,12 @@ test('navigation without a photo keeps the image fixed in its floor',()=>{
  assert.equal(p.photoY,0);assert.equal(p.screenPhotoY,-p.pan);
 });
 
-test('pan matches actual material displacement, stalls with feed and arrives during printing',()=>{
+test('pan matches actual material displacement, stalls with feed and finishes with printing',()=>{
  const print={time:0,duration:4,hold:true},read=createPrintProgressReader(()=>print);assert.equal(read(),0);assert.equal(print.duration,8);assert.equal(print.hold,false);
- const feed=t=>t*t*(3-2*t),end=feed(.68);
+ const feed=t=>t*t*(3-2*t),end=feed(1);
  for(let i=0;i<100;i++)assert.equal(read(),0);
- for(let t=.02;t<.68;t+=.02){print.time=t*8;const pose=bridgePose(read(),844,659);assert.ok(Math.abs(pose.pan/844-feed(t)/end)<1e-6,'Camera and material share displacement and acceleration');const held=read();assert.equal(read(),held,'No wall clock drift');}
- print.time=8*.68;assert.equal(read(),1);assert.ok(print.time<print.duration,'Printing continues after arrival');assert.equal(createPrintProgressReader(()=>null)(),1);
+ for(let t=.02;t<1;t+=.02){print.time=t*8;const pose=bridgePose(read(),844,659);assert.ok(Math.abs(pose.pan/844-feed(t)/end)<1e-6,'Camera and material share displacement and acceleration');const held=read();assert.equal(read(),held,'No wall clock drift');}
+ print.time=8*.68;assert.ok(read()<1,'Pan remains active while printing');print.time=8;assert.equal(read(),1);assert.equal(print.time,print.duration,'Camera and printing finish together');assert.equal(createPrintProgressReader(()=>null)(),1);
  const running={time:1,duration:4,hold:true},resume=createPrintProgressReader(()=>running);assert.equal(resume(),0);assert.equal(running.time/running.duration,.25,'Preserve existing printed length');
 });
 
