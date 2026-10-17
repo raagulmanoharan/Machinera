@@ -1,14 +1,14 @@
 import {MemoryStore} from './memory-store.js?v=156';
 import {updateMemoryUI} from './camera-ui.js?v=156';
 import {captureWindow} from './camera-framing.js?v=156';
-import * as StrandWeaving from './weaving-patterns.js?v=172';
+import * as StrandWeaving from './weaving-patterns.js?v=173';
 globalThis.StrandWeaving=StrandWeaving;
 import {CarpetScroll} from './carpet-scroll.js?v=156';
 import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=156';
 import {FloorReturn} from './floor-return.js?v=156';
-import {LoomAudio} from './loom-audio.js?v=172';
-import {PhotoRugBridge,createPrintProgressReader} from './photo-rug-bridge.js?v=172';
-import {preparePhotoPalette} from './photo-colours.js?v=172';
+import {LoomAudio} from './loom-audio.js?v=173';
+import {PhotoRugBridge,createPrintProgressReader} from './photo-rug-bridge.js?v=173';
+import {preparePhotoPalette} from './photo-colours.js?v=173';
 import {TLRViewfinder} from './tlr-viewfinder.js?v=156';
 import {streamDeviceProfile} from './stream-device-profile.js?v=156';
 const deviceProfile=streamDeviceProfile();
@@ -17,7 +17,7 @@ import {createStreamPerformance} from './stream-performance.js?v=156';
 import {createStreamPipeline} from './stream-render-pipeline.js?v=156';
 import { loadRoomEnvironment } from './room-lighting.js?v=156';
 import { addTextileLights } from './textile-light-rig.js?v=156';
-import { StreamCloth } from './stream-cloth.js?v=172';
+import { StreamCloth } from './stream-cloth.js?v=173';
 import { FramePacer } from './frame-pacer.js?v=156';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
 const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,deviceProfile.canvasDpr));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=1.0;renderer.info.autoReset=false;renderer.shadowMap.enabled=false;renderer.shadowMap.type=T.PCFShadowMap;renderer.shadowMap.autoUpdate=false;stage.append(renderer.domElement);
@@ -43,7 +43,7 @@ document.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===
 let scroller,scrollVersion=-1;
 const physicsButton=document.querySelector('#physicsToggle');let physicsDispose=null,physicsLoading=false;
 physicsButton.onclick=async()=>{if(!ready||physicsLoading||processingPhoto||bridge.active||upstairs.active)return;physicsLoading=true;physicsButton.disabled=true;
- try{if(physicsDispose){physicsDispose();physicsDispose=null;}else{const {enableClothPhysics}=await import('./cloth-physics.js?v=172');physicsDispose=enableClothPhysics({cloth,canvas:renderer.domElement,camera,render,scroll:scroller});}
+ try{if(physicsDispose){physicsDispose();physicsDispose=null;}else{const {enableClothPhysics}=await import('./cloth-physics.js?v=173');physicsDispose=enableClothPhysics({cloth,canvas:renderer.domElement,camera,render,scroll:scroller});}
  const enabled=!!physicsDispose;renderer.shadowMap.enabled=enabled;renderer.shadowMap.needsUpdate=enabled;document.body.classList.toggle('cloth-physics',enabled);physicsButton.setAttribute('aria-pressed',String(enabled));physicsButton.setAttribute('aria-label',enabled?'Disable cloth interaction':'Enable cloth interaction');stage.dataset.simulation=enabled?'optional-physics':'none';
  }catch(error){console.warn('Cloth interaction unavailable',error);}finally{physicsLoading=false;physicsButton.disabled=false;}};
 
@@ -51,7 +51,7 @@ const saveMemory=document.querySelector('#saveMemory'),postcardDialog=document.q
 const clearPostcard=()=>{postcardVersion++;postcard=null;if(postcardURL)URL.revokeObjectURL(postcardURL);postcardURL=null;postcardPreview.removeAttribute('src');postcardPreview.hidden=true;postcardDownload.disabled=true;};
 document.querySelector('#postcardClose').onclick=()=>postcardDialog.close();postcardDialog.addEventListener('close',()=>{clearPostcard();if(cloth?.physicsEnabled)render(true);});postcardDialog.addEventListener('keydown',e=>{if(e.key==='Escape')e.stopPropagation();});
 saveMemory.onclick=async()=>{if(!ready||processingPhoto||bridge.active||cloth.print||!cloth.archive.entries.length)return;audio.saveClick();clearPostcard();const token=postcardVersion;postcardStatus.hidden=false;postcardStatus.textContent='Preparing memory…';postcardDialog.style.setProperty('--camera-paper',capture.style.getPropertyValue('--camera-paper'));postcardDialog.showModal();postcardDialog.focus({preventScroll:true});
- try{const [{createMemoryPostcard},{captureMemoryThumbnail}]=await Promise.all([import('./memory-postcard.js?v=172'),import('./postcard-capture.js?v=172')]);const q=Math.max(0,cloth.visibleHead-(cloth.sim.top-camera.position.z)),located=cloth.archive.locateMaterial(q),entry=located.entry;const result=await createMemoryPostcard({archive:cloth.archive,entry,index:located.index,renderThumbnail:entry=>captureMemoryThumbnail({renderer,pipeline,camera,cloth,entry})});if(token!==postcardVersion)return;postcard=result;postcardURL=URL.createObjectURL(result.blob);postcardPreview.src=postcardURL;postcardPreview.alt=`Memory ${result.details.number}, ${result.details.weave}`;postcardPreview.hidden=false;postcardStatus.hidden=true;postcardDownload.disabled=false;
+ try{const [{createMemoryPostcard},{captureMemoryThumbnail}]=await Promise.all([import('./memory-postcard.js?v=173'),import('./postcard-capture.js?v=173')]);const q=Math.max(0,cloth.visibleHead-(cloth.sim.top-camera.position.z)),located=cloth.archive.locateMaterial(q),entry=located.entry;const result=await createMemoryPostcard({archive:cloth.archive,entry,index:located.index,renderThumbnail:entry=>captureMemoryThumbnail({renderer,pipeline,camera,cloth,entry})});if(token!==postcardVersion)return;postcard=result;postcardURL=URL.createObjectURL(result.blob);postcardPreview.src=postcardURL;postcardPreview.alt=`Memory ${result.details.number}, ${result.details.weave}`;postcardPreview.hidden=false;postcardStatus.hidden=true;postcardDownload.disabled=false;
  }catch(error){if(token===postcardVersion){postcardStatus.textContent='Could not create this postcard. Please try again.';}console.warn('Postcard:',error);}};
 postcardDownload.onclick=async()=>{if(!postcard)return;audio.saveClick();const file=new File([postcard.blob],postcard.filename,{type:'image/png'});if(navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:`Memory ${postcard.details.number}`});return;}catch(error){if(error.name==='AbortError')return;}}const link=document.createElement('a');link.href=postcardURL;link.download=postcard.filename;link.click();};
 let printPreviewReady=null;
