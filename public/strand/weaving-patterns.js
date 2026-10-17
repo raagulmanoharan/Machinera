@@ -1,4 +1,4 @@
-import {composeRug} from './rug-composition.js?v=192';
+import {composeRug} from './rug-composition.js?v=194';
 import {generatePhotoDraft,draftCrossing} from './photo-draft.js?v=156';
 import {chooseLoomDraft} from './photo-weave-design.js?v=156';
 import {splitYarnDyes} from './yarn-contrast.js?v=182';
@@ -23,7 +23,7 @@ export function createWeavePattern({draftId,seed=0,palette,analysis=null,warpEnd
  // same stripes on both axes; combined source proportions remain unchanged.
  const geometric=draft.family==='geometric'&&!composition;const {warp:warpShares,weft:weftShares}=geometric?splitYarnDyes(dyes):{};
  const wp=geometric?dyes.map((c,i)=>({...c,share:warpShares[i]})):dyes,fp=geometric?dyes.map((c,i)=>({...c,share:weftShares[i]})):dyes;
- const motif=composition?composeRug(dyes,warpEnds,weftPicks,analysis,{avoidFamilies:recentFamilies}):null;
+ const motif=composition?composeRug(dyes,warpEnds,weftPicks,analysis,{avoidFamilies:recentFamilies,seed}):null;
  const warp=freezeYarns(designYarns(wp,warpEnds,design,'warp')),weft=freezeYarns(designYarns(fp,weftPicks,design,'weft'));
  return Object.freeze({version:1,motif,id:`${draft.id}:${seed>>>0}`,seed:seed>>>0,firstPick,draftIndex,draft,palette:dyes,design,warp,weft,allocation:geometric?'contrasting-systems':'shared-systems',colourSymmetry:design.symmetry,rotationalOrder:design.symmetry==='radial'?2:undefined,symmetry:design.symmetry==='warp'&&draft.structuralSymmetry==='warp'?'warp-colour-and-structure':design.symmetry+'-colour',
   crossing:(end,pick)=>draftCrossing(draft,end,pick+firstPick),
