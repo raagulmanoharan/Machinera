@@ -1,4 +1,4 @@
-:root{color-scheme:dark;--paper:#141414;--ink:#ecebe5;--app-font:"EB Garamond",Garamond,"Times New Roman",serif;--app-font-size:14px}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:400 var(--app-font-size)/1.25 var(--app-font);letter-spacing:-.01em;font-kerning:normal;overflow:hidden}button{font:inherit;cursor:pointer;border:0;color:inherit}button:focus-visible,.lens:focus-visible{outline:1px solid #fff8;outline-offset:-3px}button:disabled{cursor:wait;opacity:.35}[hidden]{display:none!important}.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}canvas{display:block}
+:root{color-scheme:dark;--paper:#141414;--ink:#ecebe5;--app-font:"EB Garamond",Garamond,"Times New Roman",serif;--app-font-size:13px}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:400 var(--app-font-size)/1.25 var(--app-font);letter-spacing:-.01em;font-kerning:normal;overflow:hidden}button{font:inherit;cursor:pointer;border:0;color:inherit}button:focus-visible,.lens:focus-visible{outline:1px solid #fff8;outline-offset:-3px}button:disabled{cursor:wait;opacity:.35}[hidden]{display:none!important}.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}canvas{display:block}
 #stage{position:fixed;inset:0;touch-action:none}#stage.behind-camera{visibility:hidden}
 #capture{position:fixed;inset:0;z-index:5;overflow:hidden;background:var(--paper);background-image:var(--camera-paper,none);background-size:100% 100%;transform:translate3d(0,0,0);touch-action:manipulation}
 .camera-shell{position:relative;width:100%;height:100%;display:grid;grid-template-rows:minmax(0,1fr) clamp(150px,21svh,210px);overflow:hidden;background:transparent}
@@ -34,7 +34,7 @@
 #aboutDialog #aboutClose{top:4px;right:4px;width:36px;height:36px;padding:10px;background:none;border:0;box-shadow:none;border-radius:0;outline:none}#aboutDialog #aboutClose svg{width:16px;height:16px}#aboutDialog #aboutClose:focus-visible{outline:1px solid #fff8;outline-offset:-5px}
 #aboutDialog article{padding:32px 20px 24px;overflow-y:auto;overscroll-behavior:contain;text-align:center;text-transform:none}
 #aboutDialog h1{outline:none;font-size:var(--app-font-size);font-weight:400;letter-spacing:inherit;margin:0 0 14px}
-#aboutDialog article>p{font-size:var(--app-font-size);line-height:1.25;letter-spacing:inherit;margin:0 0 8px}
+#aboutDialog article>p{text-align:justify;text-justify:inter-word;font-size:var(--app-font-size);line-height:1.25;letter-spacing:inherit;margin:0 0 8px}
 
 #aboutDialog article>p:last-child{margin-bottom:0}
 
