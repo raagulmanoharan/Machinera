@@ -1,10 +1,10 @@
-import {composeRug} from './rug-composition.js?v=133';
-import {generatePhotoDraft,draftCrossing} from './photo-draft.js?v=133';
-import {chooseLoomDraft} from './photo-weave-design.js?v=133';
-import {splitYarnDyes} from './yarn-contrast.js?v=133';
-import {WEAVE_LIBRARY} from './weave-library.js?v=133';
-import {createColourDesign,designYarns} from './yarn-colour-design.js?v=133';
-export {compileLoomDraft,generateLoomDraft} from './loom-draft.js?v=133';
+import {composeRug} from './rug-composition.js?v=134';
+import {generatePhotoDraft,draftCrossing} from './photo-draft.js?v=134';
+import {chooseLoomDraft} from './photo-weave-design.js?v=134';
+import {splitYarnDyes} from './yarn-contrast.js?v=134';
+import {WEAVE_LIBRARY} from './weave-library.js?v=134';
+import {createColourDesign,designYarns} from './yarn-colour-design.js?v=134';
+export {compileLoomDraft,generateLoomDraft} from './loom-draft.js?v=134';
 export function patternIndices({family,symmetry='warp',maxFloat=7,composition=false}={}){
  return WEAVE_LIBRARY.flatMap((draft,index)=>(!family||draft.family===family)&&(symmetry!=='warp'||draft.structuralSymmetry==='warp')&&draft.maxFloat<=maxFloat?[index]:[]);
 }

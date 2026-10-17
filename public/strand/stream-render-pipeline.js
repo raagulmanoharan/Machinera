@@ -36,32 +36,43 @@ export function createStreamPipeline(renderer, scene, camera,profile={samples:0,
   return vec3(clamp(mix(20./255.,tone,.22+.78*sparse)-darkPatch+fine-pinholes,0.,1.));
  }
  `;
- const outputAA={...FXAAShader,fragmentShader:(paperGLSL+FXAAShader.fragmentShader).replace(
+ const outputAA={...FXAAShader,fragmentShader:((profile.paperBackground?'uniform sampler2D paperCache;uniform vec2 paperResolution;\n':'')+FXAAShader.fragmentShader).replace(
   'gl_FragColor = ApplyFXAA( tDiffuse, resolution.xy, vUv );',
   `gl_FragColor = ApplyFXAA( tDiffuse, resolution.xy, vUv );
    float outputNoise=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))))-.5;
    gl_FragColor.rgb=clamp(gl_FragColor.rgb+vec3(outputNoise/255.),0.,1.);
-   ${profile.paperBackground?'if(gl_FragColor.a<.999){vec3 paper=charcoalPaper(gl_FragCoord.xy);gl_FragColor.rgb=mix(paper,gl_FragColor.rgb,gl_FragColor.a);}gl_FragColor.a=1.;':profile.whiteBackground?'gl_FragColor.rgb=mix(vec3(1.),gl_FragColor.rgb,gl_FragColor.a);gl_FragColor.a=1.;':''}`)};
+   ${profile.paperBackground?'if(gl_FragColor.a<.999){vec3 paper=texture2D(paperCache,gl_FragCoord.xy/paperResolution).rgb;gl_FragColor.rgb=mix(paper,gl_FragColor.rgb,gl_FragColor.a);}gl_FragColor.a=1.;':profile.whiteBackground?'gl_FragColor.rgb=mix(vec3(1.),gl_FragColor.rgb,gl_FragColor.a);gl_FragColor.a=1.;':''}`)};
  const aa = new ShaderPass(outputAA);
- let paperTexture=null;let paperReady=Promise.resolve();
+ let paperTexture=null,paperTarget=null,paperScene=null,paperGeometry=null,paperMaterial=null,paperDirty=true;const paperCamera=new T.Camera(),paperSize=new T.Vector2();let paperReady=Promise.resolve();
  if(profile.paperBackground){
   const fallback=new T.DataTexture(new Uint8Array([20,20,20,255]),1,1);fallback.needsUpdate=true;
   aa.uniforms.paperMap={value:fallback};aa.uniforms.paperScale={value:640*(profile.renderScale??1)};aa.uniforms.paperTone={value:new T.Vector2(1,0)};
-  paperReady=new T.TextureLoader().loadAsync('./assets/background/charcoal-paper.webp').then(texture=>{texture.wrapS=texture.wrapT=T.RepeatWrapping;texture.colorSpace=T.NoColorSpace;aa.uniforms.paperTone.value.set(0.38,0.02937255);texture.generateMipmaps=false;texture.minFilter=texture.magFilter=T.LinearFilter;paperTexture=texture;aa.uniforms.paperMap.value=texture;fallback.dispose();}).catch(error=>{console.warn('Paper texture unavailable',error);});
+  // Same screen-space shader and texel density, evaluated only on load/resize.
+  paperTarget=new T.WebGLRenderTarget(1,1,{type:T.HalfFloatType,minFilter:T.NearestFilter,magFilter:T.NearestFilter,depthBuffer:false,stencilBuffer:false});
+  aa.uniforms.paperCache={value:paperTarget.texture};aa.uniforms.paperResolution={value:new T.Vector2(1,1)};
+  paperMaterial=new T.ShaderMaterial({uniforms:{paperMap:aa.uniforms.paperMap,paperScale:aa.uniforms.paperScale,paperTone:aa.uniforms.paperTone},vertexShader:'void main(){gl_Position=vec4(position.xy,0.,1.);}',fragmentShader:paperGLSL+'void main(){gl_FragColor=vec4(charcoalPaper(gl_FragCoord.xy),1.);}',depthTest:false,depthWrite:false,toneMapped:false});
+  paperGeometry=new T.PlaneGeometry(2,2);paperScene=new T.Scene();paperScene.add(new T.Mesh(paperGeometry,paperMaterial));
+  paperReady=new T.TextureLoader().loadAsync('./assets/background/charcoal-paper.webp').then(texture=>{texture.wrapS=texture.wrapT=T.RepeatWrapping;texture.colorSpace=T.NoColorSpace;aa.uniforms.paperTone.value.set(0.38,0.02937255);texture.generateMipmaps=false;texture.minFilter=texture.magFilter=T.LinearFilter;paperTexture=texture;aa.uniforms.paperMap.value=texture;paperDirty=true;fallback.dispose();}).catch(error=>{console.warn('Paper texture unavailable',error);});
  }
 
  composer.addPass(aa);
- const metrics = {width:1, height:1, renderScale:profile.renderScale??1, canvasDpr:renderer.getPixelRatio(),deviceProfile:profile.name??'standard', samples:profile.samples, outputDither:true, postPasses:2};
+ const metrics = {width:1, height:1, renderScale:profile.renderScale??1, canvasDpr:renderer.getPixelRatio(),deviceProfile:profile.name??'standard', samples:profile.samples, outputDither:true, postPasses:2, paperBakes:0};
  function resize(width, height) {
   const w = Math.max(1, Math.round(width*metrics.renderScale)), h = Math.max(1, Math.round(height*metrics.renderScale));
   composer.setSize(w, h);
   aa.uniforms.resolution.value.set(1 / w, 1 / h);
-  metrics.width = w; metrics.height = h;
+  metrics.width = w; metrics.height = h;paperDirty=true;
  }
  const size = renderer.getSize(new T.Vector2());
  resize(size.x, size.y);
- return {composer, metrics, resize, paperReady, render:()=>composer.render(), dispose:()=>{
+ const invalidatePaper=()=>{paperDirty=true;};if(paperTarget)renderer.domElement.addEventListener('webglcontextrestored',invalidatePaper);
+ return {composer, metrics, resize, paperReady, render:()=>{
+  if(paperTarget){renderer.getDrawingBufferSize(paperSize);if(paperTarget.width!==paperSize.x||paperTarget.height!==paperSize.y){paperTarget.setSize(paperSize.x,paperSize.y);aa.uniforms.paperResolution.value.copy(paperSize);paperDirty=true;}
+   if(paperDirty){const previous=renderer.getRenderTarget(),shadowUpdate=renderer.shadowMap.needsUpdate;renderer.setRenderTarget(paperTarget);renderer.render(paperScene,paperCamera);renderer.shadowMap.needsUpdate=shadowUpdate;renderer.setRenderTarget(previous);paperDirty=false;metrics.paperBakes++;}}
+  composer.render();
+ }, dispose:()=>{
+  renderer.domElement.removeEventListener('webglcontextrestored',invalidatePaper);
   for(const pass of composer.passes)pass.dispose?.();
-  paperTexture?.dispose();composer.dispose();
+  paperTexture?.dispose();paperTarget?.dispose();paperGeometry?.dispose();paperMaterial?.dispose();composer.dispose();
  }};
 }

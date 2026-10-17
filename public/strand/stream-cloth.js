@@ -1,16 +1,16 @@
-import {textileColourGLSL} from './textile-colour.js?v=133';
-import {yarnShadowFunctionsGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=133';
-import {THREAD_PITCH,WARP_ENDS} from './yarn-structure.js?v=133';
-import {SmoothClothGrid} from './smooth-cloth-grid.js?v=133';
-import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=133';
-import {PICKS_PER_METRE,FABRIC_COLUMNS,ATLAS_ROWS,atlasBase} from './fabric-coordinates.js?v=133';
-import {applyMatteTextile} from './matte-textile.js?v=133';
-import {textileAOGLSL} from './textile-ambient-occlusion.js?v=133';
+import {textileColourGLSL} from './textile-colour.js?v=134';
+import {yarnShadowFunctionsGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=134';
+import {THREAD_PITCH,WARP_ENDS} from './yarn-structure.js?v=134';
+import {SmoothClothGrid} from './smooth-cloth-grid.js?v=134';
+import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=134';
+import {PICKS_PER_METRE,FABRIC_COLUMNS,ATLAS_ROWS,atlasBase} from './fabric-coordinates.js?v=134';
+import {applyMatteTextile} from './matte-textile.js?v=134';
+import {textileAOGLSL} from './textile-ambient-occlusion.js?v=134';
 import * as T from 'three';
-import {addRaisedYarn} from './stream-yarn.js?v=133';
-import {wovenSurfaceGLSL} from './stream-weave-shader.js?v=133';
-import {RugArchive} from './rug-archive.js?v=133';
-import {SlackSpan} from './stream-slack.js?v=133';
+import {addRaisedYarn} from './stream-yarn.js?v=134';
+import {wovenSurfaceGLSL} from './stream-weave-shader.js?v=134';
+import {RugArchive} from './rug-archive.js?v=134';
+import {SlackSpan} from './stream-slack.js?v=134';
 export class StreamCloth{
  constructor(scene,renderer){this.scene=scene;this.renderer=renderer;this.sim=new SlackSpan();this.display=this.sim.positions;this.renderGrid=new SmoothClothGrid(this.sim.nx,this.sim.ny);this.scrollOffset=0;this.version=0;this.print=null;this.archive=new RugArchive();this.maxSpan=this.sim.length;this.sim.length=.02;this.sim.shape();this.sim.pose();this.historyLength=ATLAS_ROWS/PICKS_PER_METRE;this.texture=new T.DataTexture(new Uint8Array(FABRIC_COLUMNS*ATLAS_ROWS*4),FABRIC_COLUMNS,ATLAS_ROWS);this.texture.colorSpace=T.SRGBColorSpace;this.texture.generateMipmaps=false;this.texture.minFilter=this.texture.magFilter=T.NearestFilter;this.texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());this.texture.needsUpdate=true;this.weftTexture=new T.DataTexture(new Uint8Array(4*WARP_ENDS*ATLAS_ROWS),WARP_ENDS,ATLAS_ROWS);this.weftTexture.colorSpace=T.SRGBColorSpace;this.weftTexture.minFilter=this.weftTexture.magFilter=T.NearestFilter;this.weftTexture.needsUpdate=true;this.weaveTexture=new T.DataTexture(new Uint8Array(4*WARP_ENDS*ATLAS_ROWS),WARP_ENDS,ATLAS_ROWS);this.weaveTexture.minFilter=this.weaveTexture.magFilter=T.NearestFilter;this.weaveTexture.needsUpdate=true;this.story={streamDraftPitch:{value:THREAD_PITCH},streamHead:{value:0},streamAtlasBase:{value:0},streamWeave:{value:this.weaveTexture},streamWarp:{value:this.texture},streamWeft:{value:this.weftTexture},streamHistoryLength:{value:this.historyLength},streamRemaining:{value:0}};this.currentDraft=null;this.uniforms={streamLength:{value:this.sim.length}};this.viewportMask=new Uint8Array(this.sim.ny).fill(1);this.viewportScratch=new Uint8Array(this.sim.ny);this.viewportPoint=new T.Vector3();const geometry=new T.PlaneGeometry(this.sim.width,1,this.sim.nx-1,this.sim.ny-1);for(let i=0;i<geometry.attributes.uv.count;i++)geometry.attributes.uv.setY(i,1-geometry.attributes.uv.getY(i));this.hit=new T.Mesh(geometry,new T.MeshBasicMaterial({colorWrite:false,depthWrite:false,side:T.DoubleSide}));this.hit.castShadow=true;this.hit.frustumCulled=false;scene.add(this.hit);this.rebuildPalette();this.upload();}
  get totalLength(){return this.archive.length;}
