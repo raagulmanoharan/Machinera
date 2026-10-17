@@ -1,5 +1,5 @@
 import {encodeDraftRow} from './weave-library.js?v=156';
-import {textileColourGLSL} from './textile-colour.js?v=197';
+import {textileColourGLSL} from './textile-colour.js?v=198';
 import {yarnShadowFunctionsGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=197';
 import {THREAD_PITCH,WARP_ENDS} from './yarn-structure.js?v=156';
 import {SmoothClothGrid} from './smooth-cloth-grid.js?v=156';
@@ -8,7 +8,7 @@ import {PICKS_PER_METRE,FABRIC_COLUMNS,ATLAS_ROWS,atlasBase} from './fabric-coor
 import {applyMatteTextile} from './matte-textile.js?v=156';
 import {textileAOGLSL} from './textile-ambient-occlusion.js?v=197';
 import * as T from 'three';
-import {addRaisedYarn} from './stream-yarn.js?v=197';
+import {addRaisedYarn} from './stream-yarn.js?v=198';
 import {wovenSurfaceGLSL} from './stream-weave-shader.js?v=156';
 import {RugArchive} from './rug-archive.js?v=197';
 import {StraightSpan} from './straight-span.js?v=156';
