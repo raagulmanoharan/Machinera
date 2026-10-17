@@ -28,7 +28,7 @@ export class PhotoRugBridge{
  begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null}={}){
   this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;
   if(!preview.hidden&&preview.width&&preview.height){const canvas=document.createElement('canvas');canvas.width=Math.min(768,preview.width);canvas.height=Math.round(canvas.width*preview.height/preview.width);canvas.getContext('2d').drawImage(preview,0,0,canvas.width,canvas.height);canvas.className='photo-feed-frame';canvas.setAttribute('aria-hidden','true');lens.append(canvas);this.canvas=canvas;
-   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);holder.append(canvas);canvas.className='photo-feed-source';this.canvas=holder;this.scan=createPhotoScan(holder,lens);}
+   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);holder.append(canvas);canvas.className='photo-feed-source';this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared);}
 
 }
   this.feed=feed;this.active=true;const token={};this.token=token;
@@ -38,7 +38,7 @@ export class PhotoRugBridge{
   const animate=(element,frames,duration)=>{if(!element?.animate)return null;const animation=element.animate(frames,{duration,fill:'both',easing:'linear'});this.animations.push(animation);return animation;};
   // Keep the entire frozen photograph stationary until a visible carpet frame
   // has actually been submitted and the full-height scan has finished.
-  this.animations.push(...(this.scan?.animations??[]));const panAnimations=[];
+  const panAnimations=[];
   const startPan=()=>{if(!this.active||this.token!==token)return;
    this.capture.classList.remove('capture-processing');this.stage.dataset.bridgePhase='panning';const duration=feed?2800:1500,origin=document.timeline.currentTime;
    const frames=fn=>Array.from({length:61},(_,i)=>({...fn(i/60),offset:i/60}));
@@ -69,21 +69,36 @@ export class PhotoRugBridge{
  }
 
  finish(){const done=this.resolve;this.resolve=null;this.dispose();done?.();}
- dispose(){this.token=null;for(const animation of this.animations??[])animation.cancel();this.animations=[];if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;const done=this.resolve;this.resolve=null;if(this.canvas){for(const c of this.canvas.querySelectorAll?.("canvas")??[]){c.width=c.height=0;}this.canvas.remove();this.canvas=null;}this.scan=null;if(this.capture){for(const p of ['--floor-pan','--heading-opacity','--finder-reticle'])this.capture.style.removeProperty(p);this.capture.classList.remove('capture-feeding','capture-processing');this.capture=null;}for(const p of ['transform','opacity','pointer-events'])this.stage.style.removeProperty(p);this.stage.classList.remove('floor-travelling');this.active=false;done?.();}
+ dispose(){this.token=null;for(const animation of this.animations??[])animation.cancel();this.animations=[];if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;const done=this.resolve;this.resolve=null;if(this.canvas){for(const c of this.canvas.querySelectorAll?.("canvas")??[]){c.width=c.height=0;}this.canvas.remove();this.canvas=null;}this.scan?.cancel();this.scan=null;if(this.capture){for(const p of ['--floor-pan','--heading-opacity','--finder-reticle'])this.capture.style.removeProperty(p);this.capture.classList.remove('capture-feeding','capture-processing');this.capture=null;}for(const p of ['transform','opacity','pointer-events'])this.stage.style.removeProperty(p);this.stage.classList.remove('floor-travelling');this.active=false;done?.();}
 }
 
 // Screen-space geometry keeps every dot the same 11px diameter as the reticle.
 export function photoScanRows(width,height,random=Math.random){
  const count=Math.max(1,Math.floor(height/11)),gap=11,top=(height-(count-1)*gap)/2;
- return Array.from({length:count},(_,i)=>{const clusters=width>=280?2+Math.floor(random()*2):1,segment=width/clusters,dots=[];for(let c=0;c<clusters;c++){const total=3+Math.floor(random()*3),span=(total-1)*13,start=c*segment+5.5+random()*Math.max(0,segment-11-span);for(let k=0;k<total;k++)dots.push(start+k*13);}return{y:top+i*gap,reverse:i%2===1,dots};});
+ return Array.from({length:count},(_,i)=>{const clusters=width>=280?2+Math.floor(random()*2):1,segment=width/clusters,dots=[];for(let c=0;c<clusters;c++){const total=3+Math.floor(random()*3),span=(total-1)*11.5,start=c*segment+5.5+random()*Math.max(0,segment-11-span);for(let k=0;k<total;k++)dots.push(start+k*11.5);}return{y:top+i*gap,reverse:i%2===1,dots};});
 }
-function createPhotoScan(holder,lens){
- const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,rows=photoScanRows(width,height),animations=[],reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:19200/(rows.length+1);
- svg.classList.add('photo-scan');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('aria-hidden','true');holder.append(svg);
- for(const [i,row] of rows.entries()){
-  const group=document.createElementNS(ns,'g'),line=document.createElementNS(ns,'path');line.setAttribute('d',`M0 ${row.y}H${width}`);line.setAttribute('fill','none');line.setAttribute('stroke','white');line.setAttribute('stroke-width','1');group.append(line);
-  for(const x of row.dots){const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',row.y);dot.setAttribute('r','5.5');dot.setAttribute('fill','white');group.append(dot);}
-  svg.append(group);const hidden=row.reverse?'inset(0 0 0 100%)':'inset(0 100% 0 0)';const animation=group.animate([{clipPath:hidden},{clipPath:'inset(0 0 0 0)'}],{duration,delay:i*duration/2,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});animations.push(animation);
+// Reuse the bounded spatial grid already collected during the full pixel scan.
+// Major contiguous colour runs position clusters; no extra image readbacks.
+export function colourScanRows(width,height,map,palette,random=Math.random){
+ const rows=photoScanRows(width,height,random);if(!map||!palette?.length)return rows;
+ const aspect=width/height,cropW=Math.min(1,aspect/map.aspect),cropH=Math.min(1,map.aspect/aspect);
+ for(const row of rows){const my=Math.min(map.height-1,Math.floor(((1-cropH)/2+row.y/height*cropH)*map.height)),runs=[];let start=0,last=-1;
+  for(let x=0;x<=map.width;x++){const sx=Math.min(map.width-1,Math.floor(((1-cropW)/2+x/map.width*cropW)*map.width)),label=x===map.width?-1:map.labels[my*map.width+sx];if(label!==last){if(last>=0)runs.push({start,end:x,label:last});start=x;last=label;}}
+  const major=runs.filter(r=>(r.end-r.start)/map.width*width>=34).sort((a,b)=>(b.end-b.start)-(a.end-a.start)).slice(0,3).sort((a,b)=>a.start-b.start);if(!major.length)continue;
+  row.dots=[];row.colours=[];for(const run of major){const left=run.start/map.width*width,right=run.end/map.width*width,total=Math.max(3,Math.min(5,Math.floor((right-left-11)/11.5)+1)),span=(total-1)*11.5,first=left+5.5+random()*Math.max(0,right-left-11-span);for(let k=0;k<total;k++){row.dots.push(first+k*11.5);row.colours.push(palette[run.label].rgb);}}
  }
- return{animations,finished:Promise.all(animations.map(a=>a.finished.catch(()=>{})))};
+ return rows;
+}
+function createPhotoScan(holder,lens,prepared){
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,animations=[];let cancelled=false;
+ svg.classList.add('photo-scan');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('aria-hidden','true');holder.append(svg);
+ const finished=Promise.resolve(prepared).then(data=>{if(cancelled)return;const rows=colourScanRows(width,height,data?.scanMap,data?.palette),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:19200/(rows.length+1);
+  for(const [i,row] of rows.entries()){
+   const group=document.createElementNS(ns,'g'),line=document.createElementNS(ns,'path');line.setAttribute('d',`M0 ${row.y}H${width}`);line.setAttribute('fill','none');line.setAttribute('stroke','white');line.setAttribute('stroke-width','.35');group.append(line);
+   for(const [k,x] of row.dots.entries()){const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',row.y);dot.setAttribute('r','5.5');dot.setAttribute('fill',row.colours?.[k]?`rgb(${row.colours[k].join(',')})`:'white');group.append(dot);}
+   svg.append(group);const hidden=row.reverse?'inset(0 0 0 100%)':'inset(0 100% 0 0)';animations.push(group.animate([{clipPath:hidden},{clipPath:'inset(0 0 0 0)'}],{duration,delay:i*duration/2,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'}));
+  }
+  return Promise.all(animations.map(a=>a.finished.catch(()=>{})));
+ });
+ return{finished,cancel(){cancelled=true;for(const animation of animations)animation.cancel();}};
 }
