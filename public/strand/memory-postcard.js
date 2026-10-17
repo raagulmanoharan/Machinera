@@ -11,7 +11,7 @@ export async function createMemoryPostcard({entry,index,renderThumbnail}){
  await document.fonts.load('28px "EB Garamond"').catch(()=>{});const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1920;const ctx=canvas.getContext('2d',{willReadFrequently:true}),details=postcardDetails(entry,index);
  // One full-bleed render supplies the rug and the same uninterrupted paper.
  const thumbnail=renderThumbnail(entry),bounds=thumbnail.rugBounds??{left:150,right:930,bottom:1270};ctx.drawImage(thumbnail,0,0,1080,1920);thumbnail.width=thumbnail.height=0;
- const x=bounds.left,width=bounds.right-x;let y=Math.max(1330,bounds.bottom+60);
+ const x=bounds.left,width=bounds.right-x;let y=Math.max(1410,bounds.bottom+140);
  ctx.fillStyle='#ecebe5';ctx.textBaseline='alphabetic';ctx.font='400 40px "EB Garamond", Garamond, serif';ctx.fillText(`Memory ${details.number}`,x,y);
  ctx.font='400 28px "EB Garamond", Garamond, serif';y=wrap(ctx,details.weave,x,y+46,width);ctx.fillStyle='#cccac3';y=wrap(ctx,details.pattern,x,y+8,width);y=wrap(ctx,details.description,x,y+8,width);wrap(ctx,details.inventory,x,y+8,width);
  // The rug starts 170px from the top; the footer ends 170px above the bottom.
