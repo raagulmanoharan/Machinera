@@ -19,6 +19,9 @@ export function composeRug(palette,width,height,analysis=null,{avoidFamilies=[]}
   else if(family==='window-checks')field=Math.max(a,b)+.12*Math.min(a,b);
   else if(family==='cross-lattice')field=Math.min(a,b)+.12*Math.max(a,b);
   else field=Math.max(a,b)*.65+(a+b)*.35;
+  // A smaller nested diamond breaks up each repeat's broad central field.
+  // It participates in the same weighted ranking, so no extra dye is invented.
+  field+=(field<1?1:-1)*1.6*Math.max(0,1-(a+b)/.55);
   // The enclosing bands share a rank across their entire length. No noise,
   // independently coloured pixels or broken islands enter the composition.
   const score=edge<border?-2+edge/border:field;
