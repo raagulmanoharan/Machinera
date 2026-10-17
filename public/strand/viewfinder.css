@@ -33,7 +33,7 @@
 #aboutDialog::backdrop{background:#0009}
 #aboutDialog #aboutClose{top:14px;right:12px;width:36px;height:36px;padding:10px;background:none;border:0;box-shadow:none;border-radius:0;outline:none}#aboutDialog #aboutClose svg{width:16px;height:16px}#aboutDialog #aboutClose:focus-visible{outline:1px solid #fff8;outline-offset:-5px}
 #aboutDialog article{padding:24px 20px;overflow-y:auto;overscroll-behavior:contain;text-align:left;text-transform:none}
-#aboutDialog h1{padding-right:36px;outline:none;font-size:var(--app-font-size);font-weight:400;letter-spacing:inherit;margin:0 0 14px}
+#aboutDialog h1{font-style:italic;padding-right:36px;outline:none;font-size:var(--app-font-size);font-weight:400;letter-spacing:inherit;margin:0 0 14px}
 #aboutDialog article>p{text-align:justify;text-justify:inter-word;font-size:var(--app-font-size);line-height:1.25;letter-spacing:inherit;margin:0 0 8px}
 
 #aboutDialog article>p:last-child{margin-bottom:0}
