@@ -45,7 +45,7 @@ float yarnDirectionalVisibility(vec2 p,vec3 light,vec3 baseNormal,vec3 tangent){
   float softness=${THREAD_PITCH/30}+distance*${THREAD_PITCH*7/120};
   visibility=min(visibility,smoothstep(-softness,softness,ray-blocker));
  }
- return mix(1.,.28+.72*visibility,resolved*yarnSelfShadowStrength);
+ return mix(1.,.4+.6*visibility,resolved*yarnSelfShadowStrength);
 }
 `;
 export const yarnShadowGLSL=draftGLSL+yarnShadowFunctionsGLSL;

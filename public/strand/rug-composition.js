@@ -3,10 +3,10 @@ import {orderColours} from './yarn-contrast.js?v=196';
 const phase=(t,n)=>{const f=((t*n)%1+1)%1;return Math.abs(f-.5)*2;};
 // A small yarn-cell map, not a photo texture. Each row becomes contiguous local
 // weft runs. Symmetry groups are assigned whole source dyes by weighted rank.
-export function composeRug(palette,width,height,analysis=null,{avoidFamilies=[],seed=0}={}){
+function buildRug(palette,width,height,analysis=null,{avoidFamilies=[],seed=0,family:requestedFamily}={}){
  const m=photoDesignMetrics(palette,analysis);let hash=(2166136261^seed)>>>0;for(const char of JSON.stringify([palette.map(c=>[c.rgb,Math.round(c.share*1e6)]),m.brightness,m.contrast,m.complexity]))hash=Math.imul(hash^char.charCodeAt(0),16777619)>>>0;
  const preferred=m.dominant>.62?'medallion':m.complexity>.55?'diamond-lattice':m.contrast>.23?'stepped-diamonds':'nested-lozenges',families=['medallion','diamond-lattice','stepped-diamonds','nested-lozenges','chevron-bands','window-checks','cross-lattice','jamakkalam-bands','tonal-bands','persian-medallion','persian-garden'];
- const candidates=families.filter(f=>!avoidFamilies.includes(f));const family=(candidates.length?candidates:families).sort((a,b)=>{const score=f=>{const i=families.indexOf(f);let v=Math.imul(hash^Math.imul(i+1,0x9e3779b9),0x85ebca6b)>>>0;v=Math.imul(v^(v>>>16),0xc2b2ae35)>>>0;const phase=v/4294967296;return phase+(f===preferred?-.2:0);};return score(a)-score(b);})[0];
+ const candidates=families.filter(f=>!avoidFamilies.includes(f));const family=requestedFamily??(candidates.length?candidates:families).sort((a,b)=>{const score=f=>{const i=families.indexOf(f);let v=Math.imul(hash^Math.imul(i+1,0x9e3779b9),0x85ebca6b)>>>0;v=Math.imul(v^(v>>>16),0xc2b2ae35)>>>0;const phase=v/4294967296;return phase+(f===preferred?-.2:0);};return score(a)-score(b);})[0];
  const persian=family.startsWith('persian-'),central=family==='medallion'||family==='persian-medallion';
  const banded=(family==='jamakkalam-bands'||family==='tonal-bands'),columns=banded||central?1:1+((hash>>>8)%3),rows=banded?1+((hash>>>12)%4):central?1:Math.max(2,Math.round(height/width*columns*(.65+((hash>>>16)%3)*.15))),border=banded?0:persian?5:2+(m.contrast>.3?1:0),groups=[];
  const innerW=Math.max(2,width-2*border),innerH=Math.max(2,height-2*border),halfX=Math.ceil(width/2),halfY=Math.ceil(height/2);
@@ -35,4 +35,25 @@ export function composeRug(palette,width,height,analysis=null,{avoidFamilies=[],
  for(const g of groups){while(index<order.length-1&&used+g.weight/2>limit){index++;limit+=palette[order[index]].share*cells;}const dye=order[index];for(const y of new Set([g.y,height-1-g.y]))for(const x of banded?Array.from({length:width},(_,i)=>i):new Set([g.x,width-1-g.x]))map[y*width+x]=dye;counts[dye]+=g.weight;used+=g.weight;}
  const runs=[];for(let y=0;y<height;y++){let start=0;for(let x=1;x<=width;x++)if(x===width||map[y*width+x]!==map[y*width+start]){runs.push(Object.freeze({pick:y,start,end:x,dye:map[y*width+start]}));start=x;}}
  return Object.freeze({family,width,height,border,columns,rows,map,counts:Object.freeze(counts),runs:Object.freeze(runs),construction:banded?'continuous-weft':'discontinuous-weft'});
+}
+
+
+// Rank small candidate maps once at capture time, never during rendering.
+// Prefer connected accents and readable contour density; keep the chosen family.
+export function compositionQuality(rug,palette,analysis=null){
+ const {map,width,height,counts}=rug,n=map.length,seen=new Uint8Array(n),queue=new Int32Array(n),small=palette.map(()=>0);let edges=0;
+ for(let i=0;i<n;i++){
+  if(i%width&&map[i]!==map[i-1])edges++;if(i>=width&&map[i]!==map[i-width])edges++;
+  if(seen[i])continue;let head=0,tail=1;queue[0]=i;seen[i]=1;
+  while(head<tail){const at=queue[head++];for(const next of [at%width?at-1:-1,at%width<width-1?at+1:-1,at-width,at+width])if(next>=0&&next<n&&!seen[next]&&map[next]===map[i]){seen[next]=1;queue[tail++]=next;}}
+  if(tail<4)small[map[i]]+=tail;
+ }
+ const fragmentation=small.reduce((sum,c,i)=>sum+c/Math.max(1,counts[i]),0)/palette.length,target=palette.length/Math.sqrt(n)*(1+.5*(analysis?.complexity??.3));
+ return fragmentation+4*Math.abs(edges/(2*n-width-height)-target);
+}
+export function composeRug(palette,width,height,analysis=null,options={}){
+ let best=buildRug(palette,width,height,analysis,options);if(best.construction==='continuous-weft')return best;
+ let score=compositionQuality(best,palette,analysis);const family=best.family;
+ for(let i=1;i<6;i++){const candidate=buildRug(palette,width,height,analysis,{...options,family,seed:Math.imul((options.seed??0)^i,0x9e3779b9)>>>0}),next=compositionQuality(candidate,palette,analysis);if(next<score){best=candidate;score=next;}}
+ return best;
 }
