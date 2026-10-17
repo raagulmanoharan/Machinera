@@ -7,9 +7,10 @@ export function makeSoundBank(context){
  const rate=24000;let seed=765431;
  const noise=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2147483648-1;};
  const bake=(seconds,fn)=>{const b=context.createBuffer(1,Math.ceil(seconds*rate),rate),a=b.getChannelData(0);let low=0;for(let i=0;i<a.length;i++){const n=noise();low+=.12*(n-low);a[i]=fn(i/rate,n,low);}return b;};
- const modal=(t,f)=>Math.sin(TAU*f*t)*Math.exp(-t*24)+.34*Math.sin(TAU*f*1.71*t)*Math.exp(-t*40)+.18*Math.sin(TAU*f*2.83*t)*Math.exp(-t*65);
  const bank={
-  shutter:bake(.22,(t,n,l)=>(.4*modal(t,155)+.32*(n-l)*Math.exp(-t*100))*Math.min(1,t*1500)),
+  // Two curtain impacts, a mirror slap and a brief ratchet tail: dry and
+  // broadband rather than a pitched electronic blip. Baked once at startup.
+  shutter:bake(.19,(t,n,l)=>{let out=0;for(const [at,gain] of [[0,.8],[.036,.62],[.069,.24]]){const u=t-at;if(u>=0){const attack=Math.min(1,u*6000),body=Math.sin(TAU*190*u)*Math.exp(-u*180)+.35*Math.sin(TAU*430*u)*Math.exp(-u*240);out+=gain*attack*((n-l)*Math.exp(-u*330)+.35*body+.13*l*Math.exp(-u*65));}}const u=t-.075;if(u>0)out+=.09*(n-l)*Math.exp(-u*65)*(.5+.5*Math.cos(TAU*95*u));return out;}),
   // One pitch per cloud, so voicings can change without transposing a chord loop.
   cloud:bake(10,(t,n,l)=>{const e=Math.sin(Math.PI*t/10)**2,p=TAU*146.832*t;return e*(.14*Math.sin(p+.3*Math.sin(TAU*.071*t))+.09*Math.sin(p*1.0021)+.09*Math.sin(p*.9983)+.03*Math.sin(p*2.001)+.09*l);}),
   air:bake(8,(t,n,l)=>Math.sin(Math.PI*t/8)**2*(.18*l+.008*n)*(.7+.3*Math.sin(TAU*.19*t))),

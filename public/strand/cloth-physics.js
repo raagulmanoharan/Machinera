@@ -9,9 +9,9 @@ class SlackSpan{
  move(target){if(this.grab){this.grab.goal=target.slice();this.active=true;}}
  release(){this.grab=null;this.active=true;}
  advance(dt){this.windTime+=Math.min(dt,.05);this.pose();let remaining=Math.min(dt,.05);if(this.active)while(remaining>1e-7){const step=Math.min(remaining,1/120);this.step(step);remaining-=step;}
-  // Idle breeze is an analytic deformation: no always-running spring solver.
+  // Strong wind is an analytic deformation: no always-running spring solver.
   const t=this.windTime,amplitude=Math.min(1,this.length/1.5);
-  for(let y=1;y<this.ny;y++){const u=y/(this.ny-1),weight=u*u*amplitude;for(let x=0;x<this.nx;x++){const j=(y*this.nx+x)*3;this.positions[j]+=.03*weight*Math.sin(t*.62+u*.5);this.positions[j+1]+=weight*(.065*Math.sin(t*.73-u*.8)+.02*Math.sin(t*1.13+x*.25));}}
+  for(let y=1;y<this.ny;y++){const u=y/(this.ny-1),weight=u*u*amplitude;for(let x=0;x<this.nx;x++){const j=(y*this.nx+x)*3;this.positions[j]+=.16*weight*Math.sin(t*.72-u*.9);this.positions[j+1]+=weight*(.28*Math.sin(t*.83-u*1.4)+.07*Math.sin(t*1.37-u*2+x*.35));}}
   return true;
  }
  step(dt){const {nx,ny,offset:o,velocity:v,grab:g}=this;this.stepBefore.set(this.positions);const stiffness=7,damping=Math.exp(-(g?4.8:4.2)*dt),dx=this.width/(nx-1),ds=this.length/(ny-1);let energy=0;
