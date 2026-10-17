@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {bridgePose,createPrintProgressReader} from './photo-rug-bridge.js';
+import {bridgePose,createPrintProgressReader,photoScanRows} from './photo-rug-bridge.js';
 test('photo and camera share one pace with no gap between floors',()=>{
  let previous=-1;
  for(let i=0;i<=200;i++){
@@ -26,3 +26,5 @@ test('pan matches actual material displacement, stalls with feed and arrives dur
  print.time=8*.68;assert.equal(read(),1);assert.ok(print.time<print.duration,'Printing continues after arrival');assert.equal(createPrintProgressReader(()=>null)(),1);
  const running={time:1,duration:4,hold:true},resume=createPrintProgressReader(()=>running);assert.equal(resume(),0);assert.equal(running.time/running.duration,.25,'Preserve existing printed length');
 });
+
+test('scan traverses the full image in alternating directions',()=>{const rows=photoScanRows(390,660,()=>.5);assert.equal(rows.length,16);assert.ok(rows[0].y<42);assert.ok(rows.at(-1).y>618);for(const [i,row]of rows.entries()){assert.equal(row.reverse,i%2===1);assert.ok(row.dots.every(x=>x>=5.5&&x<=384.5));assert.ok(row.dots.length>=4);}});

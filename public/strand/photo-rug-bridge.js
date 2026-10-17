@@ -28,7 +28,8 @@ export class PhotoRugBridge{
  begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null}={}){
   this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;
   if(!preview.hidden&&preview.width&&preview.height){const canvas=document.createElement('canvas');canvas.width=Math.min(768,preview.width);canvas.height=Math.round(canvas.width*preview.height/preview.width);canvas.getContext('2d').drawImage(preview,0,0,canvas.width,canvas.height);canvas.className='photo-feed-frame';canvas.setAttribute('aria-hidden','true');lens.append(canvas);this.canvas=canvas;
-   if(feed){const dither=document.createElement('canvas');dither.width=canvas.width;dither.height=canvas.height;const ctx=dither.getContext('2d',{willReadFrequently:true});ctx.drawImage(canvas,0,0);const pixels=ctx.getImageData(0,0,dither.width,dither.height),bayer=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];for(let y=0;y<dither.height;y++)for(let x=0;x<dither.width;x++){const i=(y*dither.width+x)*4,threshold=(bayer[(y%4)*4+x%4]+.5)/16;for(let c=0;c<3;c++){const v=pixels.data[i+c]/255*3;pixels.data[i+c]=Math.min(3,Math.floor(v)+(v%1>threshold?1:0))*255/3;}}ctx.putImageData(pixels,0,0);dither.className='photo-dither';canvas.after(dither);canvas.remove();const holder=document.createElement('div');holder.className='photo-feed-frame';holder.append(canvas,dither);lens.append(holder);canvas.className='photo-feed-source';this.canvas=holder;this.dither=dither;}
+   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);holder.append(canvas);canvas.className='photo-feed-source';this.canvas=holder;this.scan=createPhotoScan(holder,lens);}
+
 }
   this.feed=feed;this.active=true;const token={};this.token=token;
   this.capture.classList.add('capture-feeding');if(feed)this.capture.classList.add('capture-processing');this.stage.classList.add('floor-travelling');this.stage.style.pointerEvents='none';this.stage.style.opacity='1';this.update(0);
@@ -36,12 +37,12 @@ export class PhotoRugBridge{
   const promise=new Promise(resolve=>{this.resolve=resolve;});this.animations=[];
   const animate=(element,frames,duration)=>{if(!element?.animate)return null;const animation=element.animate(frames,{duration,fill:'both',easing:'linear'});this.animations.push(animation);return animation;};
   // Keep the entire frozen photograph stationary until a visible carpet frame
-  // has actually been submitted. The dither is the only moving layer here.
-  const dither=feed&&this.dither?animate(this.dither,[{clipPath:'inset(0 0 100% 0)'},{clipPath:'inset(0 0 0% 0)'}],2200):null;
+  // has actually been submitted and the full-height scan has finished.
+  this.animations.push(...(this.scan?.animations??[]));const panAnimations=[];
   const startPan=()=>{if(!this.active||this.token!==token)return;
    this.capture.classList.remove('capture-processing');this.stage.dataset.bridgePhase='panning';const duration=feed?2800:1500,origin=document.timeline.currentTime;
    const frames=fn=>Array.from({length:61},(_,i)=>({...fn(i/60),offset:i/60}));
-   const pan=(element,fn)=>{const animation=animate(element,frames(fn),duration);if(animation){if(feed&&readPrintProgress){animation.pause();animation.currentTime=0;}else animation.startTime=origin;}return animation;};
+   const pan=(element,fn)=>{const animation=animate(element,frames(fn),duration);if(animation){panAnimations.push(animation);if(feed&&readPrintProgress){animation.pause();animation.currentTime=0;}else animation.startTime=origin;}return animation;};
    const master=pan(this.capture,t=>({transform:`translate3d(0,${-ease(t)*this.height}px,0)`}));
    pan(this.stage,t=>({transform:`translate3d(0,${(1-ease(t))*this.height}px,0)`}));
    if(this.canvas)pan(this.canvas,t=>({transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).photoY}px,0)`}));
@@ -50,13 +51,13 @@ export class PhotoRugBridge{
    // A print reveal follows submitted cloth progress, never a faster wall clock.
    // Ordinary floor navigation keeps the independent compositor animation.
    const tick=()=>{if(!this.active||this.token!==token)return;let progress;
-    if(feed&&readPrintProgress){progress=Math.max(0,Math.min(1,readPrintProgress()));for(const animation of this.animations)if(animation!==dither)animation.currentTime=progress*duration;}
+    if(feed&&readPrintProgress){progress=Math.max(0,Math.min(1,readPrintProgress()));for(const animation of panAnimations)animation.currentTime=progress*duration;}
     else{const elapsed=master?.currentTime??(document.timeline.currentTime-origin);progress=Math.min(1,elapsed/duration);}
     this.update(progress,!master);if(this.active)this.frame=requestAnimationFrame(tick);
    };this.frame=requestAnimationFrame(tick);
   };
-  const minimumDither=dither?dither.finished.catch(()=>{}):Promise.resolve();
-  Promise.all([Promise.resolve(prepared),minimumDither]).then(()=>{if(this.active&&this.token===token)return onPrepared();}).then(startPan).catch(()=>{if(this.token===token)this.finish();});
+  const minimumScan=this.scan?.finished??Promise.resolve();
+  Promise.all([Promise.resolve(prepared),minimumScan]).then(()=>{if(this.active&&this.token===token)return onPrepared();}).then(startPan).catch(()=>{if(this.token===token)this.finish();});
   return promise;
  }
 
@@ -64,9 +65,25 @@ export class PhotoRugBridge{
   if(writeStyles){if(this.canvas)this.canvas.style.transform=`translate3d(0,${pose.photoY}px,0)`;
    this.capture.style.setProperty('--floor-pan',-pose.pan+'px');this.capture.style.setProperty('--heading-opacity',String(1-ease(t/.45)));this.capture.style.setProperty('--finder-reticle',String(.36*(1-ease(t/.6))));this.stage.style.transform=`translate3d(0,${pose.roomY}px,0)`;
   }
-  this.stage.dataset.bridgeDither=this.stage.dataset.bridgePhase==='panning'?'1.000':'0.000';this.stage.dataset.bridgePhotoY=pose.screenPhotoY.toFixed(1);this.stage.dataset.bridgeProgress=t.toFixed(3);this.stage.dataset.bridgeFloorPan=pose.pan.toFixed(1);this.stage.dataset.bridgePhotoVisible=String(!!this.canvas&&pose.photoY<this.feedHeight&&t<1);if(t>=1)this.finish();
+  this.stage.dataset.bridgePhotoY=pose.screenPhotoY.toFixed(1);this.stage.dataset.bridgeProgress=t.toFixed(3);this.stage.dataset.bridgeFloorPan=pose.pan.toFixed(1);this.stage.dataset.bridgePhotoVisible=String(!!this.canvas&&pose.photoY<this.feedHeight&&t<1);if(t>=1)this.finish();
  }
 
  finish(){const done=this.resolve;this.resolve=null;this.dispose();done?.();}
- dispose(){this.token=null;for(const animation of this.animations??[])animation.cancel();this.animations=[];if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;const done=this.resolve;this.resolve=null;if(this.canvas){for(const c of this.canvas.querySelectorAll?.("canvas")??[]){c.width=c.height=0;}this.canvas.remove();this.canvas=null;}this.dither=null;if(this.capture){for(const p of ['--floor-pan','--heading-opacity','--finder-reticle'])this.capture.style.removeProperty(p);this.capture.classList.remove('capture-feeding','capture-processing');this.capture=null;}for(const p of ['transform','opacity','pointer-events'])this.stage.style.removeProperty(p);this.stage.classList.remove('floor-travelling');this.active=false;done?.();}
+ dispose(){this.token=null;for(const animation of this.animations??[])animation.cancel();this.animations=[];if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;const done=this.resolve;this.resolve=null;if(this.canvas){for(const c of this.canvas.querySelectorAll?.("canvas")??[]){c.width=c.height=0;}this.canvas.remove();this.canvas=null;}this.scan=null;if(this.capture){for(const p of ['--floor-pan','--heading-opacity','--finder-reticle'])this.capture.style.removeProperty(p);this.capture.classList.remove('capture-feeding','capture-processing');this.capture=null;}for(const p of ['transform','opacity','pointer-events'])this.stage.style.removeProperty(p);this.stage.classList.remove('floor-travelling');this.active=false;done?.();}
+}
+
+// Screen-space geometry keeps every dot the same 11px diameter as the reticle.
+export function photoScanRows(width,height,random=Math.random){
+ const count=Math.max(12,Math.min(24,Math.ceil(height/42))),gap=height/count;
+ return Array.from({length:count},(_,i)=>{const start=2+Math.floor(random()*4),end=2+Math.floor(random()*3),reverse=i%2===1,dots=[...Array.from({length:start},(_,k)=>12+k*17),...Array.from({length:end},(_,k)=>width-12-k*17)];return{y:(i+.5)*gap,reverse,dots};});
+}
+function createPhotoScan(holder,lens){
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,rows=photoScanRows(width,height),animations=[],reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:5400/rows.length;
+ svg.classList.add('photo-scan');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('aria-hidden','true');holder.append(svg);
+ for(const [i,row] of rows.entries()){
+  const group=document.createElementNS(ns,'g'),line=document.createElementNS(ns,'path');line.setAttribute('d',`M0 ${row.y}H${width}`);line.setAttribute('fill','none');line.setAttribute('stroke','white');line.setAttribute('stroke-width','1');group.append(line);
+  for(const x of row.dots){const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',row.y);dot.setAttribute('r','5.5');dot.setAttribute('fill','white');group.append(dot);}
+  svg.append(group);const hidden=row.reverse?'inset(0 0 0 100%)':'inset(0 100% 0 0)';const animation=group.animate([{clipPath:hidden},{clipPath:'inset(0 0 0 0)'}],{duration,delay:i*duration,easing:'linear',fill:'both'});animations.push(animation);
+ }
+ return{animations,finished:Promise.all(animations.map(a=>a.finished.catch(()=>{})))};
 }
