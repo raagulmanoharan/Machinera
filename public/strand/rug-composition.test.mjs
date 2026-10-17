@@ -10,3 +10,9 @@ test('photo sections use local weft motifs while keeping earlier colours locked'
 });
 
 test('new memories avoid the previous two motif families without changing old cloth',()=>{const archive=new RugArchive(),families=[];let first;for(let i=0;i<10;i++){const entry=archive.append({palette,analysis:{brightness:.4,contrast:.3,complexity:.6}});if(i===0)first=entry.baked.slice();assert.ok(!families.slice(-2).includes(entry.plan.motif.family));if(i>1)assert.notDeepEqual(entry.plan.motif.map,archive.entries[i-1].plan.motif.map);families.push(entry.plan.motif.family);}assert.deepEqual(archive.entries[0].baked,first);});
+
+test('broad lozenge centres contain a smaller contrasting motif without changing dye weights',()=>{
+ const p=[{rgb:[89,52,31],share:.5},{rgb:[232,222,197],share:.3},{rgb:[32,43,66],share:.16},{rgb:[195,157,64],share:.04}];let rug;
+ for(let i=0;i<300;i++){const candidate=composeRug(p,48,119,{brightness:i%7/6,contrast:i%5*.1,complexity:i%29/28});if(candidate.family==='nested-lozenges'&&candidate.columns===1){rug=candidate;break;}}
+ assert.ok(rug);const cx=24,cy=Math.round(rug.border+(119-2*rug.border)/(2*rug.rows)),centre=new Set();for(let y=cy-5;y<=cy+5;y++)for(let x=cx-5;x<=cx+5;x++)centre.add(rug.map[y*48+x]);assert.ok(centre.size>=2,'Large centre must include a contrasting inset motif');for(let c=0;c<p.length;c++)assert.ok(Math.abs(rug.counts[c]-p[c].share*48*119)<=4);
+});
