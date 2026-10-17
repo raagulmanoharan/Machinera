@@ -40,7 +40,7 @@ export class PhotoRugBridge{
   // has actually been submitted and the full-height scan has finished.
   const panAnimations=[];
   const startPan=()=>{if(!this.active||this.token!==token)return;
-   this.capture.classList.remove('capture-processing');this.stage.dataset.bridgePhase='panning';const duration=feed?2800:1500,origin=document.timeline.currentTime;
+   this.capture.classList.remove('capture-processing');this.scan?.hideStatus();this.stage.dataset.bridgePhase='panning';const duration=feed?2800:1500,origin=document.timeline.currentTime;
    const frames=fn=>Array.from({length:61},(_,i)=>({...fn(i/60),offset:i/60}));
    const pan=(element,fn)=>{const animation=animate(element,frames(fn),duration);if(animation){panAnimations.push(animation);if(feed&&readPrintProgress){animation.pause();animation.currentTime=0;}else animation.startTime=origin;}return animation;};
    const master=pan(this.capture,t=>({transform:`translate3d(0,${-ease(t)*this.height}px,0)`}));
@@ -92,6 +92,7 @@ export function colourScanRows(width,height,map,palette,random=Math.random){
 }
 function createPhotoScan(holder,lens,prepared,onScanStart){
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,animations=[];let cancelled=false,stopSound=()=>{};
+ const status=document.createElement('p');status.className='scan-status';status.setAttribute('role','status');status.textContent='Extracting colours…';holder.append(status);
  svg.classList.add('photo-scan');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('aria-hidden','true');holder.append(svg);const maskId=addDotGrain(svg,ns);
  const finished=Promise.resolve(prepared).then(data=>{if(cancelled)return;stopSound=onScanStart()??(()=>{});const rows=colourScanRows(width,height,data?.scanMap,data?.palette),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:(19200/1.3)/(rows.length+1);
   for(const [i,row] of rows.entries()){
@@ -99,9 +100,10 @@ function createPhotoScan(holder,lens,prepared,onScanStart){
    for(const [k,x] of row.dots.entries()){const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',row.y);dot.setAttribute('r','5.5');dot.setAttribute('mask',`url(#${maskId})`);dot.setAttribute('fill',row.colours?.[k]?`rgb(${row.colours[k].join(',')})`:'white');group.append(dot);}
    svg.append(group);const hidden=row.reverse?'inset(0 0 0 100%)':'inset(0 100% 0 0)';animations.push(group.animate([{clipPath:hidden},{clipPath:'inset(0 0 0 0)'}],{duration,delay:i*duration/2,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'}));
   }
-  return Promise.all(animations.map(a=>a.finished.catch(()=>{}))).finally(()=>stopSound());
+  for(const [fraction,label] of [[.3,'Making yarns…'],[.65,'Designing the weave…']])animations[Math.floor((animations.length-1)*fraction)].finished.then(()=>{if(!cancelled)status.textContent=label;}).catch(()=>{});
+  return Promise.all(animations.map(a=>a.finished.catch(()=>{}))).finally(()=>{stopSound();if(!cancelled)status.textContent='Preparing the loom…';});
  });
- return{finished,cancel(){cancelled=true;stopSound();for(const animation of animations)animation.cancel();}};
+ return{finished,hideStatus(){status.hidden=true;},cancel(){cancelled=true;stopSound();for(const animation of animations)animation.cancel();}};
 }
 
 let scanGrain=null;
