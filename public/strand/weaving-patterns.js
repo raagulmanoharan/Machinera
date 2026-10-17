@@ -1,9 +1,9 @@
-import {composeRug} from './rug-composition.js?v=171';
+import {composeRug} from './rug-composition.js?v=181';
 import {generatePhotoDraft,draftCrossing} from './photo-draft.js?v=156';
 import {chooseLoomDraft} from './photo-weave-design.js?v=156';
-import {splitYarnDyes} from './yarn-contrast.js?v=156';
+import {splitYarnDyes} from './yarn-contrast.js?v=181';
 import {WEAVE_LIBRARY} from './weave-library.js?v=156';
-import {createColourDesign,designYarns} from './yarn-colour-design.js?v=156';
+import {createColourDesign,designYarns} from './yarn-colour-design.js?v=181';
 export {compileLoomDraft,generateLoomDraft} from './loom-draft.js?v=156';
 export function patternIndices({family,symmetry='warp',maxFloat=7,composition=false,recentFamilies=[]}={}){
  return WEAVE_LIBRARY.flatMap((draft,index)=>(!family||draft.family===family)&&(symmetry!=='warp'||draft.structuralSymmetry==='warp')&&draft.maxFloat<=maxFloat?[index]:[]);

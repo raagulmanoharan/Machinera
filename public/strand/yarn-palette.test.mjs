@@ -39,3 +39,6 @@ test('night photos retain small warm and pale light accents without changing sou
  assert.equal(p.reduce((n,c)=>n+c.weight,0),10000);
  const black=mergeDyeColours([{rgb:[0,0,0],weight:10000}]);assert.equal(black.length,1,'A truly black image must not acquire invented colours');
 });
+
+test('muted navy is distinct from warm brown and neutral grey',()=>{assert.ok(areDyeColoursDistinct([50,55,75],[90,70,55]));assert.ok(areDyeColoursDistinct([50,55,75],[60,60,60]));});
+test('several upholstery shades cannot crowd out muted blue and red',()=>{const colours=[[[111,79,61],2123],[[53,35,27],2059],[[165,134,111],1832],[[87,87,86],1445],[[205,181,151],987],[[215,213,196],259],[[217,25,41],238],[[249,249,244],201],[[177,60,81],129],[[102,106,126],119],[[50,41,45],111],[[68,64,80],33]],palette=mergeDyeColours(colours.map(([rgb,weight])=>({rgb,weight})));assert.ok(palette.some(c=>c.rgb[2]>c.rgb[0]+10&&c.rgb[2]>c.rgb[1]+10),'Muted shirt blue must remain a yarn');assert.ok(palette.some(c=>c.rgb[0]>c.rgb[1]*2),'Red rug/shirt accents must remain');assert.equal(palette.reduce((n,c)=>n+c.weight,0),colours.reduce((n,c)=>n+c[1],0));assert.ok(palette.length<=5);});
