@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {CarpetScroll,clothFeedTop} from './carpet-scroll.js';
+globalThis.innerHeight=844;
+for(const aspect of [390/844,430/932,1440/900]){
+ const camera={fov:32,position:{y:-7.4*Math.max(1,.48/aspect),z:1.5}};
+ const viewHeight=2*Math.abs(camera.position.y+.19)*Math.tan(camera.fov*Math.PI/360);
+ assert.ok(Math.abs(clothFeedTop(camera)-(camera.position.z+viewHeight/2))<.021,'Only a tiny feeder margin is above the viewport');
+ let resized=0;const cloth={sim:{top:4.35,length:3.8},totalLength:11,setLength(length){resized++;assert.equal(length,3.8);},setScrollOffset(offset){this.offset=offset;return false;}};
+ const root={scrollTop:0,addEventListener(){},removeEventListener(){}},spacer={style:{}};
+ const scroll=new CarpetScroll(root,spacer,cloth,camera,()=>{});
+ assert.equal(resized,1);assert.equal(cloth.sim.top,clothFeedTop(camera));scroll.refresh();assert.equal(resized,1,'Unchanged framing does not repack geometry');
+ root.scrollTop=parseFloat(spacer.style.height)-innerHeight;scroll.sync();
+ const remaining=cloth.totalLength-cloth.offset;
+ assert.ok(remaining>0&&remaining<viewHeight,'Scrolling reaches the oldest hem');
+ scroll.dispose();
+}

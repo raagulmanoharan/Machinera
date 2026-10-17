@@ -3,7 +3,7 @@ import {updateMemoryUI} from './camera-ui.js?v=138';
 import {captureWindow} from './camera-framing.js?v=134';
 import * as StrandWeaving from './weaving-patterns.js?v=134';
 globalThis.StrandWeaving=StrandWeaving;
-import {CarpetScroll} from './carpet-scroll.js?v=134';
+import {CarpetScroll} from './carpet-scroll.js?v=139';
 import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=134';
 import {FloorReturn} from './floor-return.js?v=134';
 import {LoomAudio} from './loom-audio.js?v=137';
@@ -103,8 +103,9 @@ await renderer.compileAsync(scene,camera);renderer.shadowMap.needsUpdate=true;pi
 cloth.surface.visible=warmSurfaceVisible;cloth.yarn.setVisible(warmSurfaceVisible);renderer.shadowMap.needsUpdate=true;pipeline.render();
 // Reuse the exact room paper render as a static upstairs backdrop. One startup
 // readback; no second background renderer or animated texture uploads.
-await pipeline.paperReady;pipeline.render();
-try{capture.style.setProperty('--camera-paper',`url("${renderer.domElement.toDataURL('image/jpeg',.9)}")`);}catch{/* The charcoal base remains available if canvas export is unavailable. */}
+await pipeline.paperReady;
+const paperSceneVisible=scene.visible;scene.visible=false;
+try{pipeline.render();capture.style.setProperty('--camera-paper',`url("${renderer.domElement.toDataURL('image/jpeg',.9)}")`);}catch{/* The charcoal base remains available if canvas export is unavailable. */}finally{scene.visible=paperSceneVisible;renderer.shadowMap.needsUpdate=true;pipeline.render();}
 
 await new Promise(resolve=>requestAnimationFrame(resolve));stage.dataset.pipelineWarmed='true';sceneDirty=false;
 stage.dataset.simulation='guided';ready=true;stage.dataset.ready="true";shutter.disabled=false;secondFloor.disabled=false;lens.setAttribute('aria-disabled','false');renderer.shadowMap.needsUpdate=true;status.hidden=true;fit();}catch(error){stage.dataset.error=error.message;status.hidden=false;status.textContent='The loom could not load. Please reload.';console.error(error);}
