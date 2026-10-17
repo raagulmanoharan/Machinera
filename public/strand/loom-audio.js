@@ -1,4 +1,4 @@
-import {GenerativeScore} from './generative-score.js?v=150';
+import {GenerativeScore} from './generative-score.js?v=152';
 // Native Web Audio only. Acoustic layers are baked once, never synthesized on RAF.
 // Original instrumental atmosphere inspired by drone, plucked strings and breath;
 // not a rendition of a traditional composition or a claim to reproduce a ghazal.
@@ -15,13 +15,15 @@ export function makeSoundBank(context){
   air:bake(8,(t,n,l)=>Math.sin(Math.PI*t/8)**2*(.18*l+.008*n)*(.7+.3*Math.sin(TAU*.19*t))),
   // Plucked-string model: bridge buzz (jawari), pluck-position comb filtering,
   // unequal harmonic decay and quiet sympathetic partials; no hammer transient.
-  string:bake(8,(t,n,l)=>{
+  string:bake(5,(t,n,l)=>{
    const f=146.832,bend=f*.012*.09*(1-Math.exp(-t/.09)),p=TAU*(f*t+bend);let body=0;
    for(let h=1;h<=12;h++)body+=Math.sin(p*h+.000012*h*h*h*t)*Math.sin(Math.PI*h*.23)*Math.exp(-t*(.25+.11*Math.sqrt(h)+h*.045))/(h**1.15);
    const bridge=(Math.tanh(2.4*Math.sin(p))-.78*Math.sin(p))*.12*Math.exp(-t*.85);
    const sympathetic=.065*Math.sin(p*2+.04*Math.sin(t*2.1))*Math.exp(-t*.27)+.035*Math.sin(p*3)*Math.exp(-t*.38);
-   return (.52*body+bridge+sympathetic)*(1-Math.exp(-t*85))*(1-Math.exp(-(8-t)*8))+.006*l*Math.exp(-t*5);
+   return (.52*body+bridge+sympathetic)*(1-Math.exp(-t*85))*(1-Math.exp(-(5-t)*8))+.006*l*Math.exp(-t*5);
   }),
+  // A separate hollow, low bamboo-flute voice, not a transposed lead sample.
+  alto:bake(3.4,(t,n,l)=>{const e=(1-Math.exp(-t*4))*Math.min(1,(3.4-t)/.8),p=TAU*293.664*t+.025*Math.sin(TAU*4.1*t);return e*(.26*Math.sin(p)+.014*Math.sin(2*p)+.05*Math.sin(3*p+.2)+.045*l+.002*n)*(.96+.04*Math.sin(TAU*.49*t));}),
   // Breath-driven bamboo-flute colour: soft onset, delayed vibrato, air and
   // a small settling pitch curve rather than a perfectly static oscillator.
   breath:bake(5,(t,n,l)=>{
@@ -47,7 +49,7 @@ export class LoomAudio{
  if(glide){source.playbackRate.setValueAtTime(rate*(1+glide),at);source.playbackRate.exponentialRampToValueAtTime(rate,at+.22);}
  let filter=null,noise=null,noiseGain=null,end=null;gain.gain.value=volume;
  if(timbre){
-  const duration=Math.min(source.buffer.duration/rate,timbre.release),attack=name==='breath'?.16:.025;
+  const duration=Math.min(source.buffer.duration/rate,timbre.release),attack=timbre.part==='counter'?.3:.12;
   gain.gain.setValueAtTime(.0001,at);gain.gain.exponentialRampToValueAtTime(volume,at+Math.min(attack,duration*.2));gain.gain.setValueAtTime(volume,at+duration*.52);gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
   filter=c.createBiquadFilter();filter.type='lowpass';filter.frequency.setValueAtTime(timbre.cutoff,at);filter.frequency.exponentialRampToValueAtTime(timbre.cutoff*.6,at+duration);source.connect(filter);filter.connect(gain);
   noise=c.createBufferSource();noise.buffer=this.bank.air;noise.loop=true;noiseGain=c.createGain();noiseGain.gain.value=timbre.noiseMix;noise.connect(noiseGain);noiseGain.connect(filter);noise.start(at,2);end=at+duration+.02;
