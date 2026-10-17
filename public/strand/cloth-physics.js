@@ -1,5 +1,5 @@
 import * as T from 'three';
-import {StraightSpan} from './straight-span.js?v=143';
+import {StraightSpan} from './straight-span.js?v=156';
 // A fixed-size, freely hanging cloth patch. No room colliders or pile solver.
 class SlackSpan{
  constructor(){this.nx=5;this.ny=33;this.width=1.536;this.length=3.85+.48*Math.PI/2+4.83;this.top=4.35;this.wallLimit=Infinity;this.floorLimit=-Infinity;this.positions=new Float32Array(this.nx*this.ny*3);this.base=new Float32Array(this.positions.length);this.offset=new Float32Array(this.positions.length);this.velocity=new Float32Array(this.positions.length);this.stepBefore=new Float32Array(this.positions.length);this.active=false;this.isWorker=false;this.windTime=0;this.grab=null;this.constraints=[];this.shape();this.pose();}

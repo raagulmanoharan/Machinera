@@ -1,5 +1,5 @@
-import {geometricDrafts} from './geometric-drafts.js?v=134';
-import {generatedDraftCatalogue,compileLoomDraft} from './loom-draft.js?v=134';
+import {geometricDrafts} from './geometric-drafts.js?v=156';
+import {generatedDraftCatalogue,compileLoomDraft} from './loom-draft.js?v=156';
 // Independently constructed loom drafts, studied against the public drawdowns
 // and structural metadata in Handweaving.net's Glossary, Twills and Satins.
 // Each recipe records threading, treadling and tie-up; no thumbnail is a texture.
@@ -37,12 +37,8 @@ const baseDrafts=[
 ];
 export const WEAVE_LIBRARY=Object.freeze([...baseDrafts,...generatedDraftCatalogue(baseDrafts),...geometricDrafts(compileLoomDraft,baseDrafts)]);
 export function warpOver(end,pick,type=0){const d=WEAVE_LIBRARY[type]??WEAVE_LIBRARY[0];return Math.floor(d.rows[mod(Math.round(pick),d.height)]/2**mod(Math.round(end),d.width))%2===1;}
-// Generate the GPU rules from these exact drawdown bits. A balanced decision
-// tree keeps the lookup to at most five pattern decisions, with no extra texture.
-const f=n=>n.toFixed(1);
-function lookup(d){let expression='0.';for(let y=d.height-1;y>=0;y--)expression=`row<${f(y+.5)}?${f(d.rows[y])}:(${expression})`;return `{float row=mod(pick,${f(d.height)});float mask=${expression};return mod(floor(mask/exp2(mod(end,${f(d.width)}))),2.)>.5?1.:-1.;}`;}
-function branch(lo,hi){if(lo===hi)return lookup(WEAVE_LIBRARY[lo]);const mid=(lo+hi)>>1;return `if(type<${f(mid+.5)}){${branch(lo,mid)}}else{${branch(mid+1,hi)}}`;}
+// Every catalogue/generated draft is uploaded as its exact per-pick lift mask.
+// A single lookup replaces the full catalogue decision tree in every shader.
+export function encodeDraftRow(draft,pick){const row=((pick%draft.height)+draft.height)%draft.height,bits=draft.rows[row];return[240,bits%256,Math.floor(bits/256),draft.width];}
 export const draftGLSL=`uniform sampler2D streamWeave;uniform float streamHistoryLength,streamAtlasBase,streamDraftPitch;
-float warpCrossing(float end,float pick,float type){end=floor(end+.5);pick=floor(pick+.5);
-if(type>239.5){vec4 draw=texture2D(streamWeave,vec2(.5,clamp((pick*streamDraftPitch-streamAtlasBase)/streamHistoryLength,0.,1.)));float mask=floor(draw.g*255.+.5)+256.*floor(draw.b*255.+.5),width=max(1.,floor(draw.a*255.+.5));return mod(floor(mask/exp2(mod(end,width))),2.)>.5?1.:-1.;}
-${branch(0,WEAVE_LIBRARY.length-1)}}\n`;
+float warpCrossing(float end,float pick,float type){end=floor(end+.5);pick=floor(pick+.5);vec4 draw=texture2D(streamWeave,vec2(.5,clamp((pick*streamDraftPitch-streamAtlasBase)/streamHistoryLength,0.,1.)));float mask=floor(draw.g*255.+.5)+256.*floor(draw.b*255.+.5),width=max(1.,floor(draw.a*255.+.5));return mod(floor(mask/exp2(mod(end,width))),2.)>.5?1.:-1.;}\n`;
