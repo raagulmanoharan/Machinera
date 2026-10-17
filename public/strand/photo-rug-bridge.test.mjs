@@ -19,12 +19,12 @@ test('navigation without a photo keeps the image fixed in its floor',()=>{
 });
 
 test('pan follows actual printing, preserves existing length and cannot outrun a stalled feed',()=>{
- const print={time:1.65,duration:4},fraction=print.time/print.duration,read=createPrintProgressReader(()=>print);
+ const print={time:0,duration:4,hold:true},fraction=print.time/print.duration,read=createPrintProgressReader(()=>print);
  assert.equal(read(),0);assert.equal(print.time/print.duration,fraction);
- const start=print.time;assert.ok(Math.abs(print.duration-start-3.6)<1e-10);
+ const start=print.time;assert.ok(Math.abs(print.duration-start-6.4)<1e-10);
  for(let i=0;i<100;i++)assert.equal(read(),0,'Wall-clock ticks cannot advance a stalled cloth');
- print.time=start+.9;assert.ok(Math.abs(read()-.25)<1e-10);
- print.time=start+2.7;assert.ok(Math.abs(read()-.75)<1e-10);
- print.time=print.duration+.01;assert.equal(read(),1);
+ print.time=start+.72;assert.ok(Math.abs(read()-.25)<1e-10);
+ print.time=start+2.16;assert.ok(Math.abs(read()-.75)<1e-10);
+ assert.equal(print.hold,false);print.time=start+6.4*.45;assert.equal(read(),1);assert.ok(print.time/print.duration<.5,'Pan ends while most of the section remains to print');print.time=print.duration+.01;assert.equal(read(),1);
  assert.equal(createPrintProgressReader(()=>null)(),1);
 });
