@@ -12,7 +12,7 @@ export class GenerativeScore{
  constructor(seed,modeId){this.seed=seed>>>0||1;this.mode=modeId?SCORE_MODES[modeId]:this.pick([SCORE_MODES.bhairavi,SCORE_MODES.kafi]);if(!this.mode)throw new Error('Unknown musical mode');this.ratios=this.mode.ratios;this.phrases=0;this.queue=[];this.recent=[];this.anchor=[0,this.pick([1,2,3]),this.pick([3,4,5]),this.pick([1,2,3]),0];this.section='invocation';this.sectionLeft=2;this.reset(0);}
  random(){let n=this.seed;n^=n<<13;n^=n>>>17;n^=n<<5;this.seed=n>>>0;return this.seed/4294967296;}
  pick(a){return a[Math.floor(this.random()*a.length)];}
- reset(now){this.queue.length=0;this.nextDrone=now+.04;this.nextCloud=now+.08;this.nextAir=now+3;this.nextPhrase=now+2;this.nextArp=[now+.1,now+1.8,now+5.2];this.arpStep=[0,0,0];this.harmony=0;this.nextHarmony=now+24;this.started=now;}
+ reset(now){this.queue.length=0;this.nextDrone=now+.04;this.nextCloud=now+.08;this.nextAir=now+3;this.nextPhrase=now+2;this.nextArp=[now+.1,now+.55,now+3.7];this.arpStep=[0,0,0];this.harmony=0;this.nextHarmony=now+.1+43.2;this.started=now;}
  event(name,time,volume,degree,pan=0,glide=0){return{name,time,volume,rate:this.ratios[degree],pan,glide};}
  // Notes are scale-degree walks, with a remembered contour and cadential anchors.
  phrase(time){
@@ -43,19 +43,21 @@ export class GenerativeScore{
  }
  eventsUntil(now,horizon=now+.22){const out=[];
   // Short scheduling horizon bounds live sources; long phrase plans stay as data.
-  if(this.nextHarmony<horizon){this.harmony=(this.harmony+this.pick([1,1,3]))%this.mode.voicings.length;this.nextHarmony=Math.max(now,this.nextHarmony)+24+this.random()*18;}
-  // Three independently paced arpeggios share a slow-moving harmonic centre.
+  if(this.nextHarmony<horizon){this.harmony=(this.harmony+this.pick([1,1,3]))%this.mode.voicings.length;this.nextHarmony+=43.2;}
+  // A shared 900 ms pulse: repeating six-note broken chords, a half-speed
+  // answer and sparse flute. Harmony changes only after eight complete cycles.
   // D, F, A, C / D, G, A / Bb, D, F: open minor colours, never a chord loop.
   const shapes=[[2,4,6,8],[2,5,6,9],[7,9,11,6],[2,4,8,9]];
   for(let layer=0;layer<3;layer++)if(this.nextArp[layer]<horizon){
    const shape=shapes[this.harmony],walk=[0,1,2,3,2,1],step=this.arpStep[layer]++;
    let degree=shape[walk[(step+layer*2)%walk.length]];
-   if(layer===0)degree=[0,2,4,6][walk[step%walk.length]];
-   if(layer===2)degree=Math.min(this.ratios.length-1,degree+this.pick([0,0,2]));
-   if(layer!==2||this.random()>.28)out.push(this.event(layer===2?'breath':'arp',Math.max(now,this.nextArp[layer]),[.16,.105,.065][layer]*(.82+this.random()*.3),degree,[-.32,.3,.08][layer],layer===2?-.012:(step%3===1?.018:0)));
-   this.nextArp[layer]=Math.max(now,this.nextArp[layer])+[2.8,4.15,6.4][layer]*(.94+this.random()*.12);
+   if(layer===1)degree=[0,2,4,6][walk[step%walk.length]];
+   
+   out.push(this.event(layer===2?'breath':'arp',Math.max(now,this.nextArp[layer]),[.19,.075,.045][layer]*(step%6===0?1:.85),degree,[-.32,.3,.08][layer],layer===2?-.012:(step%3===1?.018:0)));
+   this.nextArp[layer]+=[.9,1.8,3.6][layer];
+   if(this.nextArp[layer]<now)this.nextArp[layer]=now+[.9,1.8,3.6][layer];
   }
-  if(this.nextDrone<horizon){out.push(this.event('string',Math.max(now,this.nextDrone),.095+this.random()*.035,this.pick([0,0,1,2]),(this.random()-.5)*.4));this.nextDrone=Math.max(now,this.nextDrone)+2.2+this.random()*2.3;}
+  if(this.nextDrone<horizon){out.push(this.event('string',Math.max(now,this.nextDrone),.095+this.random()*.035,0,-.12));this.nextDrone=Math.max(now,this.nextDrone)+7.2;}
   if(this.nextCloud<horizon){
    const voicing=this.mode.voicings[this.harmony];
    for(let i=0;i<voicing.length;i++)out.push(this.event('cloud',Math.max(now,this.nextCloud)+i*.12,.1+this.random()*.025,voicing[i],(i-1)*.28));

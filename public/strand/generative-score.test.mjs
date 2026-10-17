@@ -22,3 +22,8 @@ for(const id of Object.keys(SCORE_MODES)){
 assert.equal(SCORE_MODES.yaman.notes[3],6);assert.equal(SCORE_MODES.bhairavi.notes[1],1);assert.equal(SCORE_MODES.kafi.notes[1],2);
 
 for(let seed=1;seed<50;seed++){const score=new GenerativeScore(seed);assert.equal(score.mode.notes[2],3,"Default atmosphere retains a minor third");}
+
+const pulse=new GenerativeScore(62,'bhairavi'),lead=[];
+for(let t=0;t<40;t+=.1)for(const e of pulse.eventsUntil(t))if(e.name==='arp'&&e.pan===-.32)lead.push(e);
+assert.ok(lead.length>40);for(let i=1;i<lead.length;i++)assert.ok(Math.abs(lead[i].time-lead[i-1].time-.9)<1e-8,'Lead stays on its shared pulse');
+for(let i=6;i<lead.length;i++)assert.equal(lead[i].rate,lead[i%6].rate,'Six-note arp repeats intact before the harmonic change');
