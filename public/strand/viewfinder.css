@@ -44,3 +44,8 @@
 
 /* Native scrolling owns all touches; the rug is a fixed, non-interactive surface. */
 #carpetScroll #stage{pointer-events:none}
+
+#physicsToggle{display:none;position:fixed;z-index:4;right:calc(env(safe-area-inset-right) + 28px);bottom:calc(env(safe-area-inset-bottom) + 32px);width:44px;height:44px;place-items:center;border:0;background:#0005;color:var(--ink);padding:12px;cursor:pointer}
+#physicsToggle svg{width:20px;height:20px;stroke-width:1}body:has(#capture[hidden]) #physicsToggle{display:grid}
+#physicsToggle[aria-pressed="false"]{color:#ecebe580}#physicsToggle:focus-visible{outline:1px solid #fff8;outline-offset:-3px}#physicsToggle:disabled{opacity:.5}
+body.cloth-physics #carpetScroll #stage{pointer-events:auto}
