@@ -1,5 +1,5 @@
 import {draftCrossing} from './photo-draft.js?v=156';
-import {createWeavePattern} from './weaving-patterns.js?v=196';
+import {createWeavePattern} from './weaving-patterns.js?v=197';
 import {transitionPick,THREAD_PITCH} from './weave-transition.js?v=156';
 import {PICKS_PER_METRE,FABRIC_COLUMNS} from './fabric-coordinates.js?v=156';
 import {WARP_ENDS} from './yarn-structure.js?v=156';

@@ -1,4 +1,4 @@
-import {composeRug} from './rug-composition.js?v=196';
+import {composeRug} from './rug-composition.js?v=197';
 import {generatePhotoDraft,draftCrossing} from './photo-draft.js?v=156';
 import {chooseLoomDraft} from './photo-weave-design.js?v=156';
 import {splitYarnDyes} from './yarn-contrast.js?v=196';
