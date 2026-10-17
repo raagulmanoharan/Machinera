@@ -10,7 +10,12 @@ export async function createMemoryPostcard({entry,index,renderThumbnail}){
  await document.fonts.load('28px "EB Garamond"').catch(()=>{});const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1920;const ctx=canvas.getContext('2d',{willReadFrequently:true}),details=postcardDetails(entry,index);
  // One full-bleed render supplies the rug and the same uninterrupted paper.
  const thumbnail=renderThumbnail(entry),bounds=thumbnail.rugBounds??{left:150,right:930,bottom:1270};ctx.drawImage(thumbnail,0,0,1080,1920);thumbnail.width=thumbnail.height=0;
- ctx.fillStyle='#ecebe5';ctx.font='400 28px "EB Garamond", Garamond, serif';ctx.textBaseline='alphabetic';const x=bounds.left,width=bounds.right-x;let y=Math.max(1380,bounds.bottom+95);ctx.fillText(`Memory ${details.number}`,x,y);y=wrap(ctx,details.weave,x,y+42,width,34);y=wrap(ctx,details.pattern,x,y+6,width,34);y=wrap(ctx,details.description,x,y+6,width,34);y=wrap(ctx,details.inventory,x,y+6,width,34);ctx.fillText(`Pattern ${details.code}`,x,y+6);ctx.fillText('MACHINERA',x,1810);
+ const x=bounds.left,width=bounds.right-x,scale=Math.min(1,width/650);let y=Math.max(1370,bounds.bottom+100);
+ ctx.fillStyle='#ecebe5';ctx.textBaseline='alphabetic';ctx.font=`400 ${40*scale}px "EB Garamond", Garamond, serif`;ctx.fillText(`Memory ${details.number}`,x,y);
+ ctx.font=`400 ${32*scale}px "EB Garamond", Garamond, serif`;y=wrap(ctx,details.weave,x,y+54*scale,width,40*scale);
+ ctx.font=`400 ${28*scale}px "EB Garamond", Garamond, serif`;ctx.fillStyle='#cccac3';y=wrap(ctx,details.pattern,x,y+12,width,38*scale);y=wrap(ctx,details.description,x,y+12,width,38*scale);wrap(ctx,details.inventory,x,y+12,width,38*scale);
+ // A quiet footer shares the rug edges, with a clear margin below it.
+ ctx.fillStyle='#ecebe5';ctx.fillText('MACHINERA',x,1800);ctx.fillStyle='#aaa9a3';ctx.textAlign='right';ctx.fillText(details.code,bounds.right,1800);ctx.textAlign='left';
 
  const pixels=ctx.getImageData(0,0,1080,1920);let seed=(index+1)*982451653;for(let i=0;i<pixels.data.length;i+=4){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const grain=((seed>>>24)/255-.5)*5;for(let c=0;c<3;c++)pixels.data[i+c]=Math.max(0,Math.min(255,pixels.data[i+c]+grain));}ctx.putImageData(pixels,0,0);
  const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Image export failed')),'image/png'));canvas.width=canvas.height=0;return{blob,filename:`machinera-memory-${details.number}.png`,details};
