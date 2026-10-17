@@ -43,7 +43,7 @@ document.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===
 let scroller,scrollVersion=-1;
 const physicsButton=document.querySelector('#physicsToggle');let physicsDispose=null,physicsLoading=false;
 physicsButton.onclick=async()=>{if(!ready||physicsLoading||processingPhoto||bridge.active||upstairs.active)return;physicsLoading=true;physicsButton.disabled=true;
- try{if(physicsDispose){physicsDispose();physicsDispose=null;}else{const {enableClothPhysics}=await import('./cloth-physics.js?v=153');physicsDispose=enableClothPhysics({cloth,canvas:renderer.domElement,camera,render,scroll:scroller});}
+ try{if(physicsDispose){physicsDispose();physicsDispose=null;}else{const {enableClothPhysics}=await import('./cloth-physics.js?v=155');physicsDispose=enableClothPhysics({cloth,canvas:renderer.domElement,camera,render,scroll:scroller});}
  const enabled=!!physicsDispose;renderer.shadowMap.enabled=enabled;renderer.shadowMap.needsUpdate=enabled;document.body.classList.toggle('cloth-physics',enabled);physicsButton.setAttribute('aria-pressed',String(enabled));physicsButton.setAttribute('aria-label',enabled?'Disable cloth interaction':'Enable cloth interaction');stage.dataset.simulation=enabled?'optional-physics':'none';
  }catch(error){console.warn('Cloth interaction unavailable',error);}finally{physicsLoading=false;physicsButton.disabled=false;}};
 
