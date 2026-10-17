@@ -9,16 +9,18 @@ export function bridgePose(t,height,photoHeight,feed=true){
  return {progress,pan,roomY:height-pan,photoY:feed?2*pan:0,screenPhotoY:feed?pan:-pan};
 }
 // Stretch only the remaining feed; retain exactly the length already shown.
-export function createPrintProgressReader(getPrint,remainingSeconds=6.4){
- let state=null;
+export function createPrintProgressReader(getPrint,remainingSeconds=8){
+ let state=null;const feed=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
  return()=>{
   if(!state){const print=getPrint();if(!print)return 1;const fraction=Math.min(.99,print.time/print.duration);
-   print.duration=remainingSeconds/(1-fraction);print.time=fraction*print.duration;
-   print.hold=false;
-   // Arrive while the feed is still in progress, then finish printing in view.
-   state={print,start:print.time,span:(print.duration-print.time)*.45};
+   print.duration=remainingSeconds/(1-fraction);print.time=fraction*print.duration;print.hold=false;
+   state={print,start:feed(fraction),end:feed(fraction+(1-fraction)*.68)};
   }
-  return Math.max(0,Math.min(1,(state.print.time-state.start)/state.span));
+  // Match submitted material displacement, including its acceleration, rather
+  // than applying a second, unrelated ease to the simulation clock.
+  const distance=Math.max(0,Math.min(1,(feed(state.print.time/state.print.duration)-state.start)/(state.end-state.start)));
+  if(distance===0||distance===1)return distance;
+  let lo=0,hi=1;for(let i=0;i<24;i++){const mid=(lo+hi)/2;if(ease(mid)<distance)lo=mid;else hi=mid;}return(lo+hi)/2;
  };
 }
 export class PhotoRugBridge{
