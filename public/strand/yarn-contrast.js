@@ -1,4 +1,4 @@
-import {oklab} from './yarn-palette.js?v=134';
+import {oklab} from './yarn-palette.js?v=156';
 // Palette-only decisions. Never invent a dye or change its source weight.
 export function colourContrast(a,b){const x=oklab(a),y=oklab(b);return Math.hypot((x[0]-y[0])*1.6,x[1]-y[1],x[2]-y[2]);}
 function permutations(indices){if(indices.length<2)return[indices];return indices.flatMap((value,i)=>permutations(indices.filter((_,j)=>j!==i)).map(rest=>[value,...rest]));}

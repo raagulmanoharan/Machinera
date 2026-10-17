@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {WEAVE_LIBRARY,warpOver} from './weave-library.js';
+import {WEAVE_LIBRARY,warpOver,encodeDraftRow} from './weave-library.js';
 test('every drawdown is a distinct, fully bound threading/treadling/tie-up recipe',()=>{
  const signatures=new Set();for(let id=0;id<WEAVE_LIBRARY.length;id++){
  const d=WEAVE_LIBRARY[id];assert.ok(d.width<=16);assert.ok(d.height<=16);
@@ -16,3 +16,5 @@ test('every drawdown is a distinct, fully bound threading/treadling/tie-up recip
 test('every draft has bounded floats on both faces, including wrapped repeats',()=>{
  for(let id=0;id<WEAVE_LIBRARY.length;id++){const d=WEAVE_LIBRARY[id];for(let axis=0;axis<2;axis++){const length=axis?d.height:d.width,lines=axis?d.width:d.height;for(let line=0;line<lines;line++){let run=0,last=null;for(let k=0;k<length*2;k++){const v=axis?warpOver(line,k,id):warpOver(k,line,id);run=v===last?run+1:1;last=v;assert.ok(run<=7,d.name+' has a free float longer than the model supports');}}}}
 });
+
+test('GPU lift masks reproduce every catalogue crossing at positive and negative picks',()=>{for(const d of WEAVE_LIBRARY)for(let pick=-20;pick<40;pick++){const [code,lo,hi,width]=encodeDraftRow(d,pick);assert.equal(code,240);for(let end=0;end<48;end++)assert.equal(Math.floor((lo+hi*256)/2**(end%width))%2,Math.floor(d.rows[(pick%d.height+d.height)%d.height]/2**(end%d.width))%2);}});
