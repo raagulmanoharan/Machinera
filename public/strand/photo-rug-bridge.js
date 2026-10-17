@@ -25,10 +25,10 @@ export function createPrintProgressReader(getPrint,remainingSeconds=8){
 }
 export class PhotoRugBridge{
  constructor(stage){this.stage=stage;this.active=false;this.frame=null;}
- begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null}={}){
+ begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null,onScanStart=()=>()=>{}}={}){
   this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;
   if(!preview.hidden&&preview.width&&preview.height){const canvas=document.createElement('canvas');canvas.width=Math.min(768,preview.width);canvas.height=Math.round(canvas.width*preview.height/preview.width);canvas.getContext('2d').drawImage(preview,0,0,canvas.width,canvas.height);canvas.className='photo-feed-frame';canvas.setAttribute('aria-hidden','true');lens.append(canvas);this.canvas=canvas;
-   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);holder.append(canvas);canvas.className='photo-feed-source';this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared);}
+   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);holder.append(canvas);canvas.className='photo-feed-source';shadeScanPhoto(canvas);this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared,onScanStart);}
 
 }
   this.feed=feed;this.active=true;const token={};this.token=token;
@@ -89,16 +89,27 @@ export function colourScanRows(width,height,map,palette,random=Math.random){
  }
  return rows;
 }
-function createPhotoScan(holder,lens,prepared){
- const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,animations=[];let cancelled=false;
- svg.classList.add('photo-scan');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('aria-hidden','true');holder.append(svg);
- const finished=Promise.resolve(prepared).then(data=>{if(cancelled)return;const rows=colourScanRows(width,height,data?.scanMap,data?.palette),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:19200/(rows.length+1);
+function createPhotoScan(holder,lens,prepared,onScanStart){
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,animations=[];let cancelled=false,stopSound=()=>{};
+ svg.classList.add('photo-scan');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('aria-hidden','true');holder.append(svg);const maskId=addDotGrain(svg,ns);
+ const finished=Promise.resolve(prepared).then(data=>{if(cancelled)return;stopSound=onScanStart()??(()=>{});const rows=colourScanRows(width,height,data?.scanMap,data?.palette),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:19200/(rows.length+1);
   for(const [i,row] of rows.entries()){
    const group=document.createElementNS(ns,'g'),line=document.createElementNS(ns,'path');line.setAttribute('d',`M0 ${row.y}H${width}`);line.setAttribute('fill','none');line.setAttribute('stroke','white');line.setAttribute('stroke-width','.35');group.append(line);
-   for(const [k,x] of row.dots.entries()){const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',row.y);dot.setAttribute('r','5.5');dot.setAttribute('fill',row.colours?.[k]?`rgb(${row.colours[k].join(',')})`:'white');group.append(dot);}
+   for(const [k,x] of row.dots.entries()){const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',row.y);dot.setAttribute('r','5.5');dot.setAttribute('mask',`url(#${maskId})`);dot.setAttribute('fill',row.colours?.[k]?`rgb(${row.colours[k].join(',')})`:'white');group.append(dot);}
    svg.append(group);const hidden=row.reverse?'inset(0 0 0 100%)':'inset(0 100% 0 0)';animations.push(group.animate([{clipPath:hidden},{clipPath:'inset(0 0 0 0)'}],{duration,delay:i*duration/2,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'}));
   }
-  return Promise.all(animations.map(a=>a.finished.catch(()=>{})));
+  return Promise.all(animations.map(a=>a.finished.catch(()=>{}))).finally(()=>stopSound());
  });
- return{finished,cancel(){cancelled=true;for(const animation of animations)animation.cancel();}};
+ return{finished,cancel(){cancelled=true;stopSound();for(const animation of animations)animation.cancel();}};
+}
+
+let scanGrain=null;
+function shadeScanPhoto(canvas){
+ if(!scanGrain){scanGrain=document.createElement('canvas');scanGrain.width=scanGrain.height=96;const ctx=scanGrain.getContext('2d'),pixels=ctx.createImageData(96,96);for(let i=0;i<pixels.data.length;i+=4){const value=90+Math.random()*76;pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=value;pixels.data[i+3]=255;}ctx.putImageData(pixels,0,0);}
+ const ctx=canvas.getContext('2d');ctx.fillStyle='rgba(0,0,0,.26)';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.save();ctx.globalCompositeOperation='soft-light';ctx.globalAlpha=.35;ctx.fillStyle=ctx.createPattern(scanGrain,'repeat');ctx.fillRect(0,0,canvas.width,canvas.height);ctx.restore();
+}
+function addDotGrain(svg,ns){
+ const id='dot-grain-'+Math.random().toString(36).slice(2),defs=document.createElementNS(ns,'defs'),pattern=document.createElementNS(ns,'pattern'),mask=document.createElementNS(ns,'mask');pattern.id=id+'-tile';pattern.setAttribute('patternUnits','userSpaceOnUse');pattern.setAttribute('width','16');pattern.setAttribute('height','16');
+ for(let y=0;y<16;y++)for(let x=0;x<16;x++){const pixel=document.createElementNS(ns,'rect'),v=Math.round(185+Math.random()*70);for(const [key,value]of Object.entries({x,y,width:1,height:1,fill:`rgb(${v},${v},${v})`}))pixel.setAttribute(key,value);pattern.append(pixel);}
+ mask.id=id;mask.setAttribute('maskUnits','userSpaceOnUse');mask.setAttribute('x','0');mask.setAttribute('y','0');mask.setAttribute('width','100%');mask.setAttribute('height','100%');const rect=document.createElementNS(ns,'rect');rect.setAttribute('width','100%');rect.setAttribute('height','100%');rect.setAttribute('fill',`url(#${pattern.id})`);mask.append(rect);defs.append(pattern,mask);svg.append(defs);return id;
 }
