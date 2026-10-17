@@ -1,7 +1,7 @@
 import {MemoryStore} from './memory-store.js?v=156';
 import {updateMemoryUI} from './camera-ui.js?v=156';
 import {capturePhotoSource} from './camera-framing.js?v=180';
-import * as StrandWeaving from './weaving-patterns.js?v=194';
+import * as StrandWeaving from './weaving-patterns.js?v=195';
 globalThis.StrandWeaving=StrandWeaving;
 import {CarpetScroll} from './carpet-scroll.js?v=156';
 import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=156';
@@ -17,7 +17,7 @@ import {createStreamPerformance} from './stream-performance.js?v=156';
 import {createStreamPipeline} from './stream-render-pipeline.js?v=156';
 import { loadRoomEnvironment } from './room-lighting.js?v=156';
 import { addTextileLights } from './textile-light-rig.js?v=156';
-import { StreamCloth } from './stream-cloth.js?v=194';
+import { StreamCloth } from './stream-cloth.js?v=195';
 import { FramePacer } from './frame-pacer.js?v=156';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
 const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,deviceProfile.canvasDpr));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=1.0;renderer.info.autoReset=false;renderer.shadowMap.enabled=false;renderer.shadowMap.type=T.PCFShadowMap;renderer.shadowMap.autoUpdate=false;stage.append(renderer.domElement);
