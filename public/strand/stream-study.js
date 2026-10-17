@@ -1,5 +1,5 @@
 import {MemoryStore} from './memory-store.js?v=134';
-import {updateMemoryUI} from './camera-ui.js?v=134';
+import {updateMemoryUI} from './camera-ui.js?v=138';
 import {captureWindow} from './camera-framing.js?v=134';
 import * as StrandWeaving from './weaving-patterns.js?v=134';
 globalThis.StrandWeaving=StrandWeaving;
