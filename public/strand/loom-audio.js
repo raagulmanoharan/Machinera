@@ -1,4 +1,4 @@
-import {GenerativeScore} from './generative-score.js?v=137';
+import {GenerativeScore} from './generative-score.js?v=140';
 // Native Web Audio only. Acoustic layers are baked once, never synthesized on RAF.
 // Original instrumental atmosphere inspired by drone, plucked strings and breath;
 // not a rendition of a traditional composition or a claim to reproduce a ghazal.
@@ -13,9 +13,22 @@ export function makeSoundBank(context){
   // One pitch per cloud, so voicings can change without transposing a chord loop.
   cloud:bake(10,(t,n,l)=>{const e=Math.sin(Math.PI*t/10)**2,p=TAU*146.832*t;return e*(.14*Math.sin(p+.3*Math.sin(TAU*.071*t))+.09*Math.sin(p*1.0021)+.09*Math.sin(p*.9983)+.03*Math.sin(p*2.001)+.09*l);}),
   air:bake(8,(t,n,l)=>Math.sin(Math.PI*t/8)**2*(.18*l+.008*n)*(.7+.3*Math.sin(TAU*.19*t))),
-  // Damped partials with unequal decay approximate a sympathetic plucked string.
-  string:bake(8,(t,n,l)=>{let v=0;for(let h=1;h<=7;h++)v+=Math.sin(TAU*146.832*h*(1+.000035*h*h)*t+.12*h)*Math.exp(-t*(.32+h*.095))/(h**1.8);return .55*v*(1-Math.exp(-t*24))*(1-Math.exp(-(8-t)*8))+.009*l*Math.exp(-t*1.4);}),
-  breath:bake(5,(t,n,l)=>{const e=Math.sin(Math.PI*t/5)**2,phase=TAU*146.832*t+.027*Math.sin(TAU*4.6*t);return e*(.28*Math.sin(phase)+.055*Math.sin(2*phase)+.025*Math.sin(3*phase)+.028*l);})
+  // Plucked-string model: bridge buzz (jawari), pluck-position comb filtering,
+  // unequal harmonic decay and quiet sympathetic partials; no hammer transient.
+  string:bake(8,(t,n,l)=>{
+   const f=146.832,bend=f*.012*.09*(1-Math.exp(-t/.09)),p=TAU*(f*t+bend);let body=0;
+   for(let h=1;h<=12;h++)body+=Math.sin(p*h+.000012*h*h*h*t)*Math.sin(Math.PI*h*.23)*Math.exp(-t*(.25+.11*Math.sqrt(h)+h*.045))/(h**1.15);
+   const bridge=(Math.tanh(2.4*Math.sin(p))-.78*Math.sin(p))*.12*Math.exp(-t*.85);
+   const sympathetic=.065*Math.sin(p*2+.04*Math.sin(t*2.1))*Math.exp(-t*.27)+.035*Math.sin(p*3)*Math.exp(-t*.38);
+   return (.52*body+bridge+sympathetic)*(1-Math.exp(-t*85))*(1-Math.exp(-(8-t)*8))+.006*l*Math.exp(-t*5);
+  }),
+  // Breath-driven bamboo-flute colour: soft onset, delayed vibrato, air and
+  // a small settling pitch curve rather than a perfectly static oscillator.
+  breath:bake(5,(t,n,l)=>{
+   const envelope=(1-Math.exp(-t*3.8))*Math.min(1,(5-t)/1.4),vibrato=.045*(1-Math.exp(-t*.9))*Math.sin(TAU*4.7*t);
+   const p=TAU*(293.664*t-293.664*.008*.16*(1-Math.exp(-t/.16)))+vibrato;
+   return envelope*(.24*Math.sin(p)+.027*Math.sin(p*2+.2)+.012*Math.sin(p*3)+.035*l+.003*n)*(.94+.06*Math.sin(TAU*.7*t));
+  })
  };
  const irRate=context.sampleRate||rate,ir=context.createBuffer(2,Math.ceil(irRate*3.8),irRate);
  for(let channel=0;channel<2;channel++){const a=ir.getChannelData(channel);let low=0;for(let i=0;i<a.length;i++){low+=.25*(noise()-low);const t=i/irRate;a[i]=i<irRate*.023?0:low*Math.exp(-t*1.8)*.38;}}bank.room=ir;

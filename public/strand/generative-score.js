@@ -52,7 +52,7 @@ export class GenerativeScore{
    let degree=shape[walk[(step+layer*2)%walk.length]];
    if(layer===0)degree=[0,2,4,6][walk[step%walk.length]];
    if(layer===2)degree=Math.min(this.ratios.length-1,degree+this.pick([0,0,2]));
-   if(layer!==2||this.random()>.28)out.push(this.event(layer===2?'breath':'arp',Math.max(now,this.nextArp[layer]),[.16,.105,.065][layer]*(.82+this.random()*.3),degree,[-.32,.3,.08][layer]));
+   if(layer!==2||this.random()>.28)out.push(this.event(layer===2?'breath':'arp',Math.max(now,this.nextArp[layer]),[.16,.105,.065][layer]*(.82+this.random()*.3),degree,[-.32,.3,.08][layer],layer===2?-.012:(step%3===1?.018:0)));
    this.nextArp[layer]=Math.max(now,this.nextArp[layer])+[2.8,4.15,6.4][layer]*(.94+this.random()*.12);
   }
   if(this.nextDrone<horizon){out.push(this.event('string',Math.max(now,this.nextDrone),.095+this.random()*.035,this.pick([0,0,1,2]),(this.random()-.5)*.4));this.nextDrone=Math.max(now,this.nextDrone)+2.2+this.random()*2.3;}
