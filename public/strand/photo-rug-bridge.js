@@ -85,7 +85,8 @@ export function colourScanRows(width,height,map,palette,random=Math.random){
  for(const row of rows){const my=Math.min(map.height-1,Math.floor(((1-cropH)/2+row.y/height*cropH)*map.height)),runs=[];let start=0,last=-1;
   for(let x=0;x<=map.width;x++){const sx=Math.min(map.width-1,Math.floor(((1-cropW)/2+x/map.width*cropW)*map.width)),label=x===map.width?-1:map.labels[my*map.width+sx];if(label!==last){if(last>=0)runs.push({start,end:x,label:last});start=x;last=label;}}
   const byColour=new Map();for(const run of runs){const previous=byColour.get(run.label);if(!previous||run.end-run.start>previous.end-previous.start)byColour.set(run.label,run);}const major=[...byColour.values()].sort((a,b)=>a.start-b.start);
-  row.dots=[];row.colours=[];for(const run of major){const left=run.start/map.width*width,right=run.end/map.width*width,total=Math.max(3,Math.min(5,Math.floor((right-left-11)/11)+1)),span=(total-1)*11,centre=(left+right)/2,first=Math.max(5.5,Math.min(width-5.5-span,centre-span/2+(random()-.5)*Math.max(0,right-left-span-11)));for(let k=0;k<total;k++){row.dots.push(first+k*11);row.colours.push(palette[run.label].rgb);}}
+  row.dots=[];row.colours=[];for(const run of major){const left=run.start/map.width*width,right=run.end/map.width*width,total=Math.min(5,Math.floor((right-left)/11));if(total<2)continue;const first=left+5.5+random()*Math.max(0,right-left-total*11);for(let k=0;k<total;k++){const x=first+k*11,sx=Math.min(map.width-1,Math.floor(((1-cropW)/2+x/width*cropW)*map.width)),at=(my*map.width+sx)*3;row.dots.push(x);row.colours.push(map.colours?Array.from(map.colours.slice(at,at+3)):palette[run.label].rgb);}}
+
 
  }
  return rows;
