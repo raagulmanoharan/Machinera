@@ -18,13 +18,11 @@ test('navigation without a photo keeps the image fixed in its floor',()=>{
  assert.equal(p.photoY,0);assert.equal(p.screenPhotoY,-p.pan);
 });
 
-test('pan follows actual printing, preserves existing length and cannot outrun a stalled feed',()=>{
- const print={time:0,duration:4,hold:true},fraction=print.time/print.duration,read=createPrintProgressReader(()=>print);
- assert.equal(read(),0);assert.equal(print.time/print.duration,fraction);
- const start=print.time;assert.ok(Math.abs(print.duration-start-6.4)<1e-10);
- for(let i=0;i<100;i++)assert.equal(read(),0,'Wall-clock ticks cannot advance a stalled cloth');
- print.time=start+.72;assert.ok(Math.abs(read()-.25)<1e-10);
- print.time=start+2.16;assert.ok(Math.abs(read()-.75)<1e-10);
- assert.equal(print.hold,false);print.time=start+6.4*.45;assert.equal(read(),1);assert.ok(print.time/print.duration<.5,'Pan ends while most of the section remains to print');print.time=print.duration+.01;assert.equal(read(),1);
- assert.equal(createPrintProgressReader(()=>null)(),1);
+test('pan matches actual material displacement, stalls with feed and arrives during printing',()=>{
+ const print={time:0,duration:4,hold:true},read=createPrintProgressReader(()=>print);assert.equal(read(),0);assert.equal(print.duration,8);assert.equal(print.hold,false);
+ const feed=t=>t*t*(3-2*t),end=feed(.68);
+ for(let i=0;i<100;i++)assert.equal(read(),0);
+ for(let t=.02;t<.68;t+=.02){print.time=t*8;const pose=bridgePose(read(),844,659);assert.ok(Math.abs(pose.pan/844-feed(t)/end)<1e-6,'Camera and material share displacement and acceleration');const held=read();assert.equal(read(),held,'No wall clock drift');}
+ print.time=8*.68;assert.equal(read(),1);assert.ok(print.time<print.duration,'Printing continues after arrival');assert.equal(createPrintProgressReader(()=>null)(),1);
+ const running={time:1,duration:4,hold:true},resume=createPrintProgressReader(()=>running);assert.equal(resume(),0);assert.equal(running.time/running.duration,.25,'Preserve existing printed length');
 });
