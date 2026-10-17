@@ -1,5 +1,5 @@
 import {photoDesignMetrics} from './photo-weave-design.js?v=156';
-import {orderColours} from './yarn-contrast.js?v=182';
+import {orderColours} from './yarn-contrast.js?v=196';
 const phase=(t,n)=>{const f=((t*n)%1+1)%1;return Math.abs(f-.5)*2;};
 // A small yarn-cell map, not a photo texture. Each row becomes contiguous local
 // weft runs. Symmetry groups are assigned whole source dyes by weighted rank.
