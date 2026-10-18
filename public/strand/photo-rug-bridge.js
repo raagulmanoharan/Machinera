@@ -2,11 +2,12 @@
 // Quintic easing has zero velocity and acceleration at both ends.
 const ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*t*(t*(t*6-15)+10);};
 // Both floors and the photograph occupy one vertical coordinate system.
-// Photo travel includes the same camera displacement as the floor pan, so
-// its screen position advances at exactly the same normalized pace.
+// First feed the photo across the footer, then carry it through the floor pan.
+// Both phases use submitted print progress, with smooth starts and stops.
 export function bridgePose(t,height,photoHeight,feed=true){
- const progress=ease(t),pan=progress*height;
- return {progress,pan,roomY:height-pan,photoY:feed?2*pan:0,screenPhotoY:feed?pan:-pan};
+ const progress=ease(t),overlap=Math.max(0,height-photoHeight),pan=feed?ease((progress-.2)/.8)*height:progress*height;
+ const photoY=feed?ease(progress/.2)*overlap+2*pan:0;
+ return {progress,pan,roomY:height-pan,photoY,screenPhotoY:photoY-pan};
 }
 // Stretch only the remaining feed; retain exactly the length already shown.
 export function createPrintProgressReader(getPrint,remainingSeconds=8){
@@ -27,8 +28,8 @@ export class PhotoRugBridge{
  constructor(stage){this.stage=stage;this.active=false;this.frame=null;}
  begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null,onScanStart=()=>()=>{}}={}){
   this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;
-  if(!preview.hidden&&preview.width&&preview.height){const canvas=document.createElement('canvas');canvas.width=Math.min(768,preview.width);canvas.height=Math.round(canvas.width*preview.height/preview.width);canvas.getContext('2d').drawImage(preview,0,0,canvas.width,canvas.height);canvas.className='photo-feed-frame';canvas.setAttribute('aria-hidden','true');lens.append(canvas);this.canvas=canvas;
-   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);holder.append(canvas);canvas.className='photo-feed-source';shadeScanPhoto(canvas);this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared,onScanStart);}
+  if(!preview.hidden&&preview.width&&preview.height){const canvas=document.createElement('canvas');canvas.width=Math.min(768,preview.width);canvas.height=Math.round(canvas.width*preview.height/preview.width);canvas.getContext('2d').drawImage(preview,0,0,canvas.width,canvas.height);canvas.className='photo-feed-frame';canvas.setAttribute('aria-hidden','true');this.capture.append(canvas);this.canvas=canvas;
+   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);holder.append(canvas);canvas.className='photo-feed-source';shadeScanPhoto(canvas);holder.style.height=this.feedHeight+'px';canvas.style.height='100%';this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared,onScanStart);}
 
 }
   this.feed=feed;this.active=true;const token={};this.token=token;
@@ -40,13 +41,13 @@ export class PhotoRugBridge{
   // has actually been submitted and the full-height scan has finished.
   const panAnimations=[];
   const startPan=()=>{if(!this.active||this.token!==token)return;
-   this.capture.classList.remove('capture-processing');this.scan?.hideStatus();this.stage.dataset.bridgePhase='panning';const duration=feed?2800:1500,origin=document.timeline.currentTime;
+   this.capture.classList.remove('capture-processing');this.capture.classList.add('capture-departing');this.scan?.hideStatus();this.stage.dataset.bridgePhase='panning';const duration=feed?2800:1500,origin=document.timeline.currentTime;
    const frames=fn=>Array.from({length:61},(_,i)=>({...fn(i/60),offset:i/60}));
    const pan=(element,fn)=>{const animation=animate(element,frames(fn),duration);if(animation){panAnimations.push(animation);if(feed&&readPrintProgress){animation.pause();animation.currentTime=0;}else animation.startTime=origin;}return animation;};
-   const master=pan(this.capture,t=>({transform:`translate3d(0,${-ease(t)*this.height}px,0)`}));
-   pan(this.stage,t=>({transform:`translate3d(0,${(1-ease(t))*this.height}px,0)`}));
+   const master=pan(this.capture,t=>({transform:`translate3d(0,${-bridgePose(t,this.height,this.feedHeight,this.feed).pan}px,0)`}));
+   pan(this.stage,t=>({transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).roomY}px,0)`}));
    if(this.canvas)pan(this.canvas,t=>({transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).photoY}px,0)`}));
-   pan(this.capture.querySelector('.camera-heading'),t=>({opacity:1-ease(t/.45)}));
+   pan(this.capture.querySelector('.camera-heading'),t=>({opacity:1-ease(t/.12)}));
    pan(this.capture.querySelector('.finder-markers'),t=>({opacity:.7*(1-ease(t/.6))}));
    // A print reveal follows submitted cloth progress, never a faster wall clock.
    // Ordinary floor navigation keeps the independent compositor animation.
@@ -63,13 +64,13 @@ export class PhotoRugBridge{
 
  update(t,writeStyles=true){if(!this.active)return;const pose=bridgePose(t,this.height,this.feedHeight,this.feed);
   if(writeStyles){if(this.canvas)this.canvas.style.transform=`translate3d(0,${pose.photoY}px,0)`;
-   this.capture.style.setProperty('--floor-pan',-pose.pan+'px');this.capture.style.setProperty('--heading-opacity',String(1-ease(t/.45)));this.capture.style.setProperty('--finder-reticle',String(.36*(1-ease(t/.6))));this.stage.style.transform=`translate3d(0,${pose.roomY}px,0)`;
+   this.capture.style.setProperty('--floor-pan',-pose.pan+'px');this.capture.style.setProperty('--heading-opacity',String(1-ease(t/.12)));this.capture.style.setProperty('--finder-reticle',String(.36*(1-ease(t/.6))));this.stage.style.transform=`translate3d(0,${pose.roomY}px,0)`;
   }
-  this.stage.dataset.bridgePhotoY=pose.screenPhotoY.toFixed(1);this.stage.dataset.bridgeProgress=t.toFixed(3);this.stage.dataset.bridgeFloorPan=pose.pan.toFixed(1);this.stage.dataset.bridgePhotoVisible=String(!!this.canvas&&pose.photoY<this.feedHeight&&t<1);if(t>=1)this.finish();
+  this.stage.dataset.bridgePhotoY=pose.screenPhotoY.toFixed(1);this.stage.dataset.bridgeProgress=t.toFixed(3);this.stage.dataset.bridgeFloorPan=pose.pan.toFixed(1);this.stage.dataset.bridgePhotoVisible=String(!!this.canvas&&pose.screenPhotoY<this.height&&t<1);if(t>=1)this.finish();
  }
 
  finish(){const done=this.resolve;this.resolve=null;this.dispose();done?.();}
- dispose(){this.token=null;for(const animation of this.animations??[])animation.cancel();this.animations=[];if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;const done=this.resolve;this.resolve=null;if(this.canvas){for(const c of this.canvas.querySelectorAll?.("canvas")??[]){c.width=c.height=0;}this.canvas.remove();this.canvas=null;}this.scan?.cancel();this.scan=null;if(this.capture){for(const p of ['--floor-pan','--heading-opacity','--finder-reticle'])this.capture.style.removeProperty(p);this.capture.classList.remove('capture-feeding','capture-processing');this.capture=null;}for(const p of ['transform','opacity','pointer-events'])this.stage.style.removeProperty(p);this.stage.classList.remove('floor-travelling');this.active=false;done?.();}
+ dispose(){this.token=null;for(const animation of this.animations??[])animation.cancel();this.animations=[];if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;const done=this.resolve;this.resolve=null;if(this.canvas){for(const c of this.canvas.querySelectorAll?.("canvas")??[]){c.width=c.height=0;}this.canvas.remove();this.canvas=null;}this.scan?.cancel();this.scan=null;if(this.capture){for(const p of ['--floor-pan','--heading-opacity','--finder-reticle'])this.capture.style.removeProperty(p);this.capture.classList.remove('capture-feeding','capture-processing','capture-departing');this.capture=null;}for(const p of ['transform','opacity','pointer-events'])this.stage.style.removeProperty(p);this.stage.classList.remove('floor-travelling');this.active=false;done?.();}
 }
 
 // Screen-space geometry keeps every dot the same 11px diameter as the reticle.
@@ -104,7 +105,7 @@ function createPhotoScan(holder,lens,prepared,onScanStart){
   for(const [fraction,label] of [[.3,'Making yarns…'],[.65,'Designing the weave…']])animations[Math.floor((animations.length-1)*fraction)].finished.then(()=>{if(!cancelled)status.textContent=label;}).catch(()=>{});
   return Promise.all(animations.map(a=>a.finished.catch(()=>{}))).finally(()=>{stopSound();if(!cancelled)status.textContent='Preparing the loom…';});
  });
- return{finished,hideStatus(){status.hidden=true;},cancel(){cancelled=true;status.remove();stopSound();for(const animation of animations)animation.cancel();}};
+ return{finished,hideStatus(){status.hidden=true;svg.style.visibility='hidden';},cancel(){cancelled=true;status.remove();stopSound();for(const animation of animations)animation.cancel();}};
 }
 
 let scanGrain=null;

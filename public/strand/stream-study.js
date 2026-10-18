@@ -3,11 +3,11 @@ import {updateMemoryUI} from './camera-ui.js?v=156';
 import {capturePhotoSource} from './camera-framing.js?v=180';
 import * as StrandWeaving from './weaving-patterns.js?v=197';
 globalThis.StrandWeaving=StrandWeaving;
-import {CarpetScroll} from './carpet-scroll.js?v=156';
-import {FIRST_PRINT_LENGTH,NEXT_PRINT_LENGTH} from './print-sections.js?v=156';
+import {CarpetScroll} from './carpet-scroll.js?v=199';
+import {FIRST_PRINT_LENGTH} from './print-sections.js?v=156';
 import {FloorReturn} from './floor-return.js?v=156';
 import {LoomAudio} from './loom-audio.js?v=186';
-import {PhotoRugBridge,createPrintProgressReader} from './photo-rug-bridge.js?v=193';
+import {PhotoRugBridge,createPrintProgressReader} from './photo-rug-bridge.js?v=199';
 import {preparePhotoPalette} from './photo-colours.js?v=196';
 import {TLRViewfinder} from './tlr-viewfinder.js?v=156';
 import {streamDeviceProfile} from './stream-device-profile.js?v=156';
@@ -17,7 +17,7 @@ import {createStreamPerformance} from './stream-performance.js?v=156';
 import {createStreamPipeline} from './stream-render-pipeline.js?v=156';
 import { loadRoomEnvironment } from './room-lighting.js?v=156';
 import { addTextileLights } from './textile-light-rig.js?v=156';
-import { StreamCloth } from './stream-cloth.js?v=198';
+import { StreamCloth } from './stream-cloth.js?v=199';
 import { FramePacer } from './frame-pacer.js?v=156';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
 const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,deviceProfile.canvasDpr));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=1.0;renderer.info.autoReset=false;renderer.shadowMap.enabled=false;renderer.shadowMap.type=T.PCFShadowMap;renderer.shadowMap.autoUpdate=false;stage.append(renderer.domElement);
@@ -82,7 +82,7 @@ async function closeCapture(prepared=Promise.resolve(),onPrepared=()=>{}){
  if(!selected&&media&&video.videoWidth){preview.width=video.videoWidth;preview.height=video.videoHeight;preview.getContext('2d').drawImage(video,0,0);preview.hidden=false;}
  stopCamera();capture.dataset.captureState='transition';stage.classList.remove('behind-camera','room-entering');
  if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
-  const section=cloth.version===0?FIRST_PRINT_LENGTH:NEXT_PRINT_LENGTH;
+  const section=FIRST_PRINT_LENGTH;
   const readPrintProgress=createPrintProgressReader(()=>cloth.print);
   const complete=bridge.begin(preview,lens,section,{feed:!!(processingPhoto&&selected),prepared,onPrepared,readPrintProgress,onScanStart:()=>audio.startScan()});capture.classList.add('flipped','capture-bridging');render(true);await complete;
  }else{capture.classList.add('flipped','capture-bridging');await prepared;await onPrepared();render(true);await new Promise(resolve=>requestAnimationFrame(resolve));}

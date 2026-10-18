@@ -58,3 +58,11 @@ body.cloth-physics #carpetScroll #stage{pointer-events:auto}
 .scan-status{position:absolute;left:24px;bottom:max(40px,calc(env(safe-area-inset-bottom) + 12px));z-index:4;margin:0;font:inherit;color:var(--ink);pointer-events:none}
 
 #aboutDialog h2{font:inherit;font-style:italic;margin:16px 0 8px}
+
+/* Frozen photograph travels above the camera footer into the loom. */
+#capture > .photo-feed-frame{height:calc(100% - clamp(150px,21svh,210px));z-index:2}
+#capture.capture-feeding .camera-panel{z-index:0}
+body:has(#stage.floor-travelling) #soundToggle{visibility:hidden}
+
+#capture.capture-departing .lens{background:transparent}
+#capture.capture-departing .finder-image{visibility:hidden}

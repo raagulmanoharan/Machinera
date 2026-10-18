@@ -7,8 +7,8 @@ import {WEAVE_LIBRARY} from './weave-library.js?v=156';
 import {paletteFromColours} from './yarn-palette.js?v=196';
 export class RugArchive{
  constructor(){this.entries=[];this.length=0;this.transition=.42;}
- append(input,length=2.4,weave=null,metadata=null){
-  const palette=Array.isArray(input)?paletteFromColours(input):input.palette,previous=this.entries.at(-1),end=this.length+length,firstPick=Math.ceil(this.length/THREAD_PITCH),lastPick=Math.floor(end/THREAD_PITCH),pickCount=Math.max(1,lastPick-firstPick+1),recipe=weave===null?null:WEAVE_LIBRARY[weave];
+ append(input,length=2.4,weave=null,metadata=null,{independent=false}={}){
+  const palette=Array.isArray(input)?paletteFromColours(input):input.palette,previous=independent?null:this.entries.at(-1),end=this.length+length,firstPick=Math.ceil(this.length/THREAD_PITCH),lastPick=Math.floor(end/THREAD_PITCH),pickCount=Math.max(1,lastPick-firstPick+1),recipe=weave===null?null:WEAVE_LIBRARY[weave];
   // Count real warp ends and physical weft picks. Dominant dye lots own the most
   // yarns; complete yarns (not interpolated pixels) form coherent colour blocks.
   const plan=createWeavePattern({draftId:recipe?.id,seed:input.designSeed??(globalThis.crypto?.getRandomValues(new Uint32Array(1))[0]??Math.floor(Math.random()*4294967296)),palette,analysis:input.analysis,warpEnds:WARP_ENDS,weftPicks:pickCount,firstPick,symmetry:input.symmetry??'auto',composition:weave===null,recentFamilies:this.entries.slice(-2).map(e=>e.plan.motif?.family).filter(Boolean)}),{design,warp,weft}=plan;
