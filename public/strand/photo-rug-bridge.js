@@ -24,9 +24,10 @@ export function createPrintProgressReader(getPrint,remainingSeconds=8){
  };
 }
 export class PhotoRugBridge{
- constructor(stage){this.stage=stage;this.active=false;this.frame=null;}
+ constructor(stage){this.stage=stage;this.active=false;this.frame=null;this.paused=false;}
+ setPaused(paused){this.paused=paused;for(const animation of this.animations??[]){if(!this.feed)paused?animation.pause():animation.play();}this.scan?.setPaused(paused);}
  begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null,onScanStart=()=>()=>{}}={}){
-  this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;
+  this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;this.lens=lens;
   if(!preview.hidden&&preview.width&&preview.height){const canvas=document.createElement('canvas');canvas.width=Math.min(768,preview.width);canvas.height=Math.round(canvas.width*preview.height/preview.width);canvas.getContext('2d').drawImage(preview,0,0,canvas.width,canvas.height);canvas.className='photo-feed-frame';canvas.setAttribute('aria-hidden','true');lens.append(canvas);this.canvas=canvas;
    if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);holder.append(canvas);canvas.className='photo-feed-source';shadeScanPhoto(canvas);this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared,onScanStart);}
 
@@ -34,30 +35,29 @@ export class PhotoRugBridge{
   this.feed=feed;this.active=true;const token={};this.token=token;
   this.capture.classList.add('capture-feeding');if(feed)this.capture.classList.add('capture-processing');this.stage.classList.add('floor-travelling');this.stage.style.pointerEvents='none';this.stage.style.opacity='1';this.update(0);
   this.stage.dataset.bridgePhase=feed?'processing':'panning';
-  const promise=new Promise(resolve=>{this.resolve=resolve;});this.animations=[];
+  const promise=new Promise((resolve,reject)=>{this.resolve=resolve;this.reject=reject;});this.animations=[];
   const animate=(element,frames,duration)=>{if(!element?.animate)return null;const animation=element.animate(frames,{duration,fill:'both',easing:'linear'});this.animations.push(animation);return animation;};
   // Keep the entire frozen photograph stationary until a visible carpet frame
   // has actually been submitted and the full-height scan has finished.
-  const panAnimations=[];
   const startPan=()=>{if(!this.active||this.token!==token)return;
    this.capture.classList.remove('capture-processing');this.scan?.hideStatus();this.stage.dataset.bridgePhase='panning';const duration=feed?2800:1500,origin=document.timeline.currentTime;
    const frames=fn=>Array.from({length:61},(_,i)=>({...fn(i/60),offset:i/60}));
-   const pan=(element,fn)=>{const animation=animate(element,frames(fn),duration);if(animation){panAnimations.push(animation);if(feed&&readPrintProgress){animation.pause();animation.currentTime=0;}else animation.startTime=origin;}return animation;};
-   const master=pan(this.capture,t=>({transform:`translate3d(0,${-ease(t)*this.height}px,0)`}));
-   pan(this.stage,t=>({transform:`translate3d(0,${(1-ease(t))*this.height}px,0)`}));
-   if(this.canvas)pan(this.canvas,t=>({transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).photoY}px,0)`}));
-   pan(this.capture.querySelector('.camera-heading'),t=>({opacity:1-ease(t/.45)}));
-   pan(this.capture.querySelector('.finder-markers'),t=>({opacity:.7*(1-ease(t/.6))}));
+   const pan=(element,fn)=>{const animation=animate(element,frames(fn),duration);if(animation)animation.startTime=origin;return animation;};
+   const master=feed&&readPrintProgress?null:pan(this.capture,t=>({transform:`translate3d(0,${-ease(t)*this.height}px,0)`}));
+   if(!feed||!readPrintProgress)pan(this.stage,t=>({transform:`translate3d(0,${(1-ease(t))*this.height}px,0)`}));
+   if(this.canvas&&(!feed||!readPrintProgress))pan(this.canvas,t=>({transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).photoY}px,0)`}));
+   if(!feed||!readPrintProgress)pan(this.capture.querySelector('.camera-heading'),t=>({opacity:1-ease(t/.45)}));
+   if(!feed||!readPrintProgress)pan(this.capture.querySelector('.finder-markers'),t=>({opacity:.7*(1-ease(t/.6))}));
    // A print reveal follows submitted cloth progress, never a faster wall clock.
    // Ordinary floor navigation keeps the independent compositor animation.
-   const tick=()=>{if(!this.active||this.token!==token)return;let progress;
-    if(feed&&readPrintProgress){progress=Math.max(0,Math.min(1,readPrintProgress()));for(const animation of panAnimations)animation.currentTime=progress*duration;}
+   const tick=()=>{if(!this.active||this.token!==token)return;if(this.paused){this.frame=requestAnimationFrame(tick);return;}this.height=innerHeight;this.feedHeight=this.lens.clientHeight;let progress;
+    if(feed&&readPrintProgress){progress=Math.max(0,Math.min(1,readPrintProgress()));}
     else{const elapsed=master?.currentTime??(document.timeline.currentTime-origin);progress=Math.min(1,elapsed/duration);}
     this.update(progress,!master);if(this.active)this.frame=requestAnimationFrame(tick);
    };this.frame=requestAnimationFrame(tick);
   };
   const minimumScan=this.scan?.finished??Promise.resolve();
-  Promise.all([Promise.resolve(prepared),minimumScan]).then(()=>{if(this.active&&this.token===token)return onPrepared();}).then(startPan).catch(()=>{if(this.token===token)this.finish();});
+  Promise.all([Promise.resolve(prepared),minimumScan]).then(()=>{if(this.active&&this.token===token)return onPrepared();}).then(startPan).catch(error=>{if(this.token===token){const reject=this.reject;this.resolve=null;this.reject=null;this.dispose();reject?.(error);}});
   return promise;
  }
 
@@ -68,7 +68,7 @@ export class PhotoRugBridge{
   this.stage.dataset.bridgePhotoY=pose.screenPhotoY.toFixed(1);this.stage.dataset.bridgeProgress=t.toFixed(3);this.stage.dataset.bridgeFloorPan=pose.pan.toFixed(1);this.stage.dataset.bridgePhotoVisible=String(!!this.canvas&&pose.photoY<this.feedHeight&&t<1);if(t>=1)this.finish();
  }
 
- finish(){const done=this.resolve;this.resolve=null;this.dispose();done?.();}
+ finish(){const done=this.resolve;this.resolve=null;this.reject=null;this.dispose();done?.();}
  dispose(){this.token=null;for(const animation of this.animations??[])animation.cancel();this.animations=[];if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;const done=this.resolve;this.resolve=null;if(this.canvas){for(const c of this.canvas.querySelectorAll?.("canvas")??[]){c.width=c.height=0;}this.canvas.remove();this.canvas=null;}this.scan?.cancel();this.scan=null;if(this.capture){for(const p of ['--floor-pan','--heading-opacity','--finder-reticle'])this.capture.style.removeProperty(p);this.capture.classList.remove('capture-feeding','capture-processing');this.capture=null;}for(const p of ['transform','opacity','pointer-events'])this.stage.style.removeProperty(p);this.stage.classList.remove('floor-travelling');this.active=false;done?.();}
 }
 
@@ -92,19 +92,20 @@ export function colourScanRows(width,height,map,palette,random=Math.random){
  return rows;
 }
 function createPhotoScan(holder,lens,prepared,onScanStart){
- const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,animations=[];let cancelled=false,stopSound=()=>{};
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,animations=[];let cancelled=false,paused=document.hidden,scanRunning=false,yarns=null,stopSound=()=>{};
  const status=document.createElement('p');status.className='scan-status';status.setAttribute('role','status');status.textContent='Extracting colours…';lens.closest('#capture').append(status);
  svg.classList.add('photo-scan');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('aria-hidden','true');holder.append(svg);const maskId=addDotGrain(svg,ns);
- const finished=Promise.resolve(prepared).then(data=>{if(cancelled)return;stopSound=onScanStart()??(()=>{});const rows=colourScanRows(width,height,data?.scanMap,data?.palette),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:(19200/1.3)/(rows.length+1);
+ const finished=Promise.resolve(prepared).then(data=>{if(cancelled)return;if(!data?.palette?.length)throw new Error('No yarn colours were found');status.textContent='Preparing the loom…';scanRunning=true;if(!paused)stopSound=onScanStart()??(()=>{});const rows=colourScanRows(width,height,data?.scanMap,data?.palette),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:(19200/1.3)/(rows.length+1);
   for(const [i,row] of rows.entries()){
    const group=document.createElementNS(ns,'g'),line=document.createElementNS(ns,'path');line.setAttribute('d',`M0 ${row.y}H${width}`);line.setAttribute('fill','none');line.setAttribute('stroke','white');line.setAttribute('stroke-width','.75');line.setAttribute('stroke-opacity','.24');line.setAttribute('stroke-dasharray','.1 1.7');line.setAttribute('stroke-linecap','round');group.append(line);
    for(const [k,x] of row.dots.entries()){const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',row.y);dot.setAttribute('r','5.5');dot.setAttribute('mask',`url(#${maskId})`);dot.setAttribute('fill',row.colours?.[k]?`rgb(${row.colours[k].join(',')})`:'white');group.append(dot);}
    svg.append(group);const hidden=row.reverse?'inset(0 0 0 100%)':'inset(0 100% 0 0)';animations.push(group.animate([{clipPath:hidden},{clipPath:'inset(0 0 0 0)'}],{duration,delay:i*duration/2,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'}));
   }
-  for(const [fraction,label] of [[.3,'Making yarns…'],[.65,'Designing the weave…']])animations[Math.floor((animations.length-1)*fraction)].finished.then(()=>{if(!cancelled)status.textContent=label;}).catch(()=>{});
-  return Promise.all(animations.map(a=>a.finished.catch(()=>{}))).finally(()=>{stopSound();if(!cancelled)status.textContent='Preparing the loom…';});
+  yarns=document.createElement('div');yarns.className='yarn-gather';yarns.setAttribute('aria-hidden','true');
+  for(const dye of data.palette){const strand=document.createElement('span');strand.style.setProperty('--dye',`rgb(${dye.rgb.join(',')})`);strand.style.flex=String(Math.max(.03,dye.share??1/data.palette.length));yarns.append(strand);const end=(rows.length-1)*duration/2;animations.push(strand.animate([{opacity:0,transform:'scaleX(.15) translateY(-18px)'},{opacity:1,transform:'scaleX(1) translateY(0)'}],{duration:reduced?0:Math.min(650,duration*3),delay:reduced?0:Math.max(0,end-650),fill:'both',easing:'ease-out'}));}holder.append(yarns);if(paused)for(const animation of animations)animation.pause();
+  return Promise.all(animations.map(a=>a.finished.catch(()=>{}))).finally(()=>{scanRunning=false;stopSound();if(!cancelled)status.textContent='Preparing the loom…';});
  });
- return{finished,hideStatus(){status.hidden=true;},cancel(){cancelled=true;status.remove();stopSound();for(const animation of animations)animation.cancel();}};
+ return{finished,setPaused(value){if(paused===value)return;paused=value;for(const animation of animations)paused?animation.pause():animation.play();if(paused)stopSound();else if(scanRunning)stopSound=onScanStart()??(()=>{});},hideStatus(){status.hidden=true;},cancel(){cancelled=true;status.remove();yarns?.remove();stopSound();for(const animation of animations)animation.cancel();}};
 }
 
 let scanGrain=null;

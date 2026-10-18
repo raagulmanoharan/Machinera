@@ -58,3 +58,25 @@ body.cloth-physics #carpetScroll #stage{pointer-events:auto}
 .scan-status{position:absolute;left:24px;bottom:max(40px,calc(env(safe-area-inset-bottom) + 12px));z-index:4;margin:0;font:inherit;color:var(--ink);pointer-events:none}
 
 #aboutDialog h2{font:inherit;font-style:italic;margin:16px 0 8px}
+
+/* Collection uses the same paper, type and line language as the camera. */
+#browseMemories{position:fixed;z-index:4;left:50%;bottom:calc(env(safe-area-inset-bottom) + 32px);transform:translateX(-50%);min-height:44px;padding:10px 16px;background:#0005;color:var(--ink)}
+body:has(#capture:not([hidden])) #browseMemories{display:none}
+#memoriesDialog{width:min(360px,calc(100vw - 48px));max-height:calc(100dvh - 80px);padding:20px;margin:auto;overflow:auto;border:0;border-radius:0;box-shadow:none;background:var(--paper);background-image:var(--camera-paper,none);background-size:cover;color:var(--ink);font:inherit}
+#memoriesDialog::backdrop{background:#0009}
+.memory-header{display:flex;align-items:center;gap:12px;min-height:44px;margin:-8px -12px 12px 0}.memory-header h1{font:inherit;font-style:italic;margin:0;flex:1;outline:none}.memory-header button{min-height:44px;background:none;padding:8px}.memory-header #memoriesClose{width:44px;flex:none;font-size:20px}
+#memoryList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px;max-height:60dvh;overflow:auto;overscroll-behavior:contain}
+.memory-item{display:flex;flex-direction:column;align-items:stretch;background:none;padding:0;text-align:left;min-height:180px}.memory-item img{width:100%;height:auto;aspect-ratio:9/16;object-fit:contain}.memory-placeholder{display:grid;place-items:center;aspect-ratio:9/16;color:#aaa9a3;background:#0002}.memory-item-label{padding-top:8px;line-height:1.25;overflow-wrap:anywhere}
+#memoryDetail p{margin:0 0 12px}#memoryDetailWeave{color:#cccac3;text-transform:none}.memory-actions{display:flex;flex-wrap:wrap;gap:0 16px;align-items:center}.memory-actions button,#memoriesBack{min-height:44px;background:none;padding:8px 0;text-align:left;text-decoration:underline;text-decoration-thickness:.5px;text-underline-offset:4px}
+#memoryNameForm{margin-top:16px}#memoryNameForm label{display:block;margin-bottom:8px}#memoryNameForm input{box-sizing:border-box;width:100%;min-height:44px;border:0;border-bottom:.75px solid #ecebe580;border-radius:0;background:transparent;color:var(--ink);font:inherit;padding:8px 0}#memoryNameForm input:focus{outline:1px solid #ecebe580;outline-offset:4px}#memoryNameCount{margin-top:8px!important;color:#aaa9a3}#memoryNameStatus,#memoryMessage{overflow-wrap:anywhere}#variantPreview{margin-top:16px}#variantImage{display:block;width:min(100%,180px);height:auto;aspect-ratio:9/16;object-fit:contain;margin:0 auto 16px}
+#captureFeedback{position:fixed;z-index:9;left:24px;right:24px;bottom:max(90px,calc(env(safe-area-inset-bottom) + 62px));background:var(--paper);padding:12px 16px;color:var(--ink);font:inherit}#photoStatus{margin:0 0 4px}#captureFeedback button{min-height:44px;padding:8px 12px 8px 0;background:transparent;text-decoration:underline;text-underline-offset:4px}
+#storageNotice{pointer-events:auto}body:has(#storageNotice:not([hidden])) #browseMemories,body:has(#storageNotice:not([hidden])) #saveMemory,body:has(#storageNotice:not([hidden])) #physicsToggle{bottom:calc(var(--storage-notice-height,96px) + 16px)}
+#aboutDialog #aboutClose{width:44px;height:44px;top:10px;right:8px;padding:14px}.postcard-actions button{width:44px;height:44px;padding:14px}#postcardRetry,#postcardDirectDownload{display:block;min-height:44px;margin:8px 20px;background:none;text-decoration:underline}#postcardStatus{overflow-wrap:anywhere}
+.yarn-gather{position:absolute;left:24px;right:24px;bottom:20px;display:flex;gap:5px;height:28px;align-items:end;pointer-events:none}.yarn-gather span{display:block;flex:1;height:3px;min-width:3px;background:var(--dye);box-shadow:0 1px 0 #0008,inset 0 1px 0 #ffffff30;transform-origin:bottom}
+@media(max-width:340px){#memoriesDialog{padding:16px;width:calc(100vw - 32px)}#browseMemories{padding-inline:8px}}
+@media(prefers-reduced-motion:reduce){.yarn-gather span{animation:none}}
+
+body:has(#capture[hidden]) #captureFeedback{display:none}
+#memoryNameForm input{font-size:16px}
+.memory-actions button{min-width:44px}.memory-header h1{min-width:0;overflow-wrap:anywhere}.memory-header #memoriesBack{flex-shrink:1;overflow-wrap:anywhere;max-width:35%}#memoryNameForm input{font-size:max(16px,var(--app-font-size))}
+@media(max-height:650px){#variantImage{width:min(100%,110px)}}

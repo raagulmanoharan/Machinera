@@ -3,17 +3,21 @@
 function patternCode(entry){let hash=2166136261;const data=[entry.plan.draft.rows,entry.warp,entry.weft,entry.plan.motif?.map??[],entry.palette.map(c=>c.rgb)];for(const char of JSON.stringify(data))hash=Math.imul(hash^char.charCodeAt(0),16777619)>>>0;return hash.toString(16).padStart(8,'0').toUpperCase();}
 export function postcardDetails(entry,index){
  const d=entry.plan.draft,m=entry.plan.motif,design=entry.plan.design,used=new Set([...entry.warp,...entry.weft,...(m?.map??[])]),family=(m?.family??design.style).replaceAll('-',' '),symmetry=m?'Mirrored on both axes':({both:'Mirrored on both axes',radial:'Half-turn symmetry',warp:'Side-to-side symmetry',weft:'Top-to-bottom symmetry'}[design.symmetry]??'');
- return{number:String(index+1).padStart(2,'0'),description:`${d.width} ends × ${d.height} picks per repeat · maximum float ${d.maxFloat} threads`,weave:d.generated?`Symmetric ${d.shafts}-shaft weave`:d.name,pattern:`${family[0].toUpperCase()+family.slice(1)} · ${symmetry.toLowerCase()}${m?` · ${m.columns} × ${m.rows} ${m.construction==='continuous-weft'?'band repeats':'motifs'}${m.border?` · ${m.border}-thread border`:''}`:''}`,inventory:`${used.size} heavy yarn ${used.size===1?'colour':'colours'} · ${entry.warp.length} warp ends · ${entry.weft.length} weft picks`,code:patternCode(entry),draftId:entry.plan.id};
+ return{name:entry.metadata?.name??'',number:String(index+1).padStart(2,'0'),description:`${d.width} ends × ${d.height} picks per repeat · maximum float ${d.maxFloat} threads`,weave:d.generated?`Symmetric ${d.shafts}-shaft weave`:d.name,pattern:`${family[0].toUpperCase()+family.slice(1)} · ${symmetry.toLowerCase()}${m?` · ${m.columns} × ${m.rows} ${m.construction==='continuous-weft'?'band repeats':'motifs'}${m.border?` · ${m.border}-thread border`:''}`:''}`,inventory:`${used.size} heavy yarn ${used.size===1?'colour':'colours'} · ${entry.warp.length} warp ends · ${entry.weft.length} weft picks`,code:patternCode(entry),draftId:entry.plan.id};
 }
-export function postcardLines(ctx,text,width){const rows=[];let row=[];for(const word of text.split(' ')){if(row.length&&ctx.measureText([...row,word].join(' ')).width>width){rows.push(row);row=[];}row.push(word);}if(row.length)rows.push(row);if(rows.length>1){const last=rows.at(-1),previous=rows.at(-2);while(previous.length>2&&(last.length<2||ctx.measureText(last.join(' ')).width<width*.3)){const word=previous.at(-1);if(ctx.measureText([word,...last].join(' ')).width>width)break;last.unshift(previous.pop());}}return rows.map(words=>words.join(' '));}
-function wrap(ctx,text,x,y,width,line=34){for(const row of postcardLines(ctx,text,width)){ctx.fillText(row,x,y);y+=line;}return y;}
+export function postcardLines(ctx,text,width){const rows=[];let row='';for(const word of text.split(' ')){const trial=row?row+' '+word:word;if(ctx.measureText(trial).width<=width){row=trial;continue;}if(row)rows.push(row);row='';for(const letter of (typeof Intl.Segmenter==='function'?[...new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(word)].map(part=>part.segment):Array.from(word))){if(row&&ctx.measureText(row+letter).width>width){rows.push(row);row='';}row+=letter;}}if(row)rows.push(row);if(rows.length>1){const words=rows.at(-2).split(' '),last=rows.at(-1);if(words.length>2&&last.split(' ').length<2){const moved=words.pop()+' '+last;if(ctx.measureText(moved).width<=width){rows[rows.length-2]=words.join(' ');rows[rows.length-1]=moved;}}}return rows;}
 export async function createMemoryPostcard({entry,index,renderThumbnail}){
  await document.fonts.load('28px "EB Garamond"').catch(()=>{});const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1920;const ctx=canvas.getContext('2d',{willReadFrequently:true}),details=postcardDetails(entry,index);
  // One full-bleed render supplies the rug and the same uninterrupted paper.
  const thumbnail=renderThumbnail(entry),bounds=thumbnail.rugBounds??{left:150,right:930,bottom:1270};ctx.drawImage(thumbnail,0,0,1080,1920);thumbnail.width=thumbnail.height=0;
- const x=bounds.left,width=bounds.right-x;let y=Math.max(1410,bounds.bottom+140);
- ctx.fillStyle='#ecebe5';ctx.textBaseline='alphabetic';ctx.font='400 40px "EB Garamond", Garamond, serif';ctx.fillText(`Memory ${details.number}`,x,y);
- ctx.font='400 28px "EB Garamond", Garamond, serif';y=wrap(ctx,details.weave,x,y+46,width);ctx.fillStyle='#cccac3';y=wrap(ctx,details.pattern,x,y+8,width);y=wrap(ctx,details.description,x,y+8,width);wrap(ctx,details.inventory,x,y+8,width);
+ const x=bounds.left,width=bounds.right-x;
+ ctx.fillStyle='#ecebe5';ctx.textBaseline='alphabetic';ctx.font='400 28px "EB Garamond", Garamond, serif';
+ const fields=[details.name,details.weave,details.pattern,details.description,details.inventory].filter(Boolean),body=fields.flatMap(text=>postcardLines(ctx,text,width));
+ // Keep both existing type sizes. Long names wrap; reserve the footer before
+ // placing the text, rather than shrinking type or colliding with the brand.
+ let y=Math.min(Math.max(1410,bounds.bottom+110),1690-46-body.length*34);
+ ctx.font='400 40px "EB Garamond", Garamond, serif';ctx.fillText(`Memory ${details.number}`,x,y);
+ ctx.font='400 28px "EB Garamond", Garamond, serif';y+=46;for(const row of body){ctx.fillStyle='#cccac3';ctx.fillText(row,x,y);y+=34;}
  // The rug starts 170px from the top; the footer ends 170px above the bottom.
  ctx.fillStyle='#ecebe5';ctx.fillText('MACHINERA',x,1742);ctx.fillStyle='#aaa9a3';ctx.textAlign='right';ctx.fillText(details.code,bounds.right,1742);ctx.textAlign='left';
 
