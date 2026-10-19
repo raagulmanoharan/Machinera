@@ -104,12 +104,20 @@ body:has(#storageNotice:not([hidden])) #downloadMemory,body:has(#storageNotice:n
 
 #galleryTitle:focus{outline:none}
 button.gallery-rug{padding:0;border:0;background:transparent;color:var(--ink);cursor:pointer}
-#memoryDetail{padding:64px 24px 32px;background:var(--paper) var(--camera-paper,none) center/cover}
-.memory-detail-column{width:min(220px,calc(52dvh * .40421));margin:auto}
-#memoryDetailFlip{display:block;width:100%;aspect-ratio:1.536/3.8;padding:0;border:0;background:transparent;cursor:pointer}
+
+#postcardDialog:has(#memoryDetail:not([hidden])){height:calc(100dvh - 64px);overflow:hidden}
+#memoryDetail{height:100%;padding:56px 24px 28px;background:var(--paper) var(--camera-paper,none) center/cover}
+.memory-detail-column{width:min(100%,260px);height:100%;margin:auto;display:grid;grid-template-rows:minmax(0,1fr) 232px;gap:20px}
+#memoryDetailFlip{display:block;place-self:center;height:100%;width:auto;max-width:100%;aspect-ratio:1.536/3.8;min-height:0;padding:0;border:0;background:transparent;cursor:pointer}
 #memoryDetailFlip:disabled{opacity:1}
 #memoryDetailFlip canvas{width:100%!important;height:100%!important;pointer-events:none}
-#memoryDetailCopy{margin-top:28px;font:inherit;text-wrap:pretty}
-#memoryDetailCopy p{margin:0 0 8px}
-#memoryDetailCopy p:first-child{margin-bottom:14px}
-#memoryDetailCopy footer{display:flex;justify-content:space-between;gap:12px;margin-top:28px;font:inherit}
+#memoryDetailCopy{height:100%;display:flex;flex-direction:column;align-self:stretch;min-width:0;font:inherit;text-wrap:pretty}
+#memoryDetailCopy p{flex:none;margin:0 0 4px}
+#memoryDetailCopy p:first-child{margin-bottom:10px}
+#memoryDetailCopy footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;padding-top:16px;font:inherit}
+@media(max-height:600px) and (min-aspect-ratio:1/1){
+ #postcardDialog:has(#memoryDetail:not([hidden])){width:min(720px,calc(100vw - 32px));height:calc(100dvh - 32px);max-height:calc(100dvh - 32px)}
+ #memoryDetail{padding:48px 24px 16px}
+ .memory-detail-column{width:100%;grid-template-columns:minmax(0,1fr) minmax(180px,1.4fr);grid-template-rows:minmax(0,1fr);gap:24px}
+ #memoryDetailCopy{height:auto;align-self:center}
+}
