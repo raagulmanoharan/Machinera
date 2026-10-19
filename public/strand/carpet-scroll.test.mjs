@@ -12,5 +12,10 @@ for(const aspect of [390/844,430/932,1440/900]){
  root.scrollTop=parseFloat(spacer.style.height)-innerHeight;scroll.sync();
  assert.equal(cloth.offset,0,'The loom shows only the current individual rug');
  assert.equal(parseFloat(spacer.style.height),innerHeight,'No continuous cloth scroll extent');
+ cloth.print={section:3.8};cloth.story={streamRemaining:{value:3.8}};scroll.refresh();
+ assert.ok(Math.abs(cloth.sim.top-(camera.position.z+viewHeight/2))<1e-6,'Print starts at the top edge');
+ const start=cloth.sim.top;cloth.story.streamRemaining.value=1.9;scroll.refresh();
+ assert.ok(cloth.sim.top<start&&cloth.sim.top>camera.position.z+1.9,'Print moves towards the centre');
+ cloth.print=null;scroll.refresh();assert.equal(cloth.sim.top,camera.position.z+1.9,'Complete rug lands in the centre');
  scroll.dispose();
 }

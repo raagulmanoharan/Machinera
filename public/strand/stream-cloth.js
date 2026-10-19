@@ -28,12 +28,17 @@ vec3 q0=dFdx(-vViewPosition),q1=dFdy(-vViewPosition),r1=cross(q1,normal),r2=cros
  rebuildPalette(){const base=atlasBase(Math.max(0,this.archive.length-this.scrollOffset)),key=base+':'+this.archive.entries.length+':'+this.backSide;if(key===this.paletteKey)return false;const data=this.texture.image.data,weft=this.weftTexture.image.data,draft=this.weaveTexture.image.data;this.story.streamAtlasBase.value=base;if(!this.archive.entries.length)return;for(let y=0;y<ATLAS_ROWS;y++){const q=base+(y+.5)/PICKS_PER_METRE,f=this.archive.locateMaterial(q),row=this.archive.entryRow(f.entry,f.local),own=!!f.entry.newYarn[row],owner=own?f.entry:f.entry.previous,k=y*4;const loom=this.archive.materialDraft(q),pick=Math.floor(q/THREAD_PITCH+.5);draft.set(encodeDraftRow(loom,pick),k);for(let end=0;end<WARP_ENDS;end++){const dye=(this.backSide&&photoYarnColour(f.entry,(end+.5)/WARP_ENDS,f.local))||this.archive.weftColour(owner,own?q:owner.end,(end+.5)/WARP_ENDS),i=(y*WARP_ENDS+end)*4;weft[i]=dye[0];weft[i+1]=dye[1];weft[i+2]=dye[2];weft[i+3]=255;}for(let x=0;x<FABRIC_COLUMNS;x++){const warpOwner=this.archive.warpOwner(f.entry,q,Math.floor(x/FABRIC_COLUMNS*WARP_ENDS)),dye=(this.backSide&&photoYarnColour(f.entry,(x+.5)/FABRIC_COLUMNS,f.local))||warpOwner.palette[warpOwner.warp[Math.floor(x/FABRIC_COLUMNS*WARP_ENDS)]].rgb,i=(y*FABRIC_COLUMNS+x)*4;data[i]=dye[0];data[i+1]=dye[1];data[i+2]=dye[2];data[i+3]=255;}}this.texture.needsUpdate=this.weftTexture.needsUpdate=this.weaveTexture.needsUpdate=true;this.paletteKey=key;return true;}
  setLength(length,upload=true){this.sim.length=Math.max(.02,Math.min(this.maxSpan,length));this.uniforms.streamLength.value=this.sim.length;this.sim.shape();this.sim.pose();this.viewportMask.fill(1);this.viewportTick=0;this.display=this.sim.positions;this.hit.visible=this.sim.length>.025;this.surface.visible=!this.backSide&&this.hit.visible;this.yarn.setVisible(this.sim.length>.025);if(upload)this.upload();}
  canStartPhoto(){return !this.print;}
- setTurn(angle,twist=0){
-  this.group.rotation.z=angle;this.group.position.set(-.19*Math.sin(angle),.19*(Math.cos(angle)-1),0);
-  if(twist||this.turnTwist){const {nx,ny,width,positions}=this.sim;
-   for(let y=0;y<ny;y++){const a=twist*(y/(ny-1)-.5);for(let x=0;x<nx;x++){const i=(y*nx+x)*3,r=(x/(nx-1)-.5)*width;positions[i]=r*Math.cos(a);positions[i+1]=-.19+r*Math.sin(a);}}
-   this.viewportMask.fill(1);this.upload();
-  }this.turnTwist=twist;
+ setTurn(angle){this.group.rotation.z=angle;this.group.position.set(-.19*Math.sin(angle),.19*(Math.cos(angle)-1),0);if(this.turnTwist){this.sim.shape();this.turnTwist=false;this.upload();}}
+ // A half-turn travels from the top band to the bottom; no overshoot or extra revolution.
+ setFlipProgress(progress,fromBack=false){
+  const start=fromBack?Math.PI:0,end=fromBack?0:Math.PI;
+  if(progress>=1){this.setTurn(end);return;}
+  this.group.rotation.z=0;this.group.position.set(0,0,0);
+  const {nx,ny,width,positions}=this.sim;
+  for(let y=0;y<ny;y++){const band=Math.floor(y/(ny-1)*15)/15,t=Math.max(0,Math.min(1,(progress-.6*band)/.4)),ease=t*t*(3-2*t),angle=start+(end-start)*ease;
+   for(let x=0;x<nx;x++){const i=(y*nx+x)*3,r=(x/(nx-1)-.5)*width;positions[i]=r*Math.cos(angle);positions[i+1]=-.19+r*Math.sin(angle);}
+  }
+  this.turnTwist=true;this.viewportMask.fill(1);this.upload();
  }
  setBack(back){this.backSide=back;this.paletteKey=null;this.rebuildPalette();this.surface.visible=!back&&this.sim.length>.025;}
  replacePhoto(input){const old=this.archive.entries.pop();this.archive.length-=old.length;this.version--;this.setTurn(0);this.backSide=false;this.addPhoto(input);this.archive.entries.at(-1).metadata??=old.metadata;return old;}
