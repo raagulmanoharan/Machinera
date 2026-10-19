@@ -12,10 +12,9 @@ export function makeSoundBank(context){
   // broadband rather than a pitched electronic blip. Baked once at startup.
   stitch:bake(1/12,(t,n,l)=>{const u=t%(1/12),tap=(at,decay)=>u>=at?Math.min(1,(u-at)*9000)*Math.exp(-(u-at)*decay):0;return .28*(n-l)*(tap(0,700)+.55*tap(.028,500))+.08*Math.sin(TAU*175*u)*tap(0,180)+.018*l*(.6+.4*Math.cos(TAU*12*t));}),
   shutter:bake(.19,(t,n,l)=>{let out=0;for(const [at,gain] of [[0,.8],[.036,.62],[.069,.24]]){const u=t-at;if(u>=0){const attack=Math.min(1,u*6000),body=Math.sin(TAU*190*u)*Math.exp(-u*180)+.35*Math.sin(TAU*430*u)*Math.exp(-u*240);out+=gain*attack*((n-l)*Math.exp(-u*330)+.35*body+.13*l*Math.exp(-u*65));}}const u=t-.075;if(u>0)out+=.09*(n-l)*Math.exp(-u*65)*(.5+.5*Math.cos(TAU*95*u));return out;}),
-  // Close-mic fabric: uneven fibre scrapes over a soft, seamless rustle.
-  // Dry ratchet bite with a short wooden tension creak.
-  flip:bake(.09,(t,n,l)=>Math.min(1,t*6500)*(.52*(n-l)*Math.exp(-t*380)+.16*(Math.sin(TAU*205*t)+.24*Math.sin(TAU*570*t))*Math.exp(-t*62)+.19*(n-l)*Math.sin(Math.PI*t/.09)**2*Math.exp(-t*30))),
-  flipRelease:bake(.14,(t,n,l)=>Math.min(1,t*5000)*(.28*(n-l)*Math.exp(-t*130)+.24*Math.sin(TAU*145*t)*Math.exp(-t*60)+.08*l*Math.exp(-t*32))),
+  // Crisp ratchet teeth: fast attack, dry body and a very short release.
+  flip:bake(.035,(t,n,l)=>Math.min(1,t*10000)*(.64*(n-l)*Math.exp(-t*540)+.11*(Math.sin(TAU*340*t)+.25*Math.sin(TAU*920*t))*Math.exp(-t*210))),
+  flipRelease:bake(.045,(t,n,l)=>Math.min(1,t*9000)*(.4*(n-l)*Math.exp(-t*380)+.13*Math.sin(TAU*260*t)*Math.exp(-t*180))),
   regenerate:bake(.58,(t,n,l)=>{let clicks=0;for(const [at,gain] of [[0,.7],[.039,.43],[.106,.2]]){const u=t-at;if(u>=0)clicks+=gain*Math.min(1,u*7000)*((n-l)*Math.exp(-u*260)+.2*Math.sin(TAU*175*u)*Math.exp(-u*85));}const body=Math.sin(TAU*142*t)*Math.exp(-t*25)*.12,tail=Math.sin(Math.PI*t/.58)**2*Math.exp(-t*5)*(.2*l+.055*(n-l))*(.65+.35*Math.cos(TAU*37*t));return clicks+body+tail;}),
   // One pitch per cloud, so voicings can change without transposing a chord loop.
   cloud:bake(10,(t,n,l)=>{const e=Math.sin(Math.PI*t/10)**2,p=TAU*146.832*t;return e*(.14*Math.sin(p+.3*Math.sin(TAU*.071*t))+.09*Math.sin(p*1.0021)+.09*Math.sin(p*.9983)+.03*Math.sin(p*2.001)+.09*l);}),
