@@ -1,5 +1,4 @@
 import {test} from 'node:test';
-import {rugLandingProgress} from './carpet-scroll.js';
 import assert from 'node:assert/strict';
 import {bridgePose,photoHandoffPose,createPrintProgressReader,photoScanRows,colourScanRows} from './photo-rug-bridge.js';
 test('photo and camera share one pace with no gap between floors',()=>{
@@ -38,13 +37,14 @@ test('scan dots use the source colour at their position, not a promoted palette 
 
 test('photo covers the camera footer before the loom pan starts',()=>{const p=bridgePose(.3,844,659);assert.equal(p.pan,0);assert.ok(p.screenPhotoY>0);assert.ok(p.screenPhotoY<185);const end=bridgePose(1,844,659);assert.equal(end.screenPhotoY,-659);});
 
-test('full-size photo remains joined to the rug throughout the pan',()=>{
+test('photo freezes at the feed and leaves only through camera movement, never a fade',()=>{
  for(let i=0;i<=1000;i++){
-  const t=i/1000,p=bridgePose(t,844,659),photo=photoHandoffPose(t,844,659,506);
-  assert.equal(photo.x,0);assert.equal(photo.scaleX,1);assert.equal(photo.scaleY,1);
+  const t=i/1000,p=bridgePose(t,844,659),photo=photoHandoffPose(t,844,659);
+  assert.equal(photo.x,0);assert.equal(photo.scaleX,1);assert.equal(photo.scaleY,1);assert.equal(photo.opacity,1);
   if(p.progress>=.2){
-   const photoBottom=photo.y-p.pan+659,rugTop=p.roomY+169*rugLandingProgress(p.progress);
-   assert.ok(Math.abs(photoBottom-rugTop)<1e-8,'No gap between the photo and growing rug');
+   assert.equal(photo.y,185,'Photograph stays fixed after reaching the bottom');
+   assert.ok(Math.abs(photo.y-p.pan+659-p.roomY)<1e-8,'Photo bottom and floor boundary move as one');
   }else assert.equal(p.pan,0,'Camera waits until the photo reaches the bottom');
  }
+ const end=photoHandoffPose(1,844,659);assert.equal(end.y-844+659,0,'Camera takes the entire photo out of view');
 });

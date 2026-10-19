@@ -1,4 +1,3 @@
-import {rugLandingProgress} from './carpet-scroll.js?v=210';
 // Shared transforms follow rendered print progress; navigation uses wall time.
 // Quintic easing has zero velocity and acceleration at both ends.
 const ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*t*(t*(t*6-15)+10);};
@@ -10,10 +9,10 @@ export function bridgePose(t,height,photoHeight,feed=true){
  const photoY=feed?ease(progress/.2)*overlap:0;
  return {progress,pan,roomY:height-pan,photoY,screenPhotoY:photoY-pan};
 }
-// Full-size photo and rug meet at one shared feed edge throughout the pan.
-export function photoHandoffPose(t,height,photoHeight,rugHeight){
- const pose=bridgePose(t,height,photoHeight),landing=rugLandingProgress(pose.progress);
- return{x:0,y:pose.photoY+(height-rugHeight)/2*landing,scaleX:1,scaleY:1,opacity:1-ease((pose.progress-.88)/.12)};
+// Once the bottom edge reaches the feed, only the shared camera pan moves it.
+export function photoHandoffPose(t,height,photoHeight){
+ const pose=bridgePose(t,height,photoHeight);
+ return{x:0,y:pose.photoY,scaleX:1,scaleY:1,opacity:1};
 }
 // Stretch only the remaining feed; retain exactly the length already shown.
 export function createPrintProgressReader(getPrint,remainingSeconds=8){
@@ -32,10 +31,10 @@ export function createPrintProgressReader(getPrint,remainingSeconds=8){
 }
 export class PhotoRugBridge{
  constructor(stage){this.stage=stage;this.active=false;this.frame=null;}
- begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null,rugHeight=null,onScanStart=()=>()=>{}}={}){
+ begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null,onScanStart=()=>()=>{}}={}){
   this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;
   if(!preview.hidden&&preview.width&&preview.height){const canvas=document.createElement('canvas');canvas.width=Math.min(768,preview.width);canvas.height=Math.round(canvas.width*preview.height/preview.width);canvas.getContext('2d').drawImage(preview,0,0,canvas.width,canvas.height);canvas.className='photo-feed-frame';canvas.setAttribute('aria-hidden','true');this.capture.append(canvas);this.canvas=canvas;
-   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);holder.append(canvas);canvas.className='photo-feed-source';shadeScanPhoto(canvas);holder.style.height=this.feedHeight+'px';canvas.style.height='100%';this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared,onScanStart);const strip=document.createElement('div');strip.className='print-feed-strip';strip.setAttribute('aria-hidden','true');holder.append(strip);this.strip=strip;}
+   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);const image=document.createElement('div');image.className='photo-feed-image';holder.append(image);image.append(canvas);canvas.className='photo-feed-source';shadeScanPhoto(canvas);holder.style.height=this.feedHeight+'px';canvas.style.height='100%';this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared,onScanStart);const strip=document.createElement('div');strip.className='print-feed-strip';strip.setAttribute('aria-hidden','true');holder.append(strip);this.strip=strip;}
 
 }
   this.feed=feed;this.active=true;const token={};this.token=token;
@@ -52,7 +51,7 @@ export class PhotoRugBridge{
    const pan=(element,fn)=>{const animation=animate(element,frames(fn),duration);if(animation){panAnimations.push(animation);if(feed&&readPrintProgress){animation.pause();animation.currentTime=0;}else animation.startTime=origin;}return animation;};
    const master=pan(this.capture,t=>({transform:`translate3d(0,${-bridgePose(t,this.height,this.feedHeight,this.feed).pan}px,0)`}));
    pan(this.stage,t=>({transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).roomY}px,0)`}));
-   if(this.canvas)pan(this.canvas,t=>{if(!feed||!rugHeight)return{transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).photoY}px,0)`};const p=photoHandoffPose(t,this.height,this.feedHeight,rugHeight());return{transform:`translate3d(0,${p.y}px,0)`,opacity:p.opacity};});
+   if(this.canvas)pan(this.canvas,t=>{const pose=this.feed?photoHandoffPose(t,this.height,this.feedHeight):{y:0,opacity:1};return{transform:`translate3d(0,${pose.y}px,0)`,opacity:pose.opacity};});
    if(this.strip)pan(this.strip,t=>({opacity:ease((bridgePose(t,this.height,this.feedHeight).progress-.14)/.06)}));
    pan(this.capture.querySelector('.camera-heading'),t=>({opacity:1-ease(t/.12)}));
    pan(this.capture.querySelector('.finder-markers'),t=>({opacity:.7*(1-ease(t/.6))}));

@@ -1,4 +1,4 @@
-export function rugLandingProgress(progress){const t=Math.max(0,Math.min(1,(progress-.2)/.8));return t*t*t*(t*(t*6-15)+10);}
+export function rugLandingProgress(progress){const t=Math.max(0,Math.min(1,(progress-.8)/.2));return t*t*t*(t*(t*6-15)+10);}
 // Native scroll extent with a fixed-size, interactive 3D material window.
 // Keep the feeder just beyond the visible top, independent of screen aspect.
 export function clothFeedTop(camera){const viewHeight=2*Math.abs(camera.position.y+.19)*Math.tan(camera.fov*Math.PI/360);return camera.position.z+viewHeight/2+.02;}
