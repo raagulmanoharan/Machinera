@@ -1,4 +1,6 @@
 import {RugArchive} from './rug-archive.js?v=199';
+const memoryDay=new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short'}),memoryTime=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+export function memoryDateLabel(timestamp){const date=new Date(timestamp);return typeof timestamp==='number'&&Number.isFinite(date.getTime())?memoryDay.format(date)+' · '+memoryTime.format(date):'Date unavailable';}
 // Small previews share the existing renderer and are released when the page closes.
 export function setupMemoryGallery({store,capture,thumbnail,render,onCamera,onOpen=()=>{},onClose=()=>{}}){
  const dialog=document.querySelector('#galleryDialog'),grid=document.querySelector('#galleryGrid'),status=document.querySelector('#galleryStatus'),retry=document.querySelector('#galleryRetry');
@@ -11,7 +13,7 @@ export function setupMemoryGallery({store,capture,thumbnail,render,onCamera,onOp
  async function load(){clear();const token=version;retry.hidden=true;status.hidden=false;status.textContent='Loading memories…';
   try{const records=await store.load();if(token!==version||!dialog.open)return;const archive=new RugArchive().restore(records.map(r=>r.archive));status.textContent=records.length?'':'No saved memories yet.';status.hidden=!!records.length;
    observer=new IntersectionObserver(entries=>{if(token!==version||!dialog.open)return;for(const item of entries)if(item.isIntersecting){observer.unobserve(item.target);queue.push(item.target.job);}draw();},{root:dialog,rootMargin:'100px'});
-   for(let i=archive.entries.length-1;i>=0;i--){const entry=archive.entries[i],label='Memory '+String(i+1).padStart(2,'0'),card=document.createElement('figure'),frame=document.createElement('div'),caption=document.createElement('figcaption');frame.className='gallery-rug';frame.textContent='Loading…';frame.setAttribute('aria-busy','true');frame.setAttribute('aria-label',label);caption.textContent=label;card.append(frame,caption);grid.append(card);frame.job={entry,archive,frame,label,version:token};observer.observe(frame);}
+   for(let i=archive.entries.length-1;i>=0;i--){const entry=archive.entries[i],label=memoryDateLabel(records[i].createdAt),card=document.createElement('figure'),frame=document.createElement('div'),caption=document.createElement('figcaption');frame.className='gallery-rug';frame.textContent='Loading…';frame.setAttribute('aria-busy','true');frame.setAttribute('aria-label',label);caption.textContent=label;card.append(frame,caption);grid.append(card);frame.job={entry,archive,frame,label,version:token};observer.observe(frame);}
   }catch{if(token!==version)return;status.textContent='Could not load your saved memories. Please try again.';retry.hidden=false;}
  }
  document.querySelector('#galleryClose').onclick=()=>dialog.close();
