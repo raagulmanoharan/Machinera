@@ -16,3 +16,15 @@ cloth.setTurn(0);
 assert.deepEqual(sim.positions,flat,'Interrupted reverse turn resets flat');
 assert.equal(cloth.turnTwist,false);
 console.log('Staggered horizontal bands turn in order and reset flat');
+
+for(const fromBack of [false,true])for(const progress of [.1,.3,.5,.7,.9]){
+ StreamCloth.prototype.setFlipProgress.call(cloth,progress,fromBack);
+ let previous=fromBack?0:Math.PI;
+ for(let y=0;y<sim.ny;y++){const i=y*sim.nx*3,angle=Math.atan2((sim.positions[i+1]+.19)/(-sim.width/2),sim.positions[i]/(-sim.width/2));
+  const a=angle<-.000001?angle+2*Math.PI:Math.max(0,angle);
+  if(fromBack)assert.ok(a>=previous-1e-5,'Reverse also starts at top');
+  else assert.ok(a<=previous+1e-5,'Bottom cannot lead the top');
+  previous=a;
+ }
+}
+cloth.setTurn(0);

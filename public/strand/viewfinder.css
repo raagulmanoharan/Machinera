@@ -73,3 +73,6 @@ body:has(#stage.floor-travelling) #soundToggle{visibility:hidden}
 #rugFlip:focus-visible{outline:1px solid var(--ink);outline-offset:5px}
 body:has(#capture[hidden]) #soundToggle{display:none}
 body:has(#storageNotice:not([hidden])) #downloadMemory,body:has(#storageNotice:not([hidden])) #shareMemory{bottom:96px}
+
+/* Blur only the photograph; scan dots and guides remain sharp. */
+.capture-processing .photo-feed-source{filter:blur(3px)}

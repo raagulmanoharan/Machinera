@@ -9,12 +9,11 @@ export function setupLoomControls({getCloth,getBounds,canEdit,render,store,getRe
  async function discardMemory(){if(!available())return;busy=true;sync();try{const id=getRecordId();if(id!=null)await store.changeLast(id);reset();onDiscard();}catch(error){onNotice('Could not discard this memory. Please try again.');}finally{busy=false;sync();}}
  discard.onclick=discardMemory;
  regenerate.onclick=async()=>{if(!available())return;busy=true;sync();const cloth=getCloth(),entry=current();try{reset();cloth.replacePhoto({palette:entry.palette,analysis:entry.analysis,photoYarns:entry.photoYarns,caption:entry.caption});render(true);await persist(current());}catch(error){onNotice('The new weave is available in this session, but could not be saved.');}finally{busy=false;sync();render(true);}};
- flip.onclick=()=>{if(!available()||!current().photoYarns)return;busy=true;turn={elapsed:0,target:!back,switched:false,duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:1.9};sync();render(true);};
+ flip.onclick=()=>{if(!available()||!current().photoYarns)return;busy=true;turn={elapsed:0,target:!back,duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:1.9};sync();render(true);};
  // Advance only when the app renders, so geometry never jumps ahead of the screen.
  function update(dt){if(!turn)return false;const cloth=getCloth(),f=turn;f.elapsed+=Math.min(dt,1/30);const t=f.duration?Math.min(1,f.elapsed/f.duration):1;
-  if(!f.switched&&t>=.5){cloth.setBack(f.target);f.switched=true;}
   cloth.setFlipProgress(t,back);
-  if(t===1){back=f.target;turn=null;busy=false;sync();}return true;
+  if(t===1){cloth.setBack(f.target);back=f.target;turn=null;busy=false;sync();}return true;
  }
  function reset(){busy=false;turn=null;back=false;getCloth()?.setBack(false);getCloth()?.setTurn(0);flip.setAttribute('aria-pressed','false');}
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&turn){reset();sync();}});
