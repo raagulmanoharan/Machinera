@@ -16,6 +16,8 @@ for(const aspect of [390/844,430/932,1440/900]){
  assert.ok(Math.abs(cloth.sim.top-(camera.position.z+viewHeight/2))<1e-6,'Print starts at the top edge');
  const start=cloth.sim.top;cloth.story.streamRemaining.value=1.9;scroll.refresh();assert.equal(cloth.sim.top,start,'Rug stays at feed while the camera carries the photo away');cloth.story.streamRemaining.value=.38;scroll.refresh();
  assert.ok(cloth.sim.top<start&&cloth.sim.top>camera.position.z+1.9,'Print moves towards the centre');
+ cloth.print.regenerating=true;
+ for(let i=0;i<=8;i++){cloth.story.streamRemaining.value=3.8*(1-i/8);scroll.refresh();assert.ok(Math.abs(cloth.sim.top-(camera.position.z+1.9+(viewHeight-3.8)/2*(1-i/8)))<1e-6,'Regenerated rug travels equal distances in equal time without a final rush');}
  cloth.print=null;scroll.refresh();assert.equal(cloth.sim.top,camera.position.z+1.9,'Complete rug lands in the centre');
  scroll.dispose();
 }
