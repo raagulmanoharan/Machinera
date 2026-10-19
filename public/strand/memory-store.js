@@ -29,6 +29,12 @@ export class MemoryStore{
   tx.oncomplete=()=>resolve(request.result);tx.onabort=()=>reject(failure||tx.error||new Error('This browser could not save your memory'));tx.onerror=()=>{};
  });}
 
+ async changeLast(id,entry=null){const db=await this.open();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);let failure;
+  const request=store.openCursor(null,'prev');request.onsuccess=()=>{const current=request.result;if(!current||current.key!==id){failure=new Error('Memories changed in another tab. Reload before editing.');tx.abort();return;}
+   if(entry){const old=current.value.archive;if(Math.abs(old.end-entry.end)>1e-6||Math.abs(old.length-entry.length)>1e-6){failure=new Error('The saved memory has changed.');tx.abort();return;}current.update({...current.value,archive:snapshotWeave(entry)});}else current.delete();};
+  tx.oncomplete=()=>resolve();tx.onabort=()=>reject(failure||tx.error||new Error('This memory could not be updated'));tx.onerror=()=>{};
+ });}
+
  async load(){const db=await this.open();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readonly'),request=tx.objectStore(STORE).openCursor(),records=[];request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;
    // Only derived weave data is persisted. Source photos are never saved.
    try{const {id,archive,createdAt}=cursor.value;records.push({id,archive:validateWeave(archive),createdAt});cursor.continue();}catch(error){reject(error);tx.abort();}
