@@ -101,3 +101,15 @@ body:has(#storageNotice:not([hidden])) #downloadMemory,body:has(#storageNotice:n
 #galleryGrid figcaption{font:inherit}
 #galleryStatus{margin:24px 0;font:inherit}
 #galleryRetry{padding:10px 16px;border:.75px solid #ecebe54d;background:transparent}
+
+#galleryTitle:focus{outline:none}
+button.gallery-rug{padding:0;border:0;background:transparent;color:var(--ink);cursor:pointer}
+#memoryDetail{padding:64px 24px 32px;background:var(--paper) var(--camera-paper,none) center/cover}
+.memory-detail-column{width:min(220px,calc(52dvh * .40421));margin:auto}
+#memoryDetailFlip{display:block;width:100%;aspect-ratio:1.536/3.8;padding:0;border:0;background:transparent;cursor:pointer}
+#memoryDetailFlip:disabled{opacity:1}
+#memoryDetailFlip canvas{width:100%!important;height:100%!important;pointer-events:none}
+#memoryDetailCopy{margin-top:28px;font:inherit;text-wrap:pretty}
+#memoryDetailCopy p{margin:0 0 8px}
+#memoryDetailCopy p:first-child{margin-bottom:14px}
+#memoryDetailCopy footer{display:flex;justify-content:space-between;gap:12px;margin-top:28px;font:inherit}
