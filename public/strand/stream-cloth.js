@@ -1,4 +1,4 @@
-import {photoYarns,photoYarnColour} from './photo-yarns.js?v=203';
+import {photoYarns,photoYarnColour} from './photo-yarns.js?v=208';
 import {encodeDraftRow} from './weave-library.js?v=156';
 import {textileColourGLSL} from './textile-colour.js?v=198';
 import {yarnShadowFunctionsGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=197';
@@ -35,7 +35,7 @@ vec3 q0=dFdx(-vViewPosition),q1=dFdy(-vViewPosition),r1=cross(q1,normal),r2=cros
   if(progress>=1){this.setTurn(end);return;}
   this.group.rotation.z=0;this.group.position.set(0,0,0);
   const {nx,ny,width,positions}=this.sim;
-  for(let y=0;y<ny;y++){const band=Math.floor(y/(ny-1)*15)/15,t=Math.max(0,Math.min(1,(progress-.6*band)/.4)),ease=t*t*(3-2*t),angle=start+(end-start)*ease;
+  for(let y=0;y<ny;y++){const band=y/(ny-1),t=Math.max(0,Math.min(1,(progress-.6*band)/.4)),ease=t*t*(3-2*t),angle=start+(end-start)*ease;
    for(let x=0;x<nx;x++){const i=(y*nx+x)*3,r=(x/(nx-1)-.5)*width;positions[i]=r*Math.cos(angle);positions[i+1]=-.19+r*Math.sin(angle);}
   }
   this.turnTwist=true;this.viewportMask.fill(1);this.upload();

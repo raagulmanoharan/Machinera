@@ -1,3 +1,5 @@
+// The photo is a crossing map, not a texture: every crossing selects an existing yarn.
+function nearestYarn(rgb,palette){let best=palette[0].rgb,distance=Infinity;for(const yarn of palette){const c=yarn.rgb,d=.3*(rgb[0]-c[0])**2+.59*(rgb[1]-c[1])**2+.11*(rgb[2]-c[2])**2;if(d<distance){distance=d;best=c;}}return best;}
 // Derived crossing colours, not a saved source photo. The existing loom supplies
 // the geometry and over-under draft. A centred cover crop prevents stretching.
 export function photoYarns(scanMap,palette,width,height){
@@ -7,7 +9,7 @@ export function photoYarns(scanMap,palette,width,height){
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
   const sx=Math.min(scanMap.width-1,Math.floor(((1-cropW)/2+(x+.5)/width*cropW)*scanMap.width)),sy=Math.min(scanMap.height-1,Math.floor(((1-cropH)/2+(y+.5)/height*cropH)*scanMap.height)),at=sy*scanMap.width+sx,i=y*width+x;
   const source=scanMap.colours?scanMap.colours.subarray(at*3,at*3+3):palette[scanMap.labels[at]].rgb;
-  colours.set(source,i*3);
+  colours.set(nearestYarn(source,palette),i*3);
  }
  return{width,height,colours,aspectCorrect:true};
 }
@@ -18,5 +20,5 @@ export function photoYarnColour(entry,u,local){
  // saved source dimensions; lost source tones cannot be recovered retroactively.
  if(!grid.aspectCorrect){const sourceAspect=entry.metadata?.sourceWidth/entry.metadata?.sourceHeight,targetAspect=1.536/entry.length;if(Number.isFinite(sourceAspect)&&sourceAspect>0){const w=Math.min(1,targetAspect/sourceAspect),h=Math.min(1,sourceAspect/targetAspect);s=(1-w)/2+s*w;v=(1-h)/2+v*h;}}
  const x=Math.max(0,Math.min(grid.width-1,Math.floor(s*grid.width))),y=Math.max(0,Math.min(grid.height-1,Math.floor(v*grid.height))),at=y*grid.width+x;
- return grid.colours?grid.colours.subarray(at*3,at*3+3):entry.palette[grid.indices[at]].rgb;
+ return grid.colours?nearestYarn(grid.colours.subarray(at*3,at*3+3),entry.palette):entry.palette[grid.indices[at]].rgb;
 }
