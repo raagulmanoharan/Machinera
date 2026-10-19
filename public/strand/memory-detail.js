@@ -19,7 +19,7 @@ export function setupMemoryDetail({renderer,pipeline,camera,getCloth,render,down
   body.hidden=false;button.append(renderer.domElement);cloth.archive=selection.archive;cloth.scrollOffset=cloth.archive.length-selection.entry.end;cloth.story.streamRemaining.value=0;cloth.story.streamHead.value=selection.entry.end;cloth.sim.top=selection.entry.length/2;cloth.group.scale.set(1,1,FIRST_PRINT_LENGTH/selection.entry.length);cloth.setTurn(0);cloth.setBack(false);cloth.paletteKey=null;cloth.rebuildPalette();cloth.setLength(selection.entry.length);sync();resize();
  },
  frame(time){if(!state)return;const dt=state.last?Math.min(1/30,(time-state.last)/1000):1/60;state.last=time;
-  if(state.turn){const f=state.turn;f.elapsed+=dt;const t=f.duration?Math.min(1,f.elapsed/f.duration):1;getCloth().setFlipProgress(t,state.back);if(t===1){state.stopFlip?.();state.stopFlip=null;state.back=!state.back;getCloth().setBack(state.back);state.turn=null;sync();}}
+  if(state.turn){const f=state.turn;f.elapsed+=dt;const t=f.duration?Math.min(1,f.elapsed/f.duration):1;const travel=getCloth().setFlipProgress(t,state.back);state.stopFlip?.update?.(travel??t);if(t===1){state.stopFlip?.();state.stopFlip=null;state.back=!state.back;getCloth().setBack(state.back);state.turn=null;sync();}}
   pipeline.render();if(state.turn)render(true);
  }
  };

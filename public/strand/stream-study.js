@@ -1,16 +1,16 @@
-import {setupMemoryDetail} from './memory-detail.js?v=219';
-import {setupMemoryGallery} from './memory-gallery.js?v=219';
-import {setupLoomControls} from './loom-controls.js?v=219';
+import {setupMemoryDetail} from './memory-detail.js?v=220';
+import {setupMemoryGallery} from './memory-gallery.js?v=220';
+import {setupLoomControls} from './loom-controls.js?v=220';
 import {MemoryStore} from './memory-store.js?v=201';
 import {updateMemoryUI} from './camera-ui.js?v=156';
 import {capturePhotoSource} from './camera-framing.js?v=180';
 import * as StrandWeaving from './weaving-patterns.js?v=197';
 globalThis.StrandWeaving=StrandWeaving;
-import {CarpetScroll} from './carpet-scroll.js?v=219';
+import {CarpetScroll} from './carpet-scroll.js?v=220';
 import {FIRST_PRINT_LENGTH} from './print-sections.js?v=156';
 import {FloorReturn} from './floor-return.js?v=156';
-import {LoomAudio} from './loom-audio.js?v=219';
-import {PhotoRugBridge,createPrintProgressReader} from './photo-rug-bridge.js?v=219';
+import {LoomAudio} from './loom-audio.js?v=220';
+import {PhotoRugBridge,createPrintProgressReader} from './photo-rug-bridge.js?v=220';
 import {preparePhotoPalette} from './photo-colours.js?v=196';
 import {TLRViewfinder} from './tlr-viewfinder.js?v=156';
 import {streamDeviceProfile} from './stream-device-profile.js?v=156';
@@ -20,7 +20,7 @@ import {createStreamPerformance} from './stream-performance.js?v=156';
 import {createStreamPipeline} from './stream-render-pipeline.js?v=156';
 import { loadRoomEnvironment } from './room-lighting.js?v=156';
 import { addTextileLights } from './textile-light-rig.js?v=156';
-import { StreamCloth } from './stream-cloth.js?v=219';
+import { StreamCloth } from './stream-cloth.js?v=220';
 import { FramePacer } from './frame-pacer.js?v=156';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
 const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,deviceProfile.canvasDpr));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=1.0;renderer.info.autoReset=false;renderer.shadowMap.enabled=false;renderer.shadowMap.type=T.PCFShadowMap;renderer.shadowMap.autoUpdate=false;stage.append(renderer.domElement);
@@ -50,14 +50,14 @@ document.querySelector('#postcardClose').onclick=()=>postcardDialog.close();post
 const memoryDetail=setupMemoryDetail({renderer,pipeline,camera,getCloth:()=>cloth,render,downloadButton:postcardDownload,onFlip:()=>audio.startFlip()});
 function openMemoryDetail(selection){clearPostcard();postcardStatus.hidden=true;postcardDialog.style.setProperty('--camera-paper',capture.style.getPropertyValue('--camera-paper'));postcardDialog.setAttribute('aria-label',selection.label);postcardDialog.showModal();try{memoryDetail.open(selection);}catch(error){memoryDetail.close();postcardStatus.hidden=false;postcardStatus.textContent='Could not open this memory. Please try again.';}}
 async function openPostcard(){postcardDownload.setAttribute('aria-label','Download story');postcardDownload.querySelector('svg').innerHTML='<path d="M12 3v11m-4-4 4 4 4-4M5 16v5h14v-5"/>';if(!ready||processingPhoto||bridge.active||cloth.print||loomControls.busy||!cloth.archive.entries.length)return;audio.saveClick();clearPostcard();const token=postcardVersion;postcardStatus.hidden=false;postcardStatus.textContent='Preparing memory…';postcardDialog.style.setProperty('--camera-paper',capture.style.getPropertyValue('--camera-paper'));postcardDialog.showModal();postcardDialog.focus({preventScroll:true});
- try{const [{createMemoryPostcard},{captureMemoryThumbnail}]=await Promise.all([import('./memory-postcard.js?v=201'),import('./postcard-capture.js?v=219')]);const q=Math.max(0,cloth.visibleHead-(cloth.sim.top-camera.position.z)),located=cloth.archive.locateMaterial(q),entry=located.entry;const result=await createMemoryPostcard({archive:cloth.archive,entry,index:located.index,renderThumbnail:(entry,options)=>captureMemoryThumbnail({renderer,pipeline,camera,cloth,entry,...options})});if(token!==postcardVersion)return;postcard=result;postcardURL=URL.createObjectURL(result.blob);postcardPreview.src=postcardURL;postcardPreview.alt=`Memory ${result.details.number}, ${result.details.weave}`;postcardPreview.hidden=false;postcardStatus.hidden=true;postcardDownload.disabled=false;
+ try{const [{createMemoryPostcard},{captureMemoryThumbnail}]=await Promise.all([import('./memory-postcard.js?v=201'),import('./postcard-capture.js?v=220')]);const q=Math.max(0,cloth.visibleHead-(cloth.sim.top-camera.position.z)),located=cloth.archive.locateMaterial(q),entry=located.entry;const result=await createMemoryPostcard({archive:cloth.archive,entry,index:located.index,renderThumbnail:(entry,options)=>captureMemoryThumbnail({renderer,pipeline,camera,cloth,entry,...options})});if(token!==postcardVersion)return;postcard=result;postcardURL=URL.createObjectURL(result.blob);postcardPreview.src=postcardURL;postcardPreview.alt=`Memory ${result.details.number}, ${result.details.weave}`;postcardPreview.hidden=false;postcardStatus.hidden=true;postcardDownload.disabled=false;
  }catch(error){if(token===postcardVersion){postcardStatus.textContent='Could not create this postcard. Please try again.';}console.warn('Postcard:',error);}}
-const gallery=setupMemoryGallery({store:memories,capture,render,onSelect:openMemoryDetail,canRender:()=>!postcardDialog.open,onOpen:()=>stopCamera(),onClose:()=>{if(!capture.hidden)openCapture();},onCamera:()=>openCapture(),thumbnail:async(entry,archive)=>{const {captureMemoryThumbnail}=await import('./postcard-capture.js?v=219');if(!gallery.isOpen)throw new Error('Gallery closed');return captureMemoryThumbnail({renderer,pipeline,camera,cloth,entry,archive,gallery:true});}});
+const gallery=setupMemoryGallery({store:memories,capture,render,onSelect:openMemoryDetail,canRender:()=>!postcardDialog.open,onOpen:()=>stopCamera(),onClose:()=>{if(!capture.hidden)openCapture();},onCamera:()=>openCapture(),thumbnail:async(entry,archive)=>{const {captureMemoryThumbnail}=await import('./postcard-capture.js?v=220');if(!gallery.isOpen)throw new Error('Gallery closed');return captureMemoryThumbnail({renderer,pipeline,camera,cloth,entry,archive,gallery:true});}});
 saveMemory.onclick=async()=>{if(!ready||savingMemory||processingPhoto||cloth?.print||loomControls.busy)return;savingMemory=true;loomControls.sync();try{const entry=cloth.archive.entries.at(-1),index=recordIds.length-1,id=recordIds[index];if(id==null)recordIds[index]=await memories.save(entry);else await memories.changeLast(id,entry);audio.saveClick();await gallery.open();}catch(error){storageFailure(error);}finally{savingMemory=false;loomControls.sync();render(true);}};
 document.querySelector('#downloadMemory').onclick=()=>openPostcard();
 postcardDownload.onclick=async()=>{
  if(memoryDetail.isOpen){const selection=memoryDetail.selection;clearPostcard();const token=postcardVersion;
-  try{const [{createMemoryPostcard},{captureMemoryThumbnail}]=await Promise.all([import('./memory-postcard.js?v=201'),import('./postcard-capture.js?v=219')]);if(token!==postcardVersion)return;const result=await createMemoryPostcard({...selection,renderThumbnail:(entry,options)=>captureMemoryThumbnail({renderer,pipeline,camera,cloth,entry,archive:selection.archive,...options})});if(token!==postcardVersion)return;postcard=result;postcardURL=URL.createObjectURL(result.blob);}
+  try{const [{createMemoryPostcard},{captureMemoryThumbnail}]=await Promise.all([import('./memory-postcard.js?v=201'),import('./postcard-capture.js?v=220')]);if(token!==postcardVersion)return;const result=await createMemoryPostcard({...selection,renderThumbnail:(entry,options)=>captureMemoryThumbnail({renderer,pipeline,camera,cloth,entry,archive:selection.archive,...options})});if(token!==postcardVersion)return;postcard=result;postcardURL=URL.createObjectURL(result.blob);}
   catch(error){if(token===postcardVersion){postcardStatus.hidden=false;postcardStatus.textContent='Could not download this memory. Please try again.';}return;}
   finally{if(token===postcardVersion)postcardDownload.disabled=false;}
  }

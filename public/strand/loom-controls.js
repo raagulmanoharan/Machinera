@@ -12,7 +12,7 @@ export function setupLoomControls({getCloth,getBounds,canEdit,render,store,getRe
  flip.onclick=()=>{if(!available()||!current().photoYarns)return;busy=true;turn={elapsed:0,target:!back,duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:1.9};stopFlip=onFlip();sync();render(true);};
  // Advance only when the app renders, so geometry never jumps ahead of the screen.
  function update(dt){if(!turn)return false;const cloth=getCloth(),f=turn;f.elapsed+=Math.min(dt,1/30);const t=f.duration?Math.min(1,f.elapsed/f.duration):1;
-  cloth.setFlipProgress(t,back);
+  const travel=cloth.setFlipProgress(t,back);stopFlip?.update?.(travel??t);
   if(t===1){stopFlip?.();stopFlip=null;cloth.setBack(f.target);back=f.target;turn=null;busy=false;sync();}return true;
  }
  function reset(){stopFlip?.();stopFlip=null;busy=false;turn=null;back=false;getCloth()?.setBack(false);getCloth()?.setTurn(0);flip.setAttribute('aria-pressed','false');}

@@ -32,13 +32,13 @@ vec3 q0=dFdx(-vViewPosition),q1=dFdy(-vViewPosition),r1=cross(q1,normal),r2=cros
  // A half-turn travels from the top band to the bottom; no overshoot or extra revolution.
  setFlipProgress(progress,fromBack=false){
   const start=fromBack?Math.PI:0,end=fromBack?0:Math.PI;
-  if(progress>=1){this.setTurn(end);return;}
+  if(progress>=1){this.setTurn(end);return 1;}
   this.group.rotation.z=0;this.group.position.set(0,0,0);
-  const {nx,ny,width,positions}=this.sim;
-  for(let y=0;y<ny;y++){const band=y/(ny-1),t=Math.max(0,Math.min(1,(progress-.75*band)/.25)),ease=t*t*(3-2*t),angle=start+(end-start)*ease;
+  const {nx,ny,width,positions}=this.sim;let travel=0;
+  for(let y=0;y<ny;y++){const band=y/(ny-1),t=Math.max(0,Math.min(1,(progress-.75*band)/.25)),ease=t*t*(3-2*t),angle=start+(end-start)*ease;travel+=ease;
    for(let x=0;x<nx;x++){const i=(y*nx+x)*3,r=(x/(nx-1)-.5)*width;positions[i]=r*Math.cos(angle);positions[i+1]=-.19+r*Math.sin(angle);}
   }
-  this.turnTwist=true;this.viewportMask.fill(1);this.upload();
+  this.turnTwist=true;this.viewportMask.fill(1);this.upload();return travel/ny;
  }
  setBack(back){this.backSide=back;}
  replacePhoto(input){const old=this.archive.entries.pop();this.archive.length-=old.length;this.version--;this.setTurn(0);this.backSide=false;this.addPhoto(input);this.print.regenerating=true;this.print.duration=8;this.archive.entries.at(-1).metadata??=old.metadata;return old;}

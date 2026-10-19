@@ -13,8 +13,9 @@ export function makeSoundBank(context){
   stitch:bake(1/12,(t,n,l)=>{const u=t%(1/12),tap=(at,decay)=>u>=at?Math.min(1,(u-at)*9000)*Math.exp(-(u-at)*decay):0;return .28*(n-l)*(tap(0,700)+.55*tap(.028,500))+.08*Math.sin(TAU*175*u)*tap(0,180)+.018*l*(.6+.4*Math.cos(TAU*12*t));}),
   shutter:bake(.19,(t,n,l)=>{let out=0;for(const [at,gain] of [[0,.8],[.036,.62],[.069,.24]]){const u=t-at;if(u>=0){const attack=Math.min(1,u*6000),body=Math.sin(TAU*190*u)*Math.exp(-u*180)+.35*Math.sin(TAU*430*u)*Math.exp(-u*240);out+=gain*attack*((n-l)*Math.exp(-u*330)+.35*body+.13*l*Math.exp(-u*65));}}const u=t-.075;if(u>0)out+=.09*(n-l)*Math.exp(-u*65)*(.5+.5*Math.cos(TAU*95*u));return out;}),
   // Close-mic fabric: uneven fibre scrapes over a soft, seamless rustle.
-  flip:bake(.4,(t,n,l)=>{const edge=Math.min(1,t/.008,(.4-t)/.008),grain=(at,w)=>Math.exp(-(((t-at)/w)**2)),brush=.18+.5*grain(.065,.03)+.35*grain(.16,.022)+.44*grain(.28,.045);return edge*(.7*(n-l)*brush+.24*l)*(.8+.2*Math.sin(TAU*31*t));}),
-  // A short latch, spindle body and fine thread ratchet, in the shutter family.
+  // Dry ratchet bite with a short wooden tension creak.
+  flip:bake(.09,(t,n,l)=>Math.min(1,t*6500)*(.52*(n-l)*Math.exp(-t*380)+.16*(Math.sin(TAU*205*t)+.24*Math.sin(TAU*570*t))*Math.exp(-t*62)+.19*(n-l)*Math.sin(Math.PI*t/.09)**2*Math.exp(-t*30))),
+  flipRelease:bake(.14,(t,n,l)=>Math.min(1,t*5000)*(.28*(n-l)*Math.exp(-t*130)+.24*Math.sin(TAU*145*t)*Math.exp(-t*60)+.08*l*Math.exp(-t*32))),
   regenerate:bake(.58,(t,n,l)=>{let clicks=0;for(const [at,gain] of [[0,.7],[.039,.43],[.106,.2]]){const u=t-at;if(u>=0)clicks+=gain*Math.min(1,u*7000)*((n-l)*Math.exp(-u*260)+.2*Math.sin(TAU*175*u)*Math.exp(-u*85));}const body=Math.sin(TAU*142*t)*Math.exp(-t*25)*.12,tail=Math.sin(Math.PI*t/.58)**2*Math.exp(-t*5)*(.2*l+.055*(n-l))*(.65+.35*Math.cos(TAU*37*t));return clicks+body+tail;}),
   // One pitch per cloud, so voicings can change without transposing a chord loop.
   cloud:bake(10,(t,n,l)=>{const e=Math.sin(Math.PI*t/10)**2,p=TAU*146.832*t;return e*(.14*Math.sin(p+.3*Math.sin(TAU*.071*t))+.09*Math.sin(p*1.0021)+.09*Math.sin(p*.9983)+.03*Math.sin(p*2.001)+.09*l);}),
@@ -81,7 +82,21 @@ export class LoomAudio{
  saveClick(){this.unlock()?.then(()=>{if(this.context)this.play('shutter',this.context.currentTime,.22,1.45);});}
 
  // Keep the fabric sound alive for the actual rendered turn, not a guessed timer.
- startFlip(){let stopped=false,voice=null;this.unlock()?.then(()=>{if(stopped||!this.enabled||!this.context)return;const c=this.context;voice=this.play('flip',c.currentTime,.13);if(!voice)return;voice.source.loop=true;voice.gain.gain.setValueAtTime(.0001,c.currentTime);voice.gain.gain.setTargetAtTime(.13,c.currentTime,.035);});return()=>{if(stopped)return;stopped=true;if(voice&&this.context){const now=this.context.currentTime;voice.gain.gain.setTargetAtTime(.0001,now,.025);try{voice.source.stop(now+.12);}catch{}}};}
+ // Advance teeth by mesh travel: no timed loop or catch-up bursts on slow frames.
+ startFlip(){
+  let stopped=false,ready=false,travel=0,tooth=0,sounded=false;const voices=new Set();
+  const advance=()=>{const next=Math.floor(travel*18);if(!ready||stopped||next<=tooth)return;tooth=next;if(travel>=1)return;
+   const voice=this.play('flip',this.context.currentTime,.12+.065*Math.sin(Math.PI*travel),.95+.08*Math.sin(Math.PI*travel));
+   if(voice){sounded=true;voices.add(voice);for(const old of voices)if(!this.nodes.has(old))voices.delete(old);}
+  };
+  this.unlock()?.then(()=>{if(!stopped&&this.enabled&&this.context){ready=true;advance();}});
+  const stop=()=>{if(stopped)return;stopped=true;if(!this.context)return;const now=this.context.currentTime;
+   for(const voice of voices){voice.gain.gain.setTargetAtTime(.0001,now,.015);try{voice.source.stop(now+.06);}catch{}}
+   if(sounded&&travel>=1)this.play('flipRelease',now,.16);
+  };
+  stop.update=value=>{if(stopped||!Number.isFinite(value))return;travel=Math.max(travel,Math.min(1,value));advance();};return stop;
+ }
+
  regenerate(){this.unlock()?.then(()=>{if(this.context)this.play('regenerate',this.context.currentTime,.2);});}
 
  startScan(){let stopped=false,voice=null;this.unlock()?.then(()=>{if(stopped||!this.enabled||!this.context)return;const c=this.context,source=c.createBufferSource(),gain=c.createGain(),filter=c.createBiquadFilter();if(!this.scanBuffer){const buffer=c.createBuffer(1,24000,24000),samples=buffer.getChannelData(0);let seed=72139,low=0;for(let i=0;i<samples.length;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const n=seed/2147483648-1;low+=.09*(n-low);const phase=(i%1200)/24000,envelope=phase<.007?Math.min(1,phase/.0005)*Math.exp(-phase/.0015):0;samples[i]=(.32*(n-low)+.12*low)*envelope;}this.scanBuffer=buffer;}source.buffer=this.scanBuffer;source.loop=true;source.playbackRate.value=1;filter.type='bandpass';filter.frequency.value=1700;filter.Q.value=.65;gain.gain.setValueAtTime(.13,c.currentTime);source.connect(filter);filter.connect(gain);gain.connect(this.effects);voice={source,gain,filter,name:'scan',music:false};this.nodes.add(voice);source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();this.nodes.delete(voice);};source.start();});return()=>{if(stopped)return;stopped=true;if(voice&&this.context){const now=this.context.currentTime;voice.gain.gain.setTargetAtTime(.0001,now,.015);try{voice.source.stop(now+.09);}catch{}}};}
