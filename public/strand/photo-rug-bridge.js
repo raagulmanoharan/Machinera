@@ -1,3 +1,4 @@
+import {rugLandingProgress} from './carpet-scroll.js?v=210';
 // Shared transforms follow rendered print progress; navigation uses wall time.
 // Quintic easing has zero velocity and acceleration at both ends.
 const ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*t*(t*(t*6-15)+10);};
@@ -6,16 +7,13 @@ const ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*t*(t*(t*6-15)+10);};
 // Both phases use submitted print progress, with smooth starts and stops.
 export function bridgePose(t,height,photoHeight,feed=true){
  const progress=ease(t),overlap=Math.max(0,height-photoHeight),pan=feed?ease((progress-.2)/.8)*height:progress*height;
- const photoY=feed?ease(progress/.2)*overlap+2*pan:0;
+ const photoY=feed?ease(progress/.2)*overlap:0;
  return {progress,pan,roomY:height-pan,photoY,screenPhotoY:photoY-pan};
 }
-// The photograph contracts into the exact printed bounds while both floors pan.
-// At the handoff the two surfaces occupy the same rectangle.
-export function photoHandoffPose(t,height,photoHeight,rugWidth,rugHeight,width){
- const pose=bridgePose(t,height,photoHeight),p=pose.progress,m=ease((p-.18)/.55),fade=ease((p-.55)/.25);
- const targetY=pose.roomY+(height-rugHeight)/2*p;
- const screenY=(1-m)*pose.screenPhotoY+m*targetY;
- return{x:(width-rugWidth)/2*m,y:screenY+pose.pan,scaleX:1+(rugWidth/width-1)*m,scaleY:1+(Math.max(1,rugHeight*p)/photoHeight-1)*m,opacity:1-fade};
+// Full-size photo and rug meet at one shared feed edge throughout the pan.
+export function photoHandoffPose(t,height,photoHeight,rugHeight){
+ const pose=bridgePose(t,height,photoHeight),landing=rugLandingProgress(pose.progress);
+ return{x:0,y:pose.photoY+(height-rugHeight)/2*landing,scaleX:1,scaleY:1,opacity:1-ease((pose.progress-.88)/.12)};
 }
 // Stretch only the remaining feed; retain exactly the length already shown.
 export function createPrintProgressReader(getPrint,remainingSeconds=8){
@@ -34,7 +32,7 @@ export function createPrintProgressReader(getPrint,remainingSeconds=8){
 }
 export class PhotoRugBridge{
  constructor(stage){this.stage=stage;this.active=false;this.frame=null;}
- begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null,rugBounds=null,onScanStart=()=>()=>{}}={}){
+ begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null,rugHeight=null,onScanStart=()=>()=>{}}={}){
   this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;
   if(!preview.hidden&&preview.width&&preview.height){const canvas=document.createElement('canvas');canvas.width=Math.min(768,preview.width);canvas.height=Math.round(canvas.width*preview.height/preview.width);canvas.getContext('2d').drawImage(preview,0,0,canvas.width,canvas.height);canvas.className='photo-feed-frame';canvas.setAttribute('aria-hidden','true');this.capture.append(canvas);this.canvas=canvas;
    if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);holder.append(canvas);canvas.className='photo-feed-source';shadeScanPhoto(canvas);holder.style.height=this.feedHeight+'px';canvas.style.height='100%';this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared,onScanStart);}
@@ -54,7 +52,7 @@ export class PhotoRugBridge{
    const pan=(element,fn)=>{const animation=animate(element,frames(fn),duration);if(animation){panAnimations.push(animation);if(feed&&readPrintProgress){animation.pause();animation.currentTime=0;}else animation.startTime=origin;}return animation;};
    const master=pan(this.capture,t=>({transform:`translate3d(0,${-bridgePose(t,this.height,this.feedHeight,this.feed).pan}px,0)`}));
    pan(this.stage,t=>({transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).roomY}px,0)`}));
-   if(this.canvas)pan(this.canvas,t=>{if(!feed||!rugBounds)return{transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).photoY}px,0)`};const b=rugBounds(),p=photoHandoffPose(t,this.height,this.feedHeight,b.width,b.height,innerWidth);return{transformOrigin:'0 0',transform:`translate3d(${p.x}px,${p.y}px,0) scale(${p.scaleX},${p.scaleY})`,opacity:p.opacity};});
+   if(this.canvas)pan(this.canvas,t=>{if(!feed||!rugHeight)return{transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).photoY}px,0)`};const p=photoHandoffPose(t,this.height,this.feedHeight,rugHeight());return{transform:`translate3d(0,${p.y}px,0)`,opacity:p.opacity};});
    pan(this.capture.querySelector('.camera-heading'),t=>({opacity:1-ease(t/.12)}));
    pan(this.capture.querySelector('.finder-markers'),t=>({opacity:.7*(1-ease(t/.6))}));
    // A print reveal follows submitted cloth progress, never a faster wall clock.
@@ -113,7 +111,7 @@ function createPhotoScan(holder,lens,prepared,onScanStart){
   for(const [fraction,label] of [[.3,'Making yarns…'],[.65,'Designing the weave…']])animations[Math.floor((animations.length-1)*fraction)].finished.then(()=>{if(!cancelled)status.textContent=label;}).catch(()=>{});
   return Promise.all(animations.map(a=>a.finished.catch(()=>{}))).finally(()=>{stopSound();if(!cancelled)status.textContent='Preparing the loom…';});
  });
- return{finished,hideStatus(){status.hidden=true;svg.style.visibility='hidden';},cancel(){cancelled=true;status.remove();stopSound();for(const animation of animations)animation.cancel();}};
+ return{finished,hideStatus(){status.hidden=true;},cancel(){cancelled=true;status.remove();stopSound();for(const animation of animations)animation.cancel();}};
 }
 
 let scanGrain=null;

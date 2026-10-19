@@ -1,4 +1,5 @@
 import {test} from 'node:test';
+import {rugLandingProgress} from './carpet-scroll.js';
 import assert from 'node:assert/strict';
 import {bridgePose,photoHandoffPose,createPrintProgressReader,photoScanRows,colourScanRows} from './photo-rug-bridge.js';
 test('photo and camera share one pace with no gap between floors',()=>{
@@ -7,8 +8,7 @@ test('photo and camera share one pace with no gap between floors',()=>{
   const p=bridgePose(i/200,844,659);
   assert.ok(Math.abs(p.roomY+p.pan-844)<1e-8);
   assert.ok(Math.abs(p.photoY-p.pan-p.screenPhotoY)<1e-8);
-  assert.ok(p.screenPhotoY>=p.pan);
-  assert.ok(p.screenPhotoY>=previous);previous=p.screenPhotoY;
+  if(p.progress>=.2)assert.equal(p.photoY,185,'Full photo reaches bottom before the camera pans');
  }
  assert.equal(bridgePose(0,844,659).photoY,0);
  assert.equal(bridgePose(1,844,659).roomY,0);
@@ -36,11 +36,15 @@ test('coloured clusters follow the major image regions',()=>{const palette=[{rgb
 test('narrow colour regions do not spill clusters into neighbouring pixels',()=>{const palette=[{rgb:[80,75,70]},{rgb:[240,30,20]}],labels=new Uint8Array(96*96);for(let y=0;y<96;y++)labels[y*96+48]=1;const rows=colourScanRows(390,390,{width:96,height:96,aspect:1,labels},palette,()=>.5);for(const row of rows)for(const x of row.dots)assert.ok(x+5.5<=48/96*390||x-5.5>=49/96*390);});
 test('scan dots use the source colour at their position, not a promoted palette accent',()=>{const palette=[{rgb:[80,75,70]}],labels=new Uint8Array(96*96),colours=new Uint8Array(96*96*3);for(let y=0;y<96;y++)for(let x=0;x<96;x++)colours.set(x<48?[110,85,65]:[55,100,50],(y*96+x)*3);const rows=colourScanRows(390,390,{width:96,height:96,aspect:1,labels,colours},palette,()=>.5);for(const row of rows)for(let i=0;i<row.dots.length;i++)assert.deepEqual(row.colours[i],row.dots[i]<195?[110,85,65]:[55,100,50]);});
 
-test('photo covers the camera footer before the loom pan starts',()=>{const p=bridgePose(.3,844,659);assert.equal(p.pan,0);assert.ok(p.screenPhotoY>0);assert.ok(p.screenPhotoY<185);const end=bridgePose(1,844,659);assert.equal(end.screenPhotoY,1029);});
+test('photo covers the camera footer before the loom pan starts',()=>{const p=bridgePose(.3,844,659);assert.equal(p.pan,0);assert.ok(p.screenPhotoY>0);assert.ok(p.screenPhotoY<185);const end=bridgePose(1,844,659);assert.equal(end.screenPhotoY,-659);});
 
-test('photo handoff reaches the centred rug bounds without flying offscreen',()=>{
- const start=photoHandoffPose(0,844,659,205,506,390),end=photoHandoffPose(1,844,659,205,506,390);
- assert.equal(start.x,0);assert.equal(start.y,0);assert.equal(start.scaleX,1);assert.equal(start.scaleY,1);
- assert.equal(end.x,92.5);assert.equal(end.y-bridgePose(1,844,659).pan,169);assert.equal(end.scaleX,205/390);assert.equal(end.scaleY,506/659);assert.equal(end.opacity,0);
- for(let i=1;i<=1000;i++){const a=photoHandoffPose((i-1)/1000,844,659,205,506,390),b=photoHandoffPose(i/1000,844,659,205,506,390);assert.ok(Math.abs(b.y-a.y)<7,'No position discontinuity');}
+test('full-size photo remains joined to the rug throughout the pan',()=>{
+ for(let i=0;i<=1000;i++){
+  const t=i/1000,p=bridgePose(t,844,659),photo=photoHandoffPose(t,844,659,506);
+  assert.equal(photo.x,0);assert.equal(photo.scaleX,1);assert.equal(photo.scaleY,1);
+  if(p.progress>=.2){
+   const photoBottom=photo.y-p.pan+659,rugTop=p.roomY+169*rugLandingProgress(p.progress);
+   assert.ok(Math.abs(photoBottom-rugTop)<1e-8,'No gap between the photo and growing rug');
+  }else assert.equal(p.pan,0,'Camera waits until the photo reaches the bottom');
+ }
 });
