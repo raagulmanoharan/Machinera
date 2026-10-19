@@ -18,7 +18,7 @@ const actionEngine=new LoomAudio();let finish=actionEngine.startFlip();await new
 const flips=()=>[...actionEngine.nodes].filter(v=>v.name==='flip');
 assert.equal(flips().length,0,'No movement means no sound');finish.update(.1);
 const flipVoice=flips()[0];assert.ok(flipVoice);assert.ok(!flipVoice.source.loop,'Each ratchet tooth is a short one-shot');
-finish.update(.1);assert.equal(flips().length,1,'Stationary frames stay silent');finish.update(.8);assert.equal(flips().length,2,'Skipped frames never produce catch-up bursts');
+finish.update(.1);assert.equal(flips().length,1,'Stationary frames stay silent');finish.update(.5);assert.equal(flips().length,2,'Skipped frames never produce catch-up bursts');const middle=flips().at(-1).source.playbackRate.value;finish.update(.9);const last=flips().at(-1).source.playbackRate.value;assert.ok(flipVoice.source.playbackRate.value>middle&&last>middle,'Pitch starts high, dips in the middle and rises at the end');assert.ok(Math.abs(last-flipVoice.source.playbackRate.value)<1e-9,'Pitch wave is symmetric');
 const actionMusicLevel=actionEngine.music.gain.value;finish.update(1);finish();finish();
 assert.equal(flipVoice.source.stopAt,actionEngine.context.currentTime+.06);assert.equal([...actionEngine.nodes].filter(v=>v.name==='flipRelease').length,1,'Completion settles once');
 for(const voice of [...actionEngine.nodes])if(!voice.music)voice.source.onended();

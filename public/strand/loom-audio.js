@@ -86,13 +86,13 @@ export class LoomAudio{
  startFlip(){
   let stopped=false,ready=false,travel=0,tooth=0,sounded=false;const voices=new Set();
   const advance=()=>{const next=Math.floor(travel*18);if(!ready||stopped||next<=tooth)return;tooth=next;if(travel>=1)return;
-   const voice=this.play('flip',this.context.currentTime,.12+.065*Math.sin(Math.PI*travel),.95+.08*Math.sin(Math.PI*travel));
+   const voice=this.play('flip',this.context.currentTime,.12+.065*Math.sin(Math.PI*travel),1.075+.325*Math.cos(TAU*travel));
    if(voice){sounded=true;voices.add(voice);for(const old of voices)if(!this.nodes.has(old))voices.delete(old);}
   };
   this.unlock()?.then(()=>{if(!stopped&&this.enabled&&this.context){ready=true;advance();}});
   const stop=()=>{if(stopped)return;stopped=true;if(!this.context)return;const now=this.context.currentTime;
    for(const voice of voices){voice.gain.gain.setTargetAtTime(.0001,now,.015);try{voice.source.stop(now+.06);}catch{}}
-   if(sounded&&travel>=1)this.play('flipRelease',now,.16);
+   if(sounded&&travel>=1)this.play('flipRelease',now,.16,1.4);
   };
   stop.update=value=>{if(stopped||!Number.isFinite(value))return;travel=Math.max(travel,Math.min(1,value));advance();};return stop;
  }
