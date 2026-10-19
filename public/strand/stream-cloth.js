@@ -1,4 +1,4 @@
-import {photoYarns,photoYarnColour} from './photo-yarns.js?v=201';
+import {photoYarns,photoYarnColour} from './photo-yarns.js?v=203';
 import {encodeDraftRow} from './weave-library.js?v=156';
 import {textileColourGLSL} from './textile-colour.js?v=198';
 import {yarnShadowFunctionsGLSL,applyYarnDirectionalShadow} from './yarn-relief.js?v=197';
@@ -30,7 +30,7 @@ vec3 q0=dFdx(-vViewPosition),q1=dFdy(-vViewPosition),r1=cross(q1,normal),r2=cros
  canStartPhoto(){return !this.print;}
  setTurn(angle){this.group.rotation.z=angle;this.group.position.set(-.19*Math.sin(angle),.19*(Math.cos(angle)-1),0);}
  setBack(back){this.backSide=back;this.paletteKey=null;this.rebuildPalette();this.surface.visible=!back&&this.sim.length>.025;}
- replacePhoto(input){const old=this.archive.entries.pop();this.archive.length-=old.length;this.version--;this.setTurn(0);this.backSide=false;this.addPhoto(input);return old;}
+ replacePhoto(input){const old=this.archive.entries.pop();this.archive.length-=old.length;this.version--;this.setTurn(0);this.backSide=false;this.addPhoto(input);this.archive.entries.at(-1).metadata??=old.metadata;return old;}
  discardLast(){const old=this.archive.entries.pop();this.archive.length-=old.length;this.version--;this.print=null;this.story.streamRemaining.value=0;this.story.streamHead.value=this.archive.length;this.scrollOffset=0;this.setTurn(0);this.backSide=false;this.paletteKey=null;this.rebuildPalette();this.setLength(this.archive.entries.length?this.visibleLength:.02);return old;}
  addPhoto(image){this.setTurn(0);this.backSide=false;const type=image.weaveType??null;this.scrollOffset=0;const section=FIRST_PRINT_LENGTH;const entry=this.archive.append(image,section,type,image.kind?{sourceWidth:image.sourceWidth,sourceHeight:image.sourceHeight,sourcePixelCount:image.sourcePixelCount,processedPixelCount:image.processedPixelCount}:null,{independent:true});entry.photoYarns=image.photoYarns??photoYarns(image.scanMap,entry.palette,WARP_ENDS,entry.weft.length);entry.caption=image.caption??'';entry.analysis=image.analysis??null;this.currentDraft=entry.plan.draft;this.paletteKey=null;this.rebuildPalette();this.print={time:0,duration:4,section};this.story.streamRemaining.value=section;this.scrollOffset=0;this.story.streamHead.value=this.archive.length-section;this.setLength(.02);this.version++;}
  restoreMemories(records){this.archive.restore(records.map(r=>r.archive));this.version=this.archive.entries.length;this.currentDraft=this.archive.entries.at(-1)?.plan.draft??null;this.print=null;this.story.streamRemaining.value=0;this.scrollOffset=0;this.story.streamHead.value=this.archive.length;this.rebuildPalette();this.setLength(this.visibleLength);}

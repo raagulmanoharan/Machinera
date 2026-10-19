@@ -61,7 +61,7 @@ body:has(#stage.floor-travelling) #soundToggle{visibility:hidden}
 #capture.capture-departing .lens{background:transparent}
 #capture.capture-departing .finder-image{visibility:hidden}
 
-#loomActions{position:fixed;z-index:4;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:.5px solid #ecebe570;padding-bottom:env(safe-area-inset-bottom);background:var(--paper)}
+#loomActions{position:fixed;z-index:4;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:.5px solid #ecebe570;border-bottom:.5px solid #ecebe570;padding-bottom:env(safe-area-inset-bottom);background:var(--paper)}
 #loomActions button{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:56px;padding:12px 4px;border-right:.5px solid #ecebe570;background:transparent;color:var(--ink);font:inherit}
 #loomActions button:last-child{border-right:0}#loomActions svg{width:16px;height:16px;flex:none}
 #flipMemory{display:grid;place-items:center;position:fixed;z-index:4;left:50%;top:calc(var(--rug-bottom,70dvh) + 12px);transform:translateX(-50%);width:44px;height:44px;padding:10px;background:transparent;border:0;color:var(--ink)}
