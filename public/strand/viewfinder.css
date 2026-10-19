@@ -63,16 +63,16 @@ body:has(#stage.floor-travelling) #soundToggle{visibility:hidden}
 
 
 /* Four completed-print controls; no footer strip or cloth interaction. */
-#regenerateMemory,#firstFloor,#downloadMemory,#shareMemory{position:fixed;z-index:4;display:grid;place-items:center;width:44px;height:44px;padding:12px;border:0;background:#0005;color:var(--ink)}
-#regenerateMemory svg,#firstFloor svg,#downloadMemory svg,#shareMemory svg{width:20px;height:20px;stroke-width:1}
+#regenerateMemory,#firstFloor,#downloadMemory,#saveMemory{position:fixed;z-index:4;display:grid;place-items:center;width:44px;height:44px;padding:12px;border:0;background:#0005;color:var(--ink)}
+#regenerateMemory svg,#firstFloor svg,#downloadMemory svg,#saveMemory svg{width:20px;height:20px;stroke-width:1}
 #regenerateMemory{left:calc(env(safe-area-inset-left) + 28px);top:calc(env(safe-area-inset-top) + 32px)}
 #firstFloor{right:calc(env(safe-area-inset-right) + 28px);top:calc(env(safe-area-inset-top) + 32px)}
 #downloadMemory{left:calc(env(safe-area-inset-left) + 28px);bottom:calc(env(safe-area-inset-bottom) + 32px)}
-#shareMemory{right:calc(env(safe-area-inset-right) + 28px);bottom:calc(env(safe-area-inset-bottom) + 32px)}
+#saveMemory{right:calc(env(safe-area-inset-right) + 28px);bottom:calc(env(safe-area-inset-bottom) + 32px)}
 #rugFlip{position:fixed;z-index:2;border:0;padding:0;background:transparent;cursor:pointer;touch-action:manipulation}
 #rugFlip:focus-visible{outline:1px solid var(--ink);outline-offset:5px}
 body:has(#capture[hidden]) #soundToggle{display:none}
-body:has(#storageNotice:not([hidden])) #downloadMemory,body:has(#storageNotice:not([hidden])) #shareMemory{bottom:96px}
+body:has(#storageNotice:not([hidden])) #downloadMemory,body:has(#storageNotice:not([hidden])) #saveMemory{bottom:96px}
 
 /* Blur only the photograph; scan dots and guides remain sharp. */
 @keyframes scan-lens-blur{from{filter:blur(0)}to{filter:blur(4px)}}
@@ -87,3 +87,17 @@ body:has(#storageNotice:not([hidden])) #downloadMemory,body:has(#storageNotice:n
 
 /* Clip the blur inside an opaque, hard-edged photograph frame. */
 .photo-feed-image{position:absolute;inset:0;overflow:hidden;background:var(--paper)}
+
+#galleryDialog{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:calc(env(safe-area-inset-top) + 24px) 28px calc(env(safe-area-inset-bottom) + 36px);border:0;color:var(--ink);background:var(--paper) var(--camera-paper,none) center/cover;overflow-y:auto;overscroll-behavior:contain}
+#galleryDialog::backdrop{background:var(--paper)}
+.gallery-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:32px}
+.gallery-heading h1{margin:0;font:inherit}
+.gallery-heading button{display:grid;place-items:center;width:44px;height:44px;padding:12px;background:#0005}
+.gallery-heading svg{width:20px;height:20px}
+#galleryGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:32px 24px;max-width:880px;margin:0 auto}
+#galleryGrid figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:12px}
+.gallery-rug{width:100%;max-width:144px;aspect-ratio:1.536/3.8;display:grid;place-items:center;font:inherit}
+.gallery-rug canvas{display:block;width:100%;height:100%}
+#galleryGrid figcaption{font:inherit}
+#galleryStatus{margin:24px 0;font:inherit}
+#galleryRetry{padding:10px 16px;border:.75px solid #ecebe54d;background:transparent}

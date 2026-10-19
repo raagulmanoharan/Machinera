@@ -1,10 +1,10 @@
 // Completed-print actions. This module owns no camera, renderer or simulation.
 export function setupLoomControls({getCloth,getBounds,canEdit,render,store,getRecordId,onDiscard,onStorageFailure,capture,onNotice}){
- const regenerate=document.querySelector('#regenerateMemory'),share=document.querySelector('#shareMemory'),discard=document.querySelector('#firstFloor'),download=document.querySelector('#downloadMemory'),flip=document.querySelector('#rugFlip');
+ const regenerate=document.querySelector('#regenerateMemory'),save=document.querySelector('#saveMemory'),discard=document.querySelector('#firstFloor'),download=document.querySelector('#downloadMemory'),flip=document.querySelector('#rugFlip');
  let busy=false,turn=null,back=false;
  const current=()=>getCloth()?.archive.entries.at(-1);
  const available=()=>!busy&&canEdit()&&!!current();
- function sync(){const entry=current(),show=capture.hidden&&!!entry&&canEdit();for(const button of [regenerate,share,download,discard,flip]){button.hidden=!show;button.disabled=!available();}if(show&&!busy){const b=getBounds();Object.assign(flip.style,{left:b.x+'px',top:b.y+'px',width:b.width+'px',height:b.height+'px'});}flip.disabled||=!entry?.photoYarns;flip.setAttribute('aria-pressed',String(back));flip.title=entry?.photoYarns?'Flip woven memory':'Photo side unavailable for this older memory';flip.setAttribute('aria-label',back?'Show rug front':'Flip to woven photo');}
+ function sync(){const entry=current(),show=capture.hidden&&!!entry&&canEdit();for(const button of [regenerate,save,download,discard,flip]){button.hidden=!show;button.disabled=!available();}if(show&&!busy){const b=getBounds();Object.assign(flip.style,{left:b.x+'px',top:b.y+'px',width:b.width+'px',height:b.height+'px'});}flip.disabled||=!entry?.photoYarns;flip.setAttribute('aria-pressed',String(back));flip.title=entry?.photoYarns?'Flip woven memory':'Photo side unavailable for this older memory';flip.setAttribute('aria-label',back?'Show rug front':'Flip to woven photo');}
  async function persist(entry){const id=getRecordId();if(id==null)return;try{await store.changeLast(id,entry);}catch(error){onStorageFailure(error);throw error;}}
  async function discardMemory(){if(!available())return;busy=true;sync();try{const id=getRecordId();if(id!=null)await store.changeLast(id);reset();onDiscard();}catch(error){onNotice('Could not discard this memory. Please try again.');}finally{busy=false;sync();}}
  discard.onclick=discardMemory;
