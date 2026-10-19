@@ -1,4 +1,4 @@
-import {setupLoomControls} from './loom-controls.js?v=201';
+import {setupLoomControls} from './loom-controls.js?v=204';
 import {MemoryStore} from './memory-store.js?v=201';
 import {updateMemoryUI} from './camera-ui.js?v=156';
 import {capturePhotoSource} from './camera-framing.js?v=180';
@@ -18,7 +18,7 @@ import {createStreamPerformance} from './stream-performance.js?v=156';
 import {createStreamPipeline} from './stream-render-pipeline.js?v=156';
 import { loadRoomEnvironment } from './room-lighting.js?v=156';
 import { addTextileLights } from './textile-light-rig.js?v=156';
-import { StreamCloth } from './stream-cloth.js?v=203';
+import { StreamCloth } from './stream-cloth.js?v=204';
 import { FramePacer } from './frame-pacer.js?v=156';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
 const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,deviceProfile.canvasDpr));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=1.0;renderer.info.autoReset=false;renderer.shadowMap.enabled=false;renderer.shadowMap.type=T.PCFShadowMap;renderer.shadowMap.autoUpdate=false;stage.append(renderer.domElement);
@@ -102,7 +102,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!processingPhoto&&!
 window.addEventListener('pageshow',event=>{if(event.persisted&&audio.context)audio.unlock();});
 window.addEventListener('pagehide',event=>{if(cloth?.print)cloth.print.hold=false;stopCamera();scroller?.stop();bridge.dispose();if(upstairs.active)upstairs.cleanup();if(event.persisted)audio.suspend();else audio.dispose();});document.addEventListener('visibilitychange',()=>{if(document.hidden){scroller?.stop();if(upstairs.active)upstairs.cleanup();audio.suspend();stopCamera();last=0;}else if(!capture.hidden&&!selected&&!processingPhoto)openCapture();else render();});
 function loomNotice(message){const notice=document.querySelector('#storageNotice');notice.textContent=message;notice.hidden=false;}
-const loomControls=setupLoomControls({getCloth:()=>cloth,canEdit:()=>ready&&!processingPhoto&&!savingMemory&&!bridge.active&&!cloth?.print&&!upstairs.active,render,store:memories,getRecordId:()=>recordIds.at(-1),capture,onStorageFailure:storageFailure,onNotice:loomNotice,onDiscard:()=>{cloth.discardLast();recordIds.pop();updateMemoryCount();scroller.refresh();upstairs.pull(0);upstairs.end(true);render(true);}});
+const loomControls=setupLoomControls({getCloth:()=>cloth,getBounds:()=>{cloth.group.updateMatrixWorld(true);const points=[[-cloth.sim.width/2,cloth.sim.top],[cloth.sim.width/2,cloth.sim.top-cloth.sim.length]].map(([x,z])=>new T.Vector3(x,-.19,z).applyMatrix4(cloth.group.matrixWorld).project(camera));return{x:(Math.min(points[0].x,points[1].x)+1)*innerWidth/2,y:(1-Math.max(points[0].y,points[1].y))*innerHeight/2,width:Math.abs(points[0].x-points[1].x)*innerWidth/2,height:Math.abs(points[0].y-points[1].y)*innerHeight/2};},canEdit:()=>ready&&!processingPhoto&&!savingMemory&&!bridge.active&&!cloth?.print&&!upstairs.active,render,store:memories,getRecordId:()=>recordIds.at(-1),capture,onStorageFailure:storageFailure,onNotice:loomNotice,onDiscard:()=>{cloth.discardLast();recordIds.pop();updateMemoryCount();scroller.refresh();upstairs.pull(0);upstairs.end(true);render(true);}});
 loomControls.sync();
 const params=new URLSearchParams(location.search);if(params.get('room')==='1'||params.get('perf')==='1')capture.hidden=true;else openCapture();
 try{status.hidden=false;status.textContent='Preparing your loom…';scene.environment=await loadRoomEnvironment(renderer);addTextileLights(scene);cloth=new StreamCloth(scene,renderer);await cloth.load();let restored=await savedMemories;try{if(restored.length){cloth.restoreMemories(restored);recordIds.push(...restored.map(record=>record.id));}}catch(error){restored=[];storageFailure(error);}updateMemoryCount();stage.dataset.restoredMemories=String(restored.length);scroller=new CarpetScroll(document.querySelector('#carpetScroll'),document.querySelector('#carpetLength'),cloth,camera,()=>render(true));await cloth.start(render);
@@ -119,4 +119,5 @@ const paperSceneVisible=scene.visible;scene.visible=false;
 try{pipeline.render();capture.style.setProperty('--camera-paper',`url("${renderer.domElement.toDataURL('image/jpeg',.9)}")`);}catch{/* The charcoal base remains available if canvas export is unavailable. */}finally{scene.visible=paperSceneVisible;renderer.shadowMap.needsUpdate=true;pipeline.render();}
 
 await new Promise(resolve=>requestAnimationFrame(resolve));stage.dataset.pipelineWarmed='true';sceneDirty=false;
+document.fonts.ready.then(()=>{cloth.refreshLettering();render(true);});
 stage.dataset.simulation='none';ready=true;saveMemory.disabled=!cloth.archive.entries.length;stage.dataset.ready="true";shutter.disabled=false;secondFloor.disabled=false;lens.setAttribute('aria-disabled','false');renderer.shadowMap.needsUpdate=true;status.hidden=true;fit();}catch(error){stage.dataset.error=error.message;status.hidden=false;status.textContent='The loom could not load. Please reload.';console.error(error);}
