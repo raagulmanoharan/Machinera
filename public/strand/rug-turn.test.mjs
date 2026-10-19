@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {StreamCloth} from './stream-cloth.js';
+import {StraightSpan} from './straight-span.js';
+const sim=new StraightSpan(),flat=sim.positions.slice();
+let uploads=0;
+const cloth={sim,group:{rotation:{},position:{set(){}}},viewportMask:new Uint8Array(sim.ny),upload(){uploads++;}};
+StreamCloth.prototype.setTurn.call(cloth,Math.PI/2,2*Math.PI);
+assert.ok(sim.positions.some((v,i)=>i%3===1&&Math.abs(v+.19)>.2),'Twist lifts yarn rows out of the flat plane');
+assert.equal(sim.positions[(16*sim.nx)*3+1],flat[(16*sim.nx)*3+1],'Centre row stays on the swivel axis');
+StreamCloth.prototype.setTurn.call(cloth,Math.PI);
+for(let i=0;i<flat.length;i++)assert.ok(Math.abs(flat[i]-sim.positions[i])<1e-6,'Finished flip restores flat geometry');
+assert.equal(cloth.group.rotation.z,Math.PI);
+assert.equal(uploads,2);
+console.log('Helical turn deforms geometry and returns exactly flat');

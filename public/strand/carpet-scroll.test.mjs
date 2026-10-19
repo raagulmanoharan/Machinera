@@ -8,7 +8,7 @@ for(const aspect of [390/844,430/932,1440/900]){
  let resized=0;const cloth={sim:{top:4.35,length:3.8},archive:{entries:[{length:3.8}]},visibleLength:3.8,totalLength:11,setLength(length){resized++;assert.equal(length,3.8);},setScrollOffset(offset){this.offset=offset;return false;}};
  const root={scrollTop:0,addEventListener(){},removeEventListener(){}},spacer={style:{}};
  const scroll=new CarpetScroll(root,spacer,cloth,camera,()=>{});
- assert.equal(resized,1);assert.equal(cloth.sim.top,camera.position.z+viewHeight*.1+1.9);scroll.refresh();assert.equal(resized,1,'Unchanged framing does not repack geometry');
+ assert.equal(resized,1);assert.equal(cloth.sim.top,camera.position.z+1.9);scroll.refresh();assert.equal(resized,1,'Unchanged framing does not repack geometry');
  root.scrollTop=parseFloat(spacer.style.height)-innerHeight;scroll.sync();
  assert.equal(cloth.offset,0,'The loom shows only the current individual rug');
  assert.equal(parseFloat(spacer.style.height),innerHeight,'No continuous cloth scroll extent');

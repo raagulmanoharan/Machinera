@@ -63,12 +63,13 @@ body:has(#stage.floor-travelling) #soundToggle{visibility:hidden}
 
 
 /* Four completed-print controls; no footer strip or cloth interaction. */
-#regenerateMemory,#firstFloor,#flipMemory,#shareMemory{position:fixed;z-index:4;display:grid;place-items:center;width:44px;height:44px;padding:12px;border:0;background:#0005;color:var(--ink)}
-#regenerateMemory svg,#firstFloor svg,#flipMemory svg,#shareMemory svg{width:20px;height:20px;stroke-width:1}
+#regenerateMemory,#firstFloor,#downloadMemory,#shareMemory{position:fixed;z-index:4;display:grid;place-items:center;width:44px;height:44px;padding:12px;border:0;background:#0005;color:var(--ink)}
+#regenerateMemory svg,#firstFloor svg,#downloadMemory svg,#shareMemory svg{width:20px;height:20px;stroke-width:1}
 #regenerateMemory{left:calc(env(safe-area-inset-left) + 28px);top:calc(env(safe-area-inset-top) + 32px)}
 #firstFloor{right:calc(env(safe-area-inset-right) + 28px);top:calc(env(safe-area-inset-top) + 32px)}
-#flipMemory{left:calc(env(safe-area-inset-left) + 28px);bottom:calc(env(safe-area-inset-bottom) + 32px)}
+#downloadMemory{left:calc(env(safe-area-inset-left) + 28px);bottom:calc(env(safe-area-inset-bottom) + 32px)}
 #shareMemory{right:calc(env(safe-area-inset-right) + 28px);bottom:calc(env(safe-area-inset-bottom) + 32px)}
-#flipMemory[aria-pressed="true"]{background:#ecebe512}
+#rugFlip{position:fixed;z-index:2;border:0;padding:0;background:transparent;cursor:pointer;touch-action:manipulation}
+#rugFlip:focus-visible{outline:1px solid var(--ink);outline-offset:5px}
 body:has(#capture[hidden]) #soundToggle{display:none}
-body:has(#storageNotice:not([hidden])) #flipMemory,body:has(#storageNotice:not([hidden])) #shareMemory{bottom:96px}
+body:has(#storageNotice:not([hidden])) #downloadMemory,body:has(#storageNotice:not([hidden])) #shareMemory{bottom:96px}
