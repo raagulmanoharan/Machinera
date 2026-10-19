@@ -1,29 +1,27 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {bridgePose,photoHandoffPose,createPrintProgressReader,photoScanRows,colourScanRows} from './photo-rug-bridge.js';
-test('photo and camera share one pace with no gap between floors',()=>{
- let previous=-1;
- for(let i=0;i<=200;i++){
-  const p=bridgePose(i/200,844,659);
-  assert.ok(Math.abs(p.roomY+p.pan-844)<1e-8);
-  assert.ok(Math.abs(p.photoY-p.pan-p.screenPhotoY)<1e-8);
-  if(p.progress>=.2)assert.equal(p.photoY,185,'Full photo reaches bottom before the camera pans');
+test('one clock carries the photo through the slot and settles the loom before printing ends',()=>{
+ for(const [height,photoHeight,rugTop] of [[844,667,169],[664,514,133],[932,736,186]]){
+  let previous={pan:0,photoY:0};
+  for(let i=0;i<=1000;i++){
+   const t=i/1000,p=bridgePose(t,height,photoHeight,true,rugTop);
+   assert.ok(p.pan>=previous.pan-1e-8&&p.photoY>=previous.photoY-1e-8,'No reversal or jump');
+   assert.ok(Math.abs(p.slotY-(p.screenPhotoY+photoHeight))<1e-7,'Photo bottom remains attached to slot');
+   if(t>=.16&&t<=.9)assert.ok(Math.abs(p.roomY+rugTop-p.slotY)<1e-7,'Rug origin touches the same slot');
+   if(t>=.6)assert.equal(p.roomY,0,'Loom remains stationary while printing completes and slot retracts');
+   previous=p;
+  }
+  assert.ok(bridgePose(.14,height,photoHeight,true,rugTop).pan>0,'Camera starts before photo feed has fully stopped');
+  assert.ok(Math.abs(bridgePose(1,height,photoHeight,true,rugTop).slotY+12)<1e-7);
  }
- assert.equal(bridgePose(0,844,659).photoY,0);
- assert.equal(bridgePose(1,844,659).roomY,0);
 });
-test('navigation without a photo keeps the image fixed in its floor',()=>{
- const p=bridgePose(.5,844,659,false);
- assert.equal(p.photoY,0);assert.equal(p.screenPhotoY,-p.pan);
-});
-
-test('pan matches actual material displacement, stalls with feed and finishes with printing',()=>{
- const print={time:0,duration:4,hold:true},read=createPrintProgressReader(()=>print);assert.equal(read(),0);assert.equal(print.duration,8);assert.equal(print.hold,false);
- const feed=t=>t*t*(3-2*t),end=feed(1);
- for(let i=0;i<100;i++)assert.equal(read(),0);
- for(let t=.02;t<1;t+=.02){print.time=t*8;const pose=bridgePose(read(),844,659);const x=Math.max(0,Math.min(1,(feed(t)/end-.2)/.8)),pan=x*x*x*(x*(x*6-15)+10);assert.ok(Math.abs(pose.pan/844-pan)<1e-6,'Camera follows material after the footer overlap');const held=read();assert.equal(read(),held,'No wall clock drift');}
- print.time=8*.68;assert.ok(read()<1,'Pan remains active while printing');print.time=8;assert.equal(read(),1);assert.equal(print.time,print.duration,'Camera and printing finish together');assert.equal(createPrintProgressReader(()=>null)(),1);
- const running={time:1,duration:4,hold:true},resume=createPrintProgressReader(()=>running);assert.equal(resume(),0);assert.equal(running.time/running.duration,.25,'Preserve existing printed length');
+test('print clock stalls with submitted frames and releases held printing for the shared timeline',()=>{
+ const print={time:0,duration:4,hold:true},read=createPrintProgressReader(()=>print);
+ assert.equal(read(),0);assert.equal(print.duration,5.4);assert.equal(print.handoff,true);assert.equal(print.hold,false);
+ for(let i=0;i<10;i++)assert.equal(read(),0);
+ print.time=2.7;assert.equal(read(),.5);print.time=5.4;assert.equal(read(),1);
+ assert.equal(createPrintProgressReader(()=>null)(),1);
 });
 
 test('scan traverses the full image in alternating directions',()=>{const rows=photoScanRows(390,660,()=>.5);assert.equal(rows.length,60);assert.ok(rows[0].y===5.5);assert.ok(rows.at(-1).y===654.5);for(const [i,row]of rows.entries()){assert.equal(row.reverse,i%2===1);assert.ok(row.dots.every(x=>x>=5.5&&x<=384.5));assert.ok(row.dots.length>=6);}});
@@ -35,16 +33,6 @@ test('coloured clusters follow the major image regions',()=>{const palette=[{rgb
 test('narrow colour regions do not spill clusters into neighbouring pixels',()=>{const palette=[{rgb:[80,75,70]},{rgb:[240,30,20]}],labels=new Uint8Array(96*96);for(let y=0;y<96;y++)labels[y*96+48]=1;const rows=colourScanRows(390,390,{width:96,height:96,aspect:1,labels},palette,()=>.5);for(const row of rows)for(const x of row.dots)assert.ok(x+5.5<=48/96*390||x-5.5>=49/96*390);});
 test('scan dots use the source colour at their position, not a promoted palette accent',()=>{const palette=[{rgb:[80,75,70]}],labels=new Uint8Array(96*96),colours=new Uint8Array(96*96*3);for(let y=0;y<96;y++)for(let x=0;x<96;x++)colours.set(x<48?[110,85,65]:[55,100,50],(y*96+x)*3);const rows=colourScanRows(390,390,{width:96,height:96,aspect:1,labels,colours},palette,()=>.5);for(const row of rows)for(let i=0;i<row.dots.length;i++)assert.deepEqual(row.colours[i],row.dots[i]<195?[110,85,65]:[55,100,50]);});
 
-test('photo covers the camera footer before the loom pan starts',()=>{const p=bridgePose(.3,844,659);assert.equal(p.pan,0);assert.ok(p.screenPhotoY>0);assert.ok(p.screenPhotoY<185);const end=bridgePose(1,844,659);assert.equal(end.screenPhotoY,-659);});
-
-test('photo freezes at the feed and leaves only through camera movement, never a fade',()=>{
- for(let i=0;i<=1000;i++){
-  const t=i/1000,p=bridgePose(t,844,659),photo=photoHandoffPose(t,844,659);
-  assert.equal(photo.x,0);assert.equal(photo.scaleX,1);assert.equal(photo.scaleY,1);assert.equal(photo.opacity,1);
-  if(p.progress>=.2){
-   assert.equal(photo.y,185,'Photograph stays fixed after reaching the bottom');
-   assert.ok(Math.abs(photo.y-p.pan+659-p.roomY)<1e-8,'Photo bottom and floor boundary move as one');
-  }else assert.equal(p.pan,0,'Camera waits until the photo reaches the bottom');
- }
- const end=photoHandoffPose(1,844,659);assert.equal(end.y-844+659,0,'Camera takes the entire photo out of view');
+test('photo keeps its size, dots layer and opacity throughout the handoff',()=>{
+ for(let i=0;i<=1000;i++){const p=photoHandoffPose(i/1000,844,667);assert.equal(p.x,0);assert.equal(p.scaleX,1);assert.equal(p.scaleY,1);assert.equal(p.opacity,1);}
 });
