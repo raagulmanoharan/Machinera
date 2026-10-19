@@ -1,4 +1,3 @@
-import {rugLandingProgress} from './carpet-scroll.js?v=213';
 // Shared transforms follow rendered print progress; navigation uses wall time.
 // Quintic easing has zero velocity and acceleration at both ends.
 const ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*t*(t*(t*6-15)+10);};
@@ -32,10 +31,10 @@ export function createPrintProgressReader(getPrint,remainingSeconds=8){
 }
 export class PhotoRugBridge{
  constructor(stage){this.stage=stage;this.active=false;this.frame=null;}
- begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null,rugHeight=()=>innerHeight*.6,onScanStart=()=>()=>{}}={}){
-  this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;this.rugHeight=rugHeight;
+ begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null,onScanStart=()=>()=>{}}={}){
+  this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;
   if(!preview.hidden&&preview.width&&preview.height){const canvas=document.createElement('canvas');canvas.width=Math.min(768,preview.width);canvas.height=Math.round(canvas.width*preview.height/preview.width);canvas.getContext('2d').drawImage(preview,0,0,canvas.width,canvas.height);canvas.className='photo-feed-frame';canvas.setAttribute('aria-hidden','true');this.capture.append(canvas);this.canvas=canvas;
-   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);const image=document.createElement('div');image.className='photo-feed-image';holder.append(image);image.append(canvas);canvas.className='photo-feed-source';shadeScanPhoto(canvas);holder.style.height=this.feedHeight+'px';canvas.style.height='100%';this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared,onScanStart);const strip=document.createElement('div');strip.className='print-feed-strip';strip.setAttribute('aria-hidden','true');document.body.append(strip);this.strip=strip;}
+   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);const image=document.createElement('div');image.className='photo-feed-image';holder.append(image);image.append(canvas);canvas.className='photo-feed-source';shadeScanPhoto(canvas);holder.style.height=this.feedHeight+'px';canvas.style.height='100%';this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared,onScanStart);const strip=document.createElement('div');strip.className='print-feed-strip';strip.setAttribute('aria-hidden','true');holder.append(strip);this.strip=strip;}
 
 }
   this.feed=feed;this.active=true;const token={};this.token=token;
@@ -53,7 +52,7 @@ export class PhotoRugBridge{
    const master=pan(this.capture,t=>({transform:`translate3d(0,${-bridgePose(t,this.height,this.feedHeight,this.feed).pan}px,0)`}));
    pan(this.stage,t=>({transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed).roomY}px,0)`}));
    if(this.canvas)pan(this.canvas,t=>{const pose=this.feed?photoHandoffPose(t,this.height,this.feedHeight):{y:0,opacity:1};return{transform:`translate3d(0,${pose.y}px,0)`,opacity:pose.opacity};});
-   if(this.strip)pan(this.strip,t=>{const p=bridgePose(t,this.height,this.feedHeight),y=p.roomY+(this.height-this.rugHeight())/2*rugLandingProgress(p.progress);return{transform:`translate3d(0,${y-6}px,0)`,opacity:ease((p.progress-.14)/.06)};});
+   if(this.strip)pan(this.strip,t=>({opacity:ease((bridgePose(t,this.height,this.feedHeight).progress-.14)/.06)}));
    pan(this.capture.querySelector('.camera-heading'),t=>({opacity:1-ease(t/.12)}));
    pan(this.capture.querySelector('.finder-markers'),t=>({opacity:.7*(1-ease(t/.6))}));
    // A print reveal follows submitted cloth progress, never a faster wall clock.
@@ -76,8 +75,8 @@ export class PhotoRugBridge{
   this.stage.dataset.bridgePhotoY=pose.screenPhotoY.toFixed(1);this.stage.dataset.bridgeProgress=t.toFixed(3);this.stage.dataset.bridgeFloorPan=pose.pan.toFixed(1);this.stage.dataset.bridgePhotoVisible=String(!!this.canvas&&pose.screenPhotoY<this.height&&t<1);if(t>=1)this.finish();
  }
 
- finish(){const done=this.resolve;this.resolve=null;const strip=this.strip;this.strip=null;if(strip){const y=(this.height-this.rugHeight())/2-6;this.exitStrip=strip;const exit=strip.animate([{transform:`translate3d(0,${y}px,0)`,opacity:1},{transform:'translate3d(0,-14px,0)',opacity:1}],{duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:700,delay:180,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});exit.finished.catch(()=>{}).finally(()=>{strip.remove();if(this.exitStrip===strip)this.exitStrip=null;});}this.dispose(true);done?.();}
- dispose(keepExit=false){if(!keepExit){this.exitStrip?.remove();this.exitStrip=null;}this.strip?.remove();this.token=null;for(const animation of this.animations??[])animation.cancel();this.animations=[];if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;const done=this.resolve;this.resolve=null;if(this.canvas){for(const c of this.canvas.querySelectorAll?.("canvas")??[]){c.width=c.height=0;}this.canvas.remove();this.canvas=null;}this.strip=null;this.scan?.cancel();this.scan=null;if(this.capture){for(const p of ['--floor-pan','--heading-opacity','--finder-reticle'])this.capture.style.removeProperty(p);this.capture.classList.remove('capture-feeding','capture-processing','capture-departing');this.capture=null;}for(const p of ['transform','opacity','pointer-events'])this.stage.style.removeProperty(p);this.stage.classList.remove('floor-travelling');this.active=false;done?.();}
+ finish(){const done=this.resolve;this.resolve=null;this.dispose();done?.();}
+ dispose(){this.token=null;for(const animation of this.animations??[])animation.cancel();this.animations=[];if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;const done=this.resolve;this.resolve=null;if(this.canvas){for(const c of this.canvas.querySelectorAll?.("canvas")??[]){c.width=c.height=0;}this.canvas.remove();this.canvas=null;}this.strip=null;this.scan?.cancel();this.scan=null;if(this.capture){for(const p of ['--floor-pan','--heading-opacity','--finder-reticle'])this.capture.style.removeProperty(p);this.capture.classList.remove('capture-feeding','capture-processing','capture-departing');this.capture=null;}for(const p of ['transform','opacity','pointer-events'])this.stage.style.removeProperty(p);this.stage.classList.remove('floor-travelling');this.active=false;done?.();}
 }
 
 // Screen-space geometry keeps every dot the same 11px diameter as the reticle.
