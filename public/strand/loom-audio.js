@@ -98,7 +98,15 @@ export class LoomAudio{
 
  regenerate(){this.unlock()?.then(()=>{if(this.context)this.play('regenerate',this.context.currentTime,.2);});}
 
- startScan(){let stopped=false,voice=null;this.unlock()?.then(()=>{if(stopped||!this.enabled||!this.context)return;const c=this.context,source=c.createBufferSource(),gain=c.createGain(),filter=c.createBiquadFilter();if(!this.scanBuffer){const buffer=c.createBuffer(1,24000,24000),samples=buffer.getChannelData(0);let seed=72139,low=0;for(let i=0;i<samples.length;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const n=seed/2147483648-1;low+=.09*(n-low);const phase=(i%1200)/24000,envelope=phase<.007?Math.min(1,phase/.0005)*Math.exp(-phase/.0015):0;samples[i]=(.32*(n-low)+.12*low)*envelope;}this.scanBuffer=buffer;}source.buffer=this.scanBuffer;source.loop=true;source.playbackRate.value=1;filter.type='bandpass';filter.frequency.value=1700;filter.Q.value=.65;gain.gain.setValueAtTime(.13,c.currentTime);source.connect(filter);filter.connect(gain);gain.connect(this.effects);voice={source,gain,filter,name:'scan',music:false};this.nodes.add(voice);source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();this.nodes.delete(voice);};source.start();});return()=>{if(stopped)return;stopped=true;if(voice&&this.context){const now=this.context.currentTime;voice.gain.gain.setTargetAtTime(.0001,now,.015);try{voice.source.stop(now+.09);}catch{}}};}
+ startScan(){
+  let stopped=false,ready=false,last=-Infinity;
+  this.unlock()?.then(()=>{if(!stopped)ready=true;});
+  const stop=()=>{stopped=true;};
+  stop.tick=phase=>{if(stopped||!ready||!this.enabled||document.hidden||!this.context)return;const now=this.context.currentTime;if(now-last<.045)return;last=now;
+   this.play('flip',now,phase==='release'?.035:.045,phase==='release'?1.65:2.15);
+  };return stop;
+ }
+
 
 
  setPrinting(active){

@@ -13,8 +13,8 @@
 #stage.memory-transition,.colour-decode{will-change:transform}
 .colour-decode{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}
 .colour-decode canvas{position:absolute;inset:0;width:100%;height:100%}
-.capture-decoding #preview,.capture-decoding .finder-markers{visibility:hidden}
-.capture-revealing .lens{background:transparent}
+.capture-decoding #preview,.capture-decoding .finder-markers,.capture-decoding .finder-image{visibility:hidden}
+.capture-decoding .lens{background:transparent}
 .capture-revealing .finder-image{visibility:hidden}
 body:has(#stage.memory-transition) #soundToggle,.capture-decoding #aboutButton{visibility:hidden}
 #carpetScroll{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#666 var(--paper);background:var(--paper);touch-action:pan-y}#carpetLength{width:1px;pointer-events:none}#carpetScroll #stage,#stage canvas{touch-action:none}body:has(#capture:not([hidden])) #carpetScroll{overflow:hidden;pointer-events:none}
