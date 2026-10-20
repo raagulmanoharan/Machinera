@@ -12,12 +12,13 @@ test('cell colours are area means from their own source region in row-major orde
 test('transparent pixels do not contaminate block averages',()=>{
  assert.deepEqual(mosaicCells(new Uint8ClampedArray([0,0,0,0,80,120,200,255]),2,1,32,32)[0].rgb,[80,120,200]);
 });
-test('square cells cover the full portrait and landscape image with only the final row clipped',()=>{
+test('uniform cells fit every image edge without a partial final row',()=>{
  for(const [w,h]of [[390,667],[390,514],[844,280]]){
   const source=new Uint8ClampedArray(100*100*4).fill(255),cells=mosaicCells(source,100,100,w,h),columns=Math.round(w/32),size=w/columns;
-  assert.equal(cells.length,columns*Math.ceil(h/size));
+  const rows=Math.round(h/size);assert.equal(cells.length,columns*rows);
   assert.ok(Math.abs(cells.reduce((sum,c)=>sum+c.width*c.height,0)-w*h)<1e-6);
-  for(const c of cells){assert.equal(c.width,size);assert.ok(c.height<=size);assert.deepEqual(c.rgb,[255,255,255]);}
+  assert.ok(Math.abs(cells.at(-1).y+cells.at(-1).height-h)<1e-7);
+  for(const c of cells){assert.equal(c.width,size);assert.equal(c.height,h/rows);assert.ok(Math.abs(c.width/c.height-1)<.08);assert.deepEqual(c.rgb,[255,255,255]);}
  }
 });
 test('photo exits upward, rug rises afterward and the camera never pans',()=>{

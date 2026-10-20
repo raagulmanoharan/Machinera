@@ -2,10 +2,10 @@ const clamp=t=>Math.max(0,Math.min(1,t));
 const ease=t=>{t=clamp(t);return t*t*t*(t*(t*6-15)+10);};
 // Actual area means, independent of the rug palette or any optical preview effect.
 export function mosaicCells(rgba,width,height,viewWidth,viewHeight){
- const columns=Math.max(1,Math.round(viewWidth/32)),size=viewWidth/columns,rows=Math.ceil(viewHeight/size);
- const cells=Array.from({length:columns*rows},(_,i)=>({x:i%columns*size,y:Math.floor(i/columns)*size,width:size,height:Math.min(size,viewHeight-Math.floor(i/columns)*size),rgb:[0,0,0],weight:0}));
+ const columns=Math.max(1,Math.round(viewWidth/32)),size=viewWidth/columns,rows=Math.max(1,Math.round(viewHeight/size)),rowHeight=viewHeight/rows;
+ const cells=Array.from({length:columns*rows},(_,i)=>({x:i%columns*size,y:Math.floor(i/columns)*rowHeight,width:size,height:rowHeight,rgb:[0,0,0],weight:0}));
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
-  const at=(y*width+x)*4,a=rgba[at+3]/255,cell=cells[Math.min(rows-1,Math.floor((y+.5)/height*viewHeight/size))*columns+Math.min(columns-1,Math.floor((x+.5)/width*columns))];
+  const at=(y*width+x)*4,a=rgba[at+3]/255,cell=cells[Math.min(rows-1,Math.floor((y+.5)/height*rows))*columns+Math.min(columns-1,Math.floor((x+.5)/width*columns))];
   for(let k=0;k<3;k++)cell.rgb[k]+=rgba[at+k]*a;cell.weight+=a;
  }
  for(const cell of cells){cell.rgb=cell.rgb.map(v=>Math.round(v/(cell.weight||1)));delete cell.weight;}
@@ -51,6 +51,9 @@ function createMosaic(holder,source,lens,onScanStart){
  const cells=mosaicCells(context.getImageData(0,0,sample.width,sample.height).data,sample.width,sample.height,width,height);sample.width=sample.height=0;
  const canvas=document.createElement('canvas'),ratio=Math.min(devicePixelRatio,2);canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);holder.append(canvas);
  const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);ctx.lineWidth=.75;ctx.strokeStyle='rgba(236,235,229,.55)';
+ // Bake monochrome grain once; it stays still while cells fill and move.
+ const grain=document.createElement('canvas');grain.width=grain.height=96;const gc=grain.getContext('2d'),pixels=gc.createImageData(96,96);
+ for(let i=0;i<pixels.data.length;i+=4){const value=Math.floor(Math.random()*256);pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=value;pixels.data[i+3]=255;}gc.putImageData(pixels,0,0);const texture=ctx.createPattern(grain,'repeat');
  const status=document.createElement('p');status.className='scan-status';status.setAttribute('role','status');status.textContent='Extracting colours…';lens.closest('#capture').append(status);
  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,beat=4800/cells.length;let frame=null,elapsed=0,last=null,cancelled=false,resolve,stopSound=()=>{};
  const finished=new Promise(done=>resolve=done);if(!reduced)stopSound=onScanStart()??(()=>{});
@@ -58,7 +61,7 @@ function createMosaic(holder,source,lens,onScanStart){
   if(cancelled)return;elapsed+=last===null?0:Math.min(50,time-last);last=time;const count=reduced?cells.length:Math.min(cells.length,Math.floor(elapsed/beat)+1);
   ctx.clearRect(0,0,width,height);
   for(let i=0;i<count;i++){
-   const c=cells[i],fill=reduced?1:clamp((elapsed-i*beat-70)/110);ctx.globalAlpha=fill;ctx.fillStyle=`rgb(${c.rgb.join(',')})`;ctx.fillRect(c.x,c.y,c.width,c.height);ctx.globalAlpha=1;ctx.strokeRect(c.x,c.y,c.width,c.height);
+   const c=cells[i],fill=reduced?1:clamp((elapsed-i*beat-70)/110);ctx.globalAlpha=fill;ctx.fillStyle=`rgb(${c.rgb.join(',')})`;ctx.fillRect(c.x,c.y,c.width,c.height);ctx.globalAlpha=fill*.16;ctx.globalCompositeOperation='soft-light';ctx.fillStyle=texture;ctx.fillRect(c.x,c.y,c.width,c.height);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.strokeRect(c.x,c.y,c.width,c.height);
   }
   if(elapsed>2400)status.textContent='Building colour blocks…';
   if(reduced||elapsed>=4800+180){stopSound();status.textContent='Preparing the weave…';resolve();}else frame=requestAnimationFrame(tick);
