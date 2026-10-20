@@ -9,22 +9,20 @@
 .camera-panel{position:relative;min-height:0;background:transparent;padding:clamp(22px,3svh,30px) 24px max(40px,calc(env(safe-area-inset-bottom) + 12px));display:flex;flex-direction:column;justify-content:space-between}
 .camera-heading{display:flex;justify-content:space-between;gap:20px;pointer-events:none}.camera-heading p{margin:0;text-transform:none;font-family:inherit;font-weight:400;font-size:var(--app-font-size);line-height:1.25;letter-spacing:inherit;color:#e5e5df}.camera-heading p:last-child{text-align:right;font-variant-numeric:tabular-nums}
 .shutter-deck{display:grid;grid-template-columns:repeat(3,44px);align-items:center;justify-content:space-between;margin:0 -10px -4px;min-height:44px}.shutter-deck button{width:44px;height:44px;display:grid;place-items:center;padding:11px;background:transparent;touch-action:manipulation}.shutter-deck svg{width:22px;height:22px;stroke-width:.9;stroke-linecap:butt;stroke-linejoin:miter}.shutter-deck button:active{opacity:.55}
-.photo-feed-source,.photo-scan{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}.photo-scan{pointer-events:none;overflow:hidden}
-
-#capture.capture-frozen .shutter-deck{opacity:0;pointer-events:none;transition:opacity .2s}#capture.capture-frozen .shutter-deck button{pointer-events:none}#capture.flipped,#capture.capture-bridging{pointer-events:none}#capture.capture-bridging{will-change:transform}
-#capture.capture-feeding{transform:translate3d(0,var(--floor-pan,0px),0);transition:none!important}#capture.capture-feeding .camera-heading{opacity:var(--heading-opacity,0);transition:none}#capture.capture-feeding #preview{visibility:hidden}#capture.capture-feeding .finder-markers{opacity:var(--finder-reticle,.7);transition:none}
-.photo-feed-frame{pointer-events:none;z-index:2;position:absolute;inset:0;width:100%;height:100%;object-fit:fill;transform-origin:50% 0;will-change:transform}#stage.floor-travelling{will-change:transform}#capture.returning-upstairs{transform:translate3d(0,var(--return-offset,-100vh),0);pointer-events:none;will-change:transform}
+#capture.capture-frozen .shutter-deck{opacity:0;pointer-events:none;transition:opacity .2s}#capture.capture-frozen .shutter-deck button{pointer-events:none}#capture.flipped,#capture.capture-bridging{pointer-events:none}
+#stage.memory-transition,.colour-decode{will-change:transform}
+.colour-decode{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}
+.colour-decode canvas{position:absolute;inset:0;width:100%;height:100%}
+.capture-decoding #preview,.capture-decoding .finder-markers{visibility:hidden}
+.capture-revealing .lens{background:transparent}
+.capture-revealing .finder-image{visibility:hidden}
+body:has(#stage.memory-transition) #soundToggle,.capture-decoding #aboutButton{visibility:hidden}
 #carpetScroll{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#666 var(--paper);background:var(--paper);touch-action:pan-y}#carpetLength{width:1px;pointer-events:none}#carpetScroll #stage,#stage canvas{touch-action:none}body:has(#capture:not([hidden])) #carpetScroll{overflow:hidden;pointer-events:none}
 #firstFloor{display:none;position:fixed;right:calc(env(safe-area-inset-right) + 28px);top:calc(env(safe-area-inset-top) + 32px);z-index:4;width:44px;height:44px;place-items:center;background:#0005;color:var(--ink)}#firstFloor svg{width:20px;height:20px;stroke-width:1}body:has(#capture[hidden]) #firstFloor{display:grid}
 @media(max-height:500px) and (orientation:landscape){.camera-shell{grid-template-rows:minmax(0,1fr) 110px}.camera-panel{padding:12px max(24px,env(safe-area-inset-right)) 8px max(24px,env(safe-area-inset-left))}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 
 .app-name{font:inherit;letter-spacing:inherit}
-
-#capture.capture-processing .finder-markers svg{animation:processing-orbit 1.35s linear infinite;will-change:transform}
-#capture.capture-processing .finder-markers circle{stroke-dasharray:25 9.56;stroke-linecap:round}
-@keyframes processing-orbit{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){#capture.capture-processing .finder-markers svg{animation:none}}
 
 #aboutButton,#aboutClose{position:absolute;top:calc(env(safe-area-inset-top) + 16px);right:calc(env(safe-area-inset-right) + 16px);width:44px;height:44px;display:grid;place-items:center;padding:12px;background:transparent;color:var(--ink);z-index:8;touch-action:manipulation}
 #aboutButton svg,#aboutClose svg{width:20px;height:20px}
@@ -53,15 +51,6 @@
 
 #aboutDialog h2{font:inherit;font-style:italic;margin:16px 0 8px}
 
-/* Frozen photograph travels above the camera footer into the loom. */
-#capture > .photo-feed-frame{height:calc(100% - clamp(150px,21svh,210px));z-index:2}
-#capture.capture-feeding .camera-panel{z-index:0}
-body:has(#stage.floor-travelling) #soundToggle{visibility:hidden}
-
-#capture.capture-departing .lens{background:transparent}
-#capture.capture-departing .finder-image{visibility:hidden}
-
-
 /* Four completed-print controls; no footer strip or cloth interaction. */
 #regenerateMemory,#firstFloor,#downloadMemory,#saveMemory{position:fixed;z-index:4;display:grid;place-items:center;width:44px;height:44px;padding:12px;border:0;background:#0005;color:var(--ink)}
 #regenerateMemory svg,#firstFloor svg,#downloadMemory svg,#saveMemory svg{width:20px;height:20px;stroke-width:1}
@@ -73,20 +62,6 @@ body:has(#stage.floor-travelling) #soundToggle{visibility:hidden}
 #rugFlip:focus-visible{outline:1px solid var(--ink);outline-offset:5px}
 body:has(#capture[hidden]) #soundToggle{display:none}
 body:has(#storageNotice:not([hidden])) #downloadMemory,body:has(#storageNotice:not([hidden])) #saveMemory{bottom:96px}
-
-/* Blur only the photograph; scan dots and guides remain sharp. */
-@keyframes scan-lens-blur{from{filter:blur(0)}to{filter:blur(4px)}}
-.capture-feeding .photo-feed-source{animation:scan-lens-blur 1.5s cubic-bezier(.4,0,.2,1) both}
-@media(prefers-reduced-motion:reduce){.capture-feeding .photo-feed-source{animation-duration:.01ms}}
-/* The full-size photograph may cross the floor boundary while feeding. */
-#capture.capture-feeding{overflow:visible}
-
-/* A narrow loom reed marks the crossing from photograph to printed yarn. */
-.print-feed-strip{position:absolute;z-index:3;left:0;right:0;top:100%;height:12px;transform:translateY(-50%);opacity:0;pointer-events:none;border-block:.75px solid #ecebe53d;background:linear-gradient(#151515,#080808 45%,#1a1a1a);box-shadow:0 2px 3px #0005}
-.print-feed-strip::after{content:"";position:absolute;inset:3px 0;background:repeating-linear-gradient(90deg,transparent 0 3px,#ecebe52b 3px 3.75px)}
-
-/* Clip the blur inside an opaque, hard-edged photograph frame. */
-.photo-feed-image{position:absolute;inset:0;overflow:hidden;background:var(--paper)}
 
 #galleryDialog{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:calc(env(safe-area-inset-top) + 24px) 28px calc(env(safe-area-inset-bottom) + 36px);border:0;color:var(--ink);background:var(--paper) var(--camera-paper,none) center/cover;overflow-y:auto;overscroll-behavior:contain}
 #galleryDialog::backdrop{background:var(--paper)}

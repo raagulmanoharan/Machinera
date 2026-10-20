@@ -1,4 +1,3 @@
-import {printMotion} from './print-motion.js';
 import {photoYarns,photoYarnColour} from './photo-yarns.js?v=208';
 import {encodeDraftRow} from './weave-library.js?v=156';
 import {textileColourGLSL} from './textile-colour.js?v=198';
@@ -56,5 +55,5 @@ vec3 q0=dFdx(-vViewPosition),q1=dFdy(-vViewPosition),r1=cross(q1,normal),r2=cros
  let changed=false;for(let y=0;y<ny;y++)if(mask[y]!==this.viewportMask[y]){changed=true;break;}if(changed){this.viewportMask.set(mask);this.yarn.update(false);}
  }
 
- update(dt,camera){let feeding=false,geometryChanged=false;if(this.print){const f=this.print;if(!f.hold)f.time+=dt;const t=Math.min(1,f.time/f.duration),ease=f.handoff?printMotion(t).feed:f.regenerating?t:t*t*(3-2*t);this.story.streamRemaining.value=f.section*(1-ease);this.story.streamHead.value=this.visibleHead;const length=this.visibleLength;if(Math.abs(length-this.sim.length)>.00001){this.setLength(length,false);geometryChanged=true;}feeding=true;if(t===1){this.print=null;this.story.streamRemaining.value=0;}}if(geometryChanged)this.upload();else if(feeding)this.yarn.feed();this.refreshViewport(camera);return feeding;}
+ update(dt,camera){let feeding=false,geometryChanged=false;if(this.print){const f=this.print;if(!f.hold)f.time+=dt;const t=Math.min(1,f.time/f.duration),ease=f.preview?1:f.regenerating?t:t*t*(3-2*t);this.story.streamRemaining.value=f.section*(1-ease);this.story.streamHead.value=this.visibleHead;const length=this.visibleLength;if(Math.abs(length-this.sim.length)>.00001){this.setLength(length,false);geometryChanged=true;}feeding=!f.hold||geometryChanged;if(t===1){this.print=null;this.story.streamRemaining.value=0;}}if(geometryChanged)this.upload();else if(feeding)this.yarn.feed();this.refreshViewport(camera);return feeding;}
 }

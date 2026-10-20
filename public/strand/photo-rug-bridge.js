@@ -1,111 +1,68 @@
-import {printMotion,PRINT_SECONDS} from './print-motion.js';
-const ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*t*(t*(t*6-15)+10);};
-export function bridgePose(t,height,photoHeight,feed=true,rugTop=height*.2){
- const motion=printMotion(t),photoY=feed?motion.photo*Math.max(0,height-photoHeight):0;
- const pan=feed?motion.camera*(height-rugTop)+motion.retract*(rugTop+12):ease(t)*height;
- const slotY=photoHeight+photoY-pan;
- return{progress:t,pan,photoY,screenPhotoY:photoY-pan,slotY,roomY:feed?Math.max(0,slotY-rugTop):height-pan};
+const clamp=t=>Math.max(0,Math.min(1,t));
+const ease=t=>{t=clamp(t);return t*t*t*(t*(t*6-15)+10);};
+// Actual area means, independent of the rug palette or any optical preview effect.
+export function mosaicCells(rgba,width,height,viewWidth,viewHeight){
+ const columns=Math.max(1,Math.round(viewWidth/32)),size=viewWidth/columns,rows=Math.ceil(viewHeight/size);
+ const cells=Array.from({length:columns*rows},(_,i)=>({x:i%columns*size,y:Math.floor(i/columns)*size,width:size,height:Math.min(size,viewHeight-Math.floor(i/columns)*size),rgb:[0,0,0],weight:0}));
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  const at=(y*width+x)*4,a=rgba[at+3]/255,cell=cells[Math.min(rows-1,Math.floor((y+.5)/height*viewHeight/size))*columns+Math.min(columns-1,Math.floor((x+.5)/width*columns))];
+  for(let k=0;k<3;k++)cell.rgb[k]+=rgba[at+k]*a;cell.weight+=a;
+ }
+ for(const cell of cells){cell.rgb=cell.rgb.map(v=>Math.round(v/(cell.weight||1)));delete cell.weight;}
+ return cells;
 }
-export function photoHandoffPose(t,height,photoHeight){const pose=bridgePose(t,height,photoHeight);return{x:0,y:pose.photoY,scaleX:1,scaleY:1,opacity:1};}
-export function createPrintProgressReader(getPrint){
- let state=null;
- return()=>{
-  if(!state){const print=getPrint();if(!print)return 1;const fraction=Math.min(.99,print.time/print.duration);print.duration=PRINT_SECONDS/(1-fraction);print.time=fraction*print.duration;print.handoff=true;print.hold=false;state={print,start:fraction};}
-  return Math.max(0,Math.min(1,(state.print.time/state.print.duration-state.start)/(1-state.start)));
- };
+export function revealPose(t,height,photoHeight){
+ return{photoY:-ease(t/.5)*(photoHeight+24),rugY:(1-ease((t-.38)/.62))*height,uiOpacity:1-ease(t/.3)};
 }
 export class PhotoRugBridge{
- constructor(stage){this.stage=stage;this.active=false;this.frame=null;}
- begin(preview,lens,section,{feed=true,prepared=Promise.resolve(),onPrepared=()=>{},readPrintProgress=null,getRugTop=()=>innerHeight*.2,onScanStart=()=>()=>{}}={}){
-  this.dispose();this.section=section;this.capture=lens.closest('#capture');this.height=innerHeight;this.feedHeight=lens.clientHeight;this.rugTop=getRugTop();
-  if(!preview.hidden&&preview.width&&preview.height){const canvas=document.createElement('canvas');canvas.width=Math.min(768,preview.width);canvas.height=Math.round(canvas.width*preview.height/preview.width);canvas.getContext('2d').drawImage(preview,0,0,canvas.width,canvas.height);canvas.className='photo-feed-frame';canvas.setAttribute('aria-hidden','true');this.capture.append(canvas);this.canvas=canvas;
-   if(feed){const holder=document.createElement('div');holder.className='photo-feed-frame';canvas.after(holder);const image=document.createElement('div');image.className='photo-feed-image';holder.append(image);image.append(canvas);canvas.className='photo-feed-source';shadeScanPhoto(canvas);holder.style.height=this.feedHeight+'px';canvas.style.height='100%';this.canvas=holder;this.scan=createPhotoScan(holder,lens,prepared,onScanStart);const strip=document.createElement('div');strip.className='print-feed-strip';strip.setAttribute('aria-hidden','true');holder.append(strip);this.strip=strip;}
-
-}
-  this.feed=feed;this.active=true;const token={};this.token=token;
-  this.capture.classList.add('capture-feeding');if(feed)this.capture.classList.add('capture-processing');this.stage.classList.add('floor-travelling');this.stage.style.pointerEvents='none';this.stage.style.opacity='1';this.update(0);
-  this.stage.dataset.bridgePhase=feed?'processing':'panning';
-  const promise=new Promise(resolve=>{this.resolve=resolve;});this.animations=[];
-  const animate=(element,frames,duration)=>{if(!element?.animate)return null;const animation=element.animate(frames,{duration,fill:'both',easing:'linear'});this.animations.push(animation);return animation;};
-  // Keep the entire frozen photograph stationary until a visible carpet frame
-  // has actually been submitted and the full-height scan has finished.
-  const panAnimations=[];
-  const startPan=()=>{if(!this.active||this.token!==token)return;
-   this.capture.classList.remove('capture-processing');this.capture.classList.add('capture-departing');this.scan?.hideStatus();this.stage.dataset.bridgePhase='panning';const duration=feed?2800:1500,origin=document.timeline.currentTime;
-   const frames=fn=>Array.from({length:181},(_,i)=>({...fn(i/180),offset:i/180}));
-   const pan=(element,fn)=>{const animation=animate(element,frames(fn),duration);if(animation){panAnimations.push(animation);if(feed&&readPrintProgress){animation.pause();animation.currentTime=0;}else animation.startTime=origin;}return animation;};
-   const master=pan(this.capture,t=>({transform:`translate3d(0,${-bridgePose(t,this.height,this.feedHeight,this.feed,this.rugTop).pan}px,0)`}));
-   pan(this.stage,t=>({transform:`translate3d(0,${bridgePose(t,this.height,this.feedHeight,this.feed,this.rugTop).roomY}px,0)`}));
-   if(this.canvas)pan(this.canvas,t=>{const pose=this.feed?{y:bridgePose(t,this.height,this.feedHeight,true,this.rugTop).photoY,opacity:1}:{y:0,opacity:1};return{transform:`translate3d(0,${pose.y}px,0)`,opacity:pose.opacity};});
-   if(this.strip)pan(this.strip,t=>({opacity:ease(t/.12)}));
-   pan(this.capture.querySelector('.camera-heading'),t=>({opacity:1-ease(t/.12)}));
-   pan(this.capture.querySelector('.finder-markers'),t=>({opacity:.7*(1-ease(t/.6))}));
-   // A print reveal follows submitted cloth progress, never a faster wall clock.
-   // Ordinary floor navigation keeps the independent compositor animation.
-   const tick=()=>{if(!this.active||this.token!==token)return;let progress;
-    if(feed&&readPrintProgress){progress=Math.max(0,Math.min(1,readPrintProgress()));for(const animation of panAnimations)animation.currentTime=progress*duration;}
-    else{const elapsed=master?.currentTime??(document.timeline.currentTime-origin);progress=Math.min(1,elapsed/duration);}
-    this.update(progress,!master);if(this.active)this.frame=requestAnimationFrame(tick);
+ constructor(stage){this.stage=stage;this.frame=null;this.active=false;}
+ begin(preview,lens,{source=preview,prepared=Promise.resolve(),onPrepared=()=>{},getRugBounds=()=>null,onScanStart=()=>()=>{}}={}){
+  this.dispose();this.active=true;const token=this.token={};this.capture=lens.closest('#capture');this.height=innerHeight;this.photoHeight=lens.clientHeight;
+  const holder=this.holder=document.createElement('div');holder.className='colour-decode';holder.style.height=this.photoHeight+'px';holder.setAttribute('aria-hidden','true');
+  const photo=document.createElement('canvas');photo.width=preview.width;photo.height=preview.height;photo.getContext('2d').drawImage(preview,0,0);holder.append(photo);this.capture.append(holder);
+  this.capture.classList.add('capture-decoding');this.stage.classList.add('memory-transition');this.stage.style.pointerEvents='none';this.stage.dataset.bridgePhase='decoding';this.stage.style.transform=`translate3d(0,${this.height}px,0)`;
+  const promise=new Promise((resolve,reject)=>{this.resolve=resolve;this.reject=reject;});
+  this.scan=createMosaic(holder,source,lens,onScanStart);const current=()=>this.active&&this.token===token;
+  Promise.all([prepared,this.scan.finished]).then(()=>{if(current())return onPrepared();}).then(()=>{
+   if(!current())return;this.scan.hideStatus();this.capture.classList.add('capture-revealing');this.stage.dataset.bridgePhase='abstracted';
+   const bounds=getRugBounds();if(bounds){this.stage.style.clipPath=`inset(${Math.max(0,bounds.y-3)}px ${Math.max(0,innerWidth-bounds.x-bounds.width-3)}px ${Math.max(0,this.height-bounds.y-bounds.height-3)}px ${Math.max(0,bounds.x-3)}px)`;this.stage.style.zIndex='6';}
+   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;let elapsed=0,last=null;
+   const tick=time=>{if(!current())return;elapsed+=last===null?0:Math.min(50,time-last);last=time;const t=reduced?1:clamp((elapsed-320)/2600),p=revealPose(t,this.height,this.photoHeight);
+    holder.style.transform=`translate3d(0,${p.photoY}px,0)`;this.stage.style.transform=`translate3d(0,${p.rugY}px,0)`;
+    for(const element of this.capture.querySelectorAll('.camera-panel,.finder-markers'))element.style.opacity=p.uiOpacity;
+    this.stage.dataset.bridgeProgress=t.toFixed(3);if(t>0)this.stage.dataset.bridgePhase='revealing';
+    if(t===1)this.finish();else this.frame=requestAnimationFrame(tick);
    };this.frame=requestAnimationFrame(tick);
-  };
-  const minimumScan=this.scan?.finished??Promise.resolve();
-  Promise.all([Promise.resolve(prepared),minimumScan]).then(()=>{if(this.active&&this.token===token)return onPrepared();}).then(startPan).catch(()=>{if(this.token===token)this.finish();});
+  }).catch(error=>{if(!current())return;const reject=this.reject;this.resolve=null;this.dispose();reject?.(error);});
   return promise;
  }
-
- update(t,writeStyles=true){if(!this.active)return;const pose=bridgePose(t,this.height,this.feedHeight,this.feed,this.rugTop);
-  if(writeStyles){if(this.canvas)this.canvas.style.transform=`translate3d(0,${pose.photoY}px,0)`;
-   this.capture.style.setProperty('--floor-pan',-pose.pan+'px');this.capture.style.setProperty('--heading-opacity',String(1-ease(t/.12)));this.capture.style.setProperty('--finder-reticle',String(.36*(1-ease(t/.6))));this.stage.style.transform=`translate3d(0,${pose.roomY}px,0)`;
-  }
-  this.stage.dataset.bridgePhotoY=pose.screenPhotoY.toFixed(1);this.stage.dataset.bridgeProgress=t.toFixed(3);this.stage.dataset.bridgeFloorPan=pose.pan.toFixed(1);this.stage.dataset.bridgePhotoVisible=String(!!this.canvas&&pose.screenPhotoY<this.height&&t<1);if(t>=1)this.finish();
- }
-
  finish(){const done=this.resolve;this.resolve=null;this.dispose();done?.();}
- dispose(){this.token=null;for(const animation of this.animations??[])animation.cancel();this.animations=[];if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;const done=this.resolve;this.resolve=null;if(this.canvas){for(const c of this.canvas.querySelectorAll?.("canvas")??[]){c.width=c.height=0;}this.canvas.remove();this.canvas=null;}this.strip=null;this.scan?.cancel();this.scan=null;if(this.capture){for(const p of ['--floor-pan','--heading-opacity','--finder-reticle'])this.capture.style.removeProperty(p);this.capture.classList.remove('capture-feeding','capture-processing','capture-departing');this.capture=null;}for(const p of ['transform','opacity','pointer-events'])this.stage.style.removeProperty(p);this.stage.classList.remove('floor-travelling');this.active=false;done?.();}
-}
-
-// Screen-space geometry keeps every dot the same 11px diameter as the reticle.
-export function photoScanRows(width,height,random=Math.random){
- const count=Math.max(1,Math.floor(height/11)),gap=11,top=(height-(count-1)*gap)/2;
- return Array.from({length:count},(_,i)=>{const clusters=width>=280?2+Math.floor(random()*2):1,segment=width/clusters,dots=[];for(let c=0;c<clusters;c++){const total=3+Math.floor(random()*3),span=(total-1)*11,start=c*segment+5.5+random()*Math.max(0,segment-11-span);for(let k=0;k<total;k++)dots.push(start+k*11);}return{y:top+i*gap,reverse:i%2===1,dots};});
-}
-// Reuse the bounded spatial grid already collected during the full pixel scan.
-// Major contiguous colour runs position clusters; no extra image readbacks.
-export function colourScanRows(width,height,map,palette,random=Math.random){
- const rows=photoScanRows(width,height,random);if(!map||!palette?.length)return rows;
- const aspect=width/height,cropW=Math.min(1,aspect/map.aspect),cropH=Math.min(1,map.aspect/aspect);
- for(const row of rows){const my=Math.min(map.height-1,Math.floor(((1-cropH)/2+row.y/height*cropH)*map.height)),runs=[];let start=0,last=-1;
-  for(let x=0;x<=map.width;x++){const sx=Math.min(map.width-1,Math.floor(((1-cropW)/2+x/map.width*cropW)*map.width)),label=x===map.width?-1:map.labels[my*map.width+sx];if(label!==last){if(last>=0)runs.push({start,end:x,label:last});start=x;last=label;}}
-  const byColour=new Map();for(const run of runs){const previous=byColour.get(run.label);if(!previous||run.end-run.start>previous.end-previous.start)byColour.set(run.label,run);}const major=[...byColour.values()].sort((a,b)=>a.start-b.start);
-  row.dots=[];row.colours=[];for(const run of major){const left=run.start/map.width*width,right=run.end/map.width*width,total=Math.min(5,Math.floor((right-left)/11));if(total<2)continue;const first=left+5.5+random()*Math.max(0,right-left-total*11);for(let k=0;k<total;k++){const x=first+k*11,sx=Math.min(map.width-1,Math.floor(((1-cropW)/2+x/width*cropW)*map.width)),at=(my*map.width+sx)*3;row.dots.push(x);row.colours.push(map.colours?Array.from(map.colours.slice(at,at+3)):palette[run.label].rgb);}}
-
-
+ dispose(){
+  this.token=null;if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;this.scan?.cancel();this.scan=null;
+  if(this.holder){for(const canvas of this.holder.querySelectorAll('canvas'))canvas.width=canvas.height=0;this.holder.remove();this.holder=null;}
+  if(this.capture){for(const element of this.capture.querySelectorAll('.camera-panel,.finder-markers'))element.style.removeProperty('opacity');this.capture.classList.remove('capture-decoding','capture-revealing');this.capture=null;}
+  for(const property of ['transform','pointer-events','clip-path','z-index'])this.stage.style.removeProperty(property);this.stage.classList.remove('memory-transition');this.active=false;
+  const done=this.resolve;this.resolve=this.reject=null;done?.();
  }
- return rows;
 }
-function createPhotoScan(holder,lens,prepared,onScanStart){
- const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),width=lens.clientWidth,height=lens.clientHeight,animations=[];let cancelled=false,stopSound=()=>{};
+function createMosaic(holder,source,lens,onScanStart){
+ const width=lens.clientWidth,height=lens.clientHeight,sample=document.createElement('canvas');sample.width=Math.min(768,source.width);sample.height=Math.max(1,Math.round(sample.width*height/width));
+ const context=sample.getContext('2d',{willReadFrequently:true});context.drawImage(source,0,0,sample.width,sample.height);
+ const cells=mosaicCells(context.getImageData(0,0,sample.width,sample.height).data,sample.width,sample.height,width,height);sample.width=sample.height=0;
+ const canvas=document.createElement('canvas'),ratio=Math.min(devicePixelRatio,2);canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);holder.append(canvas);
+ const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);ctx.lineWidth=.75;ctx.strokeStyle='rgba(236,235,229,.55)';
  const status=document.createElement('p');status.className='scan-status';status.setAttribute('role','status');status.textContent='Extracting colours…';lens.closest('#capture').append(status);
- svg.classList.add('photo-scan');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('aria-hidden','true');holder.append(svg);const maskId=addDotGrain(svg,ns);
- const finished=Promise.resolve(prepared).then(data=>{if(cancelled)return;stopSound=onScanStart()??(()=>{});const rows=colourScanRows(width,height,data?.scanMap,data?.palette),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?0:(19200/1.3)/(rows.length+1);
-  for(const [i,row] of rows.entries()){
-   const group=document.createElementNS(ns,'g'),line=document.createElementNS(ns,'path');line.setAttribute('d',`M0 ${row.y}H${width}`);line.setAttribute('fill','none');line.setAttribute('stroke','white');line.setAttribute('stroke-width','.75');line.setAttribute('stroke-opacity','.24');line.setAttribute('stroke-dasharray','.1 1.7');line.setAttribute('stroke-linecap','round');group.append(line);
-   for(const [k,x] of row.dots.entries()){const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',row.y);dot.setAttribute('r','5.5');dot.setAttribute('mask',`url(#${maskId})`);dot.setAttribute('fill',row.colours?.[k]?`rgb(${row.colours[k].join(',')})`:'white');group.append(dot);}
-   svg.append(group);const hidden=row.reverse?'inset(0 0 0 100%)':'inset(0 100% 0 0)';animations.push(group.animate([{clipPath:hidden},{clipPath:'inset(0 0 0 0)'}],{duration,delay:i*duration/2,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'}));
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,beat=4800/cells.length;let frame=null,elapsed=0,last=null,cancelled=false,resolve,stopSound=()=>{};
+ const finished=new Promise(done=>resolve=done);if(!reduced)stopSound=onScanStart()??(()=>{});
+ const tick=time=>{
+  if(cancelled)return;elapsed+=last===null?0:Math.min(50,time-last);last=time;const count=reduced?cells.length:Math.min(cells.length,Math.floor(elapsed/beat)+1);
+  ctx.clearRect(0,0,width,height);
+  for(let i=0;i<count;i++){
+   const c=cells[i],fill=reduced?1:clamp((elapsed-i*beat-70)/110);ctx.globalAlpha=fill;ctx.fillStyle=`rgb(${c.rgb.join(',')})`;ctx.fillRect(c.x,c.y,c.width,c.height);ctx.globalAlpha=1;ctx.strokeRect(c.x,c.y,c.width,c.height);
   }
-  for(const [fraction,label] of [[.3,'Making yarns…'],[.65,'Designing the weave…']])animations[Math.floor((animations.length-1)*fraction)].finished.then(()=>{if(!cancelled)status.textContent=label;}).catch(()=>{});
-  return Promise.all(animations.map(a=>a.finished.catch(()=>{}))).finally(()=>{stopSound();if(!cancelled)status.textContent='Preparing the loom…';});
- });
- return{finished,hideStatus(){status.hidden=true;},cancel(){cancelled=true;status.remove();stopSound();for(const animation of animations)animation.cancel();}};
-}
-
-let scanGrain=null;
-function shadeScanPhoto(canvas){
- if(!scanGrain){scanGrain=document.createElement('canvas');scanGrain.width=scanGrain.height=96;const ctx=scanGrain.getContext('2d'),pixels=ctx.createImageData(96,96);for(let i=0;i<pixels.data.length;i+=4){const value=90+Math.random()*76;pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=value;pixels.data[i+3]=255;}ctx.putImageData(pixels,0,0);}
- const ctx=canvas.getContext('2d');ctx.fillStyle='rgba(0,0,0,.26)';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.save();ctx.globalCompositeOperation='soft-light';ctx.globalAlpha=.35;ctx.fillStyle=ctx.createPattern(scanGrain,'repeat');ctx.fillRect(0,0,canvas.width,canvas.height);ctx.restore();
-}
-function addDotGrain(svg,ns){
- const id='dot-grain-'+Math.random().toString(36).slice(2),defs=document.createElementNS(ns,'defs'),pattern=document.createElementNS(ns,'pattern'),mask=document.createElementNS(ns,'mask');pattern.id=id+'-tile';pattern.setAttribute('patternUnits','userSpaceOnUse');pattern.setAttribute('width','16');pattern.setAttribute('height','16');
- for(let y=0;y<16;y++)for(let x=0;x<16;x++){const pixel=document.createElementNS(ns,'rect'),v=Math.round(185+Math.random()*70);for(const [key,value]of Object.entries({x,y,width:1,height:1,fill:`rgb(${v},${v},${v})`}))pixel.setAttribute(key,value);pattern.append(pixel);}
- mask.id=id;mask.setAttribute('maskUnits','userSpaceOnUse');mask.setAttribute('x','0');mask.setAttribute('y','0');mask.setAttribute('width','100%');mask.setAttribute('height','100%');const rect=document.createElementNS(ns,'rect');rect.setAttribute('width','100%');rect.setAttribute('height','100%');rect.setAttribute('fill',`url(#${pattern.id})`);mask.append(rect);defs.append(pattern,mask);svg.append(defs);return id;
+  if(elapsed>2400)status.textContent='Building colour blocks…';
+  if(reduced||elapsed>=4800+180){stopSound();status.textContent='Preparing the weave…';resolve();}else frame=requestAnimationFrame(tick);
+ };
+ frame=requestAnimationFrame(tick);
+ return{finished,hideStatus(){status.hidden=true;},cancel(){cancelled=true;if(frame!==null)cancelAnimationFrame(frame);stopSound();status.remove();resolve();}};
 }
