@@ -23,9 +23,11 @@ function buildRug(palette,width,height,analysis=null,{avoidFamilies=[],seed=0,fa
   else if(family==='window-checks')field=Math.max(a,b)+.12*Math.min(a,b);
   else if(family==='cross-lattice')field=Math.min(a,b)+.12*Math.max(a,b);
   else field=Math.max(a,b)*.65+(a+b)*.35;
-  // A smaller nested diamond breaks up each repeat's broad central field.
-  // It participates in the same weighted ranking, so no extra dye is invented.
-  if(!banded&&!persian)field+=(field<1?1:-1)*1.6*Math.max(0,1-(a+b)/(.35+.1*((hash>>>20)%4)));
+  // Intricacy follows this same shape's contours; it is never a separate stamp.
+  // Small repeats receive fewer nested bands so yarn-scale detail stays readable.
+  if(!banded){const scale=Math.min(innerW/columns,innerH/rows),levels=Math.max(2,Math.min(6,Math.floor(scale/(8-3*m.complexity))+((hash>>>20)%2)));
+   field=Math.cos(Math.PI*(field*(levels+((hash>>>24)%5)/8)+((hash>>>27)%8)/8));
+  }
   // The enclosing bands share a rank across their entire length. No noise,
   // independently coloured pixels or broken islands enter the composition.
   const score=edge<border?(persian ? .35+.45*(edge%2)+1.1*phase(edge===x?v:u,edge===x?rows*3:columns*3):-2+edge/border):field;
@@ -48,7 +50,7 @@ export function compositionQuality(rug,palette,analysis=null){
   while(head<tail){const at=queue[head++];for(const next of [at%width?at-1:-1,at%width<width-1?at+1:-1,at-width,at+width])if(next>=0&&next<n&&!seen[next]&&map[next]===map[i]){seen[next]=1;queue[tail++]=next;}}
   if(tail<4)small[map[i]]+=tail;
  }
- const fragmentation=small.reduce((sum,c,i)=>sum+c/Math.max(1,counts[i]),0)/palette.length,target=palette.length/Math.sqrt(n)*(1+.5*(analysis?.complexity??.3));
+ const fragmentation=small.reduce((sum,c,i)=>sum+c/Math.max(1,counts[i]),0)/palette.length,target=.09+.1*(analysis?.complexity??.3)+.012*Math.max(0,palette.length-2);
  return fragmentation+4*Math.abs(edges/(2*n-width-height)-target);
 }
 export function composeRug(palette,width,height,analysis=null,options={}){

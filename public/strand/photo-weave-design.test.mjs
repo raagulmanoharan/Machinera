@@ -12,8 +12,8 @@ test('archive automatic printing uses the derived recipe and locks older yarns',
  const archive=new RugArchive(),a=archive.append({palette:palettes[0]}),before=a.baked.slice();archive.append({palette:palettes[1]});assert.deepEqual(a.baked,before);assert.equal(a.weave,a.plan.draftIndex);assert.notEqual(a.weave,archive.entries[1].weave);
 });
 
-test('light contrast and complexity change the design while retaining symmetric dye quotas',()=>{
+test('light contrast and complexity change the tapestry while its ground binding stays coherent',()=>{
  const palette=[{rgb:[160,190,200],share:.5},{rgb:[230,50,40],share:.32},{rgb:[8,8,8],share:.18}];const variants=[{brightness:.7,contrast:.12,complexity:.1},{brightness:.2,contrast:.4,complexity:.1},{brightness:.4,contrast:.3,complexity:.8}],ids=new Set();
- const archive=new RugArchive();let saved,first;for(const analysis of variants){const entry=archive.append({palette,analysis});ids.add(entry.plan.draft.id);assert.equal(entry.design.brightness,analysis.brightness);assert.equal(entry.design.complexity,analysis.complexity);assert.deepEqual(entry.warp,entry.warp.slice().reverse());assert.deepEqual(entry.weft,entry.weft.slice().reverse());for(let i=0;i<palette.length;i++){const combined=.5*(entry.plan.warp.counts[i]/48+entry.plan.weft.counts[i]/entry.weft.length);assert.ok(Math.abs(combined-palette[i].share)<.05);}if(!first){first=entry;saved=entry.baked.slice();}}
+ const archive=new RugArchive();let saved,first;for(const analysis of variants){const entry=archive.append({palette,analysis});ids.add(entry.plan.draft.id);assert.equal(entry.design.brightness,analysis.brightness);assert.equal(entry.design.complexity,analysis.complexity);assert.deepEqual(entry.warp,entry.warp.slice().reverse());assert.deepEqual(entry.weft,entry.weft.slice().reverse());for(let i=0;i<palette.length;i++){assert.ok(Math.abs(entry.plan.motif.counts[i]/(48*entry.weft.length)-palette[i].share)<.01);assert.equal(entry.plan.allocation,'weft-faced');assert.equal(new Set(entry.warp).size,1);}if(!first){first=entry;saved=entry.baked.slice();}}
  assert.equal(ids.size,3);assert.deepEqual(first.baked,saved);
 });

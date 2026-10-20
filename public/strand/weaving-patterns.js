@@ -1,5 +1,5 @@
-import {composeRug} from './rug-composition.js?v=197';
-import {generatePhotoDraft,draftCrossing} from './photo-draft.js?v=156';
+import {composeRug} from './rug-composition.js?v=230';
+import {generatePhotoDraft,generateBindingDraft,draftCrossing} from './photo-draft.js?v=230';
 import {chooseLoomDraft} from './photo-weave-design.js?v=156';
 import {splitYarnDyes} from './yarn-contrast.js?v=196';
 import {WEAVE_LIBRARY} from './weave-library.js?v=156';
@@ -16,16 +16,17 @@ export function createWeavePattern({draftId,seed=0,palette,analysis=null,warpEnd
  const candidates=patternIndices({family,symmetry:symmetry==='auto'?'warp':symmetry,maxFloat});let draftIndex;
  if(draftId!==undefined){draftIndex=WEAVE_LIBRARY.findIndex(d=>d.id===draftId);if(draftIndex<0)throw new RangeError('Unknown compiled draft');}
  else if(family){if(!candidates.length)throw new RangeError('No supported draft matches the constraints');draftIndex=chooseLoomDraft(palette,candidates,WEAVE_LIBRARY,analysis);}
- const draft=draftIndex===undefined?generatePhotoDraft(palette,analysis):WEAVE_LIBRARY[draftIndex];if(draftIndex===undefined){draftIndex=256+parseInt(draft.id.split('-')[1],16);}if(draft.structuralSymmetry==='warp'&&warpEnds%draft.width)throw new RangeError('Mirrored repeat must divide the warp width');
+ const draft=draftIndex===undefined?(composition?generateBindingDraft(palette,analysis,weftPicks,firstPick):generatePhotoDraft(palette,analysis)):WEAVE_LIBRARY[draftIndex];if(draftIndex===undefined){draftIndex=256+parseInt(draft.id.split('-')[1],16);}if(draft.structuralSymmetry==='warp'&&warpEnds%draft.width)throw new RangeError('Mirrored repeat must divide the warp width');
  const dyes=Object.freeze(palette.map(c=>Object.freeze({...c,rgb:Object.freeze(c.rgb.slice())}))),design=Object.freeze(createColourDesign(draft,seed,symmetry,dyes,analysis)),freezeYarns=y=>Object.freeze({sequence:Object.freeze(y.sequence),counts:Object.freeze(y.counts)});
- // Each system contributes roughly half the length in a balanced cloth.
- // Split the dye mass between contrasting systems instead of duplicating the
- // same stripes on both axes; combined source proportions remain unchanged.
+ // Catalogue drafts distribute dyes across both yarn systems. Automatic
+ // tapestries use one ground warp, with the composition owning the coloured
+ // weft runs; a second stripe layout must never compete with that composition.
  const geometric=draft.family==='geometric'&&!composition;const {warp:warpShares,weft:weftShares}=geometric?splitYarnDyes(dyes):{};
  const wp=geometric?dyes.map((c,i)=>({...c,share:warpShares[i]})):dyes,fp=geometric?dyes.map((c,i)=>({...c,share:weftShares[i]})):dyes;
  const motif=composition?composeRug(dyes,warpEnds,weftPicks,analysis,{avoidFamilies:recentFamilies,seed}):null;
- const warp=freezeYarns(designYarns(wp,warpEnds,design,'warp')),weft=freezeYarns(designYarns(fp,weftPicks,design,'weft'));
- return Object.freeze({version:1,motif,id:`${draft.id}:${seed>>>0}`,seed:seed>>>0,firstPick,draftIndex,draft,palette:dyes,design,warp,weft,allocation:geometric?'contrasting-systems':'shared-systems',colourSymmetry:design.symmetry,rotationalOrder:design.symmetry==='radial'?2:undefined,symmetry:design.symmetry==='warp'&&draft.structuralSymmetry==='warp'?'warp-colour-and-structure':design.symmetry+'-colour',
+ const ground=dyes.reduce((best,c,i)=>c.share>dyes[best].share?i:best,0);
+ const warp=freezeYarns(motif?{sequence:Array(warpEnds).fill(ground),counts:dyes.map((_,i)=>i===ground?warpEnds:0)}:designYarns(wp,warpEnds,design,'warp')),weft=freezeYarns(designYarns(fp,weftPicks,design,'weft'));
+ return Object.freeze({version:1,motif,id:`${draft.id}:${seed>>>0}`,seed:seed>>>0,firstPick,draftIndex,draft,palette:dyes,design,warp,weft,allocation:motif?'weft-faced':geometric?'contrasting-systems':'shared-systems',colourSymmetry:design.symmetry,rotationalOrder:design.symmetry==='radial'?2:undefined,symmetry:design.symmetry==='warp'&&draft.structuralSymmetry==='warp'?'warp-colour-and-structure':design.symmetry+'-colour',
   crossing:(end,pick)=>draftCrossing(draft,end,pick+firstPick),
   yarnAt(end,pick){if(!Number.isInteger(end)||end<0||end>=warpEnds||!Number.isInteger(pick)||pick<0||pick>=weftPicks)throw new RangeError('Crossing outside yarn inventory');return dyes[draftCrossing(draft,end,pick+firstPick)?warp.sequence[end]:(motif?motif.map[pick*warpEnds+end]:weft.sequence[pick])].rgb;}
  });

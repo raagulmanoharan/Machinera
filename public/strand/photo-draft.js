@@ -24,3 +24,14 @@ export function generatePhotoDraft(palette,analysis=null){
  return compileLoomDraft({id:`photo-${hash.toString(16)}-bound`,name:'Photo-generated bound draft',family:'geometric',shafts:n,threading:seq,treadling:seq,tieUp});
 }
 export function draftCrossing(draft,end,pick){const mod=(x,n)=>(x%n+n)%n;return Math.floor(draft.rows[mod(Math.round(pick),draft.height)]/2**mod(Math.round(end),draft.width))%2===1;}
+
+// A quiet, weft-faced foundation for tapestry colour runs. Mirrored threading
+// and a centred odd treadling repeat bind the cloth without drawing a second motif.
+export function generateBindingDraft(palette,analysis,picks,firstPick){
+ const m=photoDesignMetrics(palette,analysis),n=m.complexity<.3?3:4,threading=Array.from({length:n},(_,i)=>i);threading.push(...threading.slice().reverse());
+ const repeat=[...Array.from({length:n},(_,i)=>i),...Array.from({length:n-1},(_,i)=>n-2-i)],period=repeat.length;
+ const centre=picks%2?Math.floor(period/2)-Math.floor(picks/2):-picks/2,offset=((centre-firstPick)%period+period)%period;
+ const treadling=repeat.map((_,i)=>repeat[(i+offset)%period]);let hash=2166136261;
+ for(const char of JSON.stringify([palette,analysis,n,offset]))hash=Math.imul(hash^char.charCodeAt(0),16777619)>>>0;
+ return compileLoomDraft({id:`photo-${hash.toString(16)}-binding`,name:`Weft-faced ${n}-shaft binding`,family:'tapestry',shafts:n,threading,treadling,tieUp:Array.from({length:n},(_,y)=>Array.from({length:n},(_,x)=>x===y))});
+}

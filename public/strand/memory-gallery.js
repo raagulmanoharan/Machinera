@@ -1,4 +1,4 @@
-import {RugArchive} from './rug-archive.js?v=199';
+import {RugArchive} from './rug-archive.js?v=230';
 const memoryDay=new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short'}),memoryTime=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
 export function memoryDateLabel(timestamp){const date=new Date(timestamp);return typeof timestamp==='number'&&Number.isFinite(date.getTime())?memoryDay.format(date)+' · '+memoryTime.format(date):'Date unavailable';}
 // Small previews share the existing renderer and are released when the page closes.
