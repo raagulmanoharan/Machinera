@@ -50,7 +50,7 @@ function createMosaic(holder,source,lens,onScanStart){
  const context=sample.getContext('2d',{willReadFrequently:true});context.drawImage(source,0,0,sample.width,sample.height);
  const cells=mosaicCells(context.getImageData(0,0,sample.width,sample.height).data,sample.width,sample.height,width,height);sample.width=sample.height=0;
  const canvas=document.createElement('canvas'),ratio=Math.min(devicePixelRatio,2);canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);holder.append(canvas);
- const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);ctx.lineWidth=.75;ctx.strokeStyle='rgba(236,235,229,.55)';
+ const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);ctx.lineWidth=.75;ctx.strokeStyle='rgba(233,233,210,.168)';
  // Bake monochrome grain once; it stays still while cells fill and move.
  const grain=document.createElement('canvas');grain.width=grain.height=96;const gc=grain.getContext('2d'),pixels=gc.createImageData(96,96);
  for(let i=0;i<pixels.data.length;i+=4){const value=Math.floor(Math.random()*256);pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=value;pixels.data[i+3]=255;}gc.putImageData(pixels,0,0);const texture=ctx.createPattern(grain,'repeat');
@@ -61,8 +61,15 @@ function createMosaic(holder,source,lens,onScanStart){
   if(cancelled)return;elapsed+=last===null?0:Math.min(50,time-last);last=time;const count=reduced?cells.length:Math.min(cells.length,Math.floor(elapsed/beat)+1);
   ctx.clearRect(0,0,width,height);
   for(let i=0;i<count;i++){
-   const c=cells[i],fill=reduced?1:clamp((elapsed-i*beat-70)/110);ctx.globalAlpha=fill;ctx.fillStyle=`rgb(${c.rgb.join(',')})`;ctx.fillRect(c.x,c.y,c.width,c.height);ctx.globalAlpha=fill*.16;ctx.globalCompositeOperation='soft-light';ctx.fillStyle=texture;ctx.fillRect(c.x,c.y,c.width,c.height);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.strokeRect(c.x,c.y,c.width,c.height);
+   const c=cells[i],fill=reduced?1:clamp((elapsed-i*beat-70)/110);ctx.globalAlpha=fill;ctx.fillStyle=`rgb(${c.rgb.join(',')})`;ctx.fillRect(c.x,c.y,c.width,c.height);ctx.globalAlpha=fill*.16;ctx.globalCompositeOperation='soft-light';ctx.fillStyle=texture;ctx.fillRect(c.x,c.y,c.width,c.height);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
   }
+  // Shared edges are drawn once, at the crosshair's .75px and combined opacity.
+  ctx.beginPath();const columns=Math.round(width/cells[0].width);
+  for(let i=0;i<count;i++){const c=cells[i],right=c.x+c.width,bottom=c.y+c.height;
+   ctx.moveTo(c.x,bottom);ctx.lineTo(c.x,c.y);ctx.lineTo(right,c.y);
+   if((i+1)%columns===0||i===count-1){ctx.moveTo(right,c.y);ctx.lineTo(right,bottom);}
+   if(i+columns>=count){ctx.moveTo(c.x,bottom);ctx.lineTo(right,bottom);}
+  }ctx.stroke();
   if(elapsed>2400)status.textContent='Building colour blocks…';
   if(reduced||elapsed>=4800+180){stopSound();status.textContent='Preparing the weave…';resolve();}else frame=requestAnimationFrame(tick);
  };
