@@ -85,10 +85,10 @@ function createMosaic(holder,source,lens,prepared,onScanStart,setPhase){
   if(cancelled)return;const dt=last===null?0:Math.min(50,time-last);last=time;elapsed=reduced?7900:elapsed+dt;
   if(!paletteReady)elapsed=Math.min(elapsed,5100);
   const cleared=elapsed>=5100;if(cleared)holder.firstChild.style.visibility='hidden';
-  ctx.clearRect(0,0,width,height);const active=new Set();let event=false;
+  ctx.clearRect(0,0,width,height);const active=new Set();let event=null;
   for(let i=0;i<cells.length;i++){
    const c=cells[i],plan=sequence[i],age=elapsed-plan.reveal,dissolve=clamp((elapsed-plan.exit)/plan.duration);
-   if((plan.reveal>previous&&plan.reveal<=elapsed)||(plan.exit>previous&&plan.exit<=elapsed))event=true;
+   if((plan.reveal>previous&&plan.reveal<=elapsed)||(plan.exit>previous&&plan.exit<=elapsed)||(plan.exit+plan.duration>previous&&plan.exit+plan.duration<=elapsed))event=c;
    if(age<0||dissolve===1)continue;active.add(i);const fill=ease((age-80)/180);
    ctx.globalAlpha=fill;ctx.fillStyle=`rgb(${c.rgb.join(',')})`;ctx.fillRect(c.x,c.y,c.width,c.height);
    ctx.globalAlpha=fill*.07;ctx.globalCompositeOperation='soft-light';ctx.fillStyle=grain;ctx.fillRect(c.x,c.y,c.width,c.height);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
@@ -103,7 +103,7 @@ function createMosaic(holder,source,lens,prepared,onScanStart,setPhase){
   ctx.globalCompositeOperation='destination-out';
   for(const i of active){const c=cells[i],p=sequence[i],level=Math.floor(clamp((elapsed-p.exit)/p.duration)*32);if(level){ctx.fillStyle=patterns[level];ctx.fillRect(c.x-.5,c.y-.5,c.width+1,c.height+1);}}
   ctx.globalCompositeOperation='source-over';
-  if(event&&!reduced)stopSound.tick?.(cleared?'release':'reveal');previous=elapsed;
+  if(event&&!reduced)stopSound.tick?.(cleared?'release':'reveal',{tone:(event.rgb[0]+event.rgb[1]+event.rgb[2])/765,pan:2*(event.x+event.width/2)/width-1});previous=elapsed;
   if(cleared){status.textContent=elapsed<6900?'Selecting yarn colours…':'Preparing the weave…';setPhase(elapsed<6900?'selecting-yarns':'releasing-yarns');const panel=lens.closest('#capture').querySelector('.camera-panel');if(panel)panel.style.opacity=1-ease((elapsed-5100)/600);}
   if(paletteReady&&elapsed>=7900){stopSound();resolve();}else frame=requestAnimationFrame(tick);
  };

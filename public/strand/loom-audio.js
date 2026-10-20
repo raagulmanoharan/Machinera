@@ -12,6 +12,8 @@ export function makeSoundBank(context){
   // broadband rather than a pitched electronic blip. Baked once at startup.
   stitch:bake(1/12,(t,n,l)=>{const u=t%(1/12),tap=(at,decay)=>u>=at?Math.min(1,(u-at)*9000)*Math.exp(-(u-at)*decay):0;return .28*(n-l)*(tap(0,700)+.55*tap(.028,500))+.08*Math.sin(TAU*175*u)*tap(0,180)+.018*l*(.6+.4*Math.cos(TAU*12*t));}),
   shutter:bake(.19,(t,n,l)=>{let out=0;for(const [at,gain] of [[0,.8],[.036,.62],[.069,.24]]){const u=t-at;if(u>=0){const attack=Math.min(1,u*6000),body=Math.sin(TAU*190*u)*Math.exp(-u*180)+.35*Math.sin(TAU*430*u)*Math.exp(-u*240);out+=gain*attack*((n-l)*Math.exp(-u*330)+.35*body+.13*l*Math.exp(-u*65));}}const u=t-.075;if(u>0)out+=.09*(n-l)*Math.exp(-u*65)*(.5+.5*Math.cos(TAU*95*u));return out;}),
+  scanClick:bake(.028,(t,n,l)=>Math.min(1,t*9000)*(.48*(n-l)*Math.exp(-t*430)+.1*Math.sin(TAU*1250*t)*Math.exp(-t*220))),
+  scanDither:bake(.065,(t,n,l)=>Math.min(1,t*6000)*(1-t/.065)**2*(.35*(n-l)+.12*l)*(.6+.4*Math.cos(TAU*90*t)**2)),
   // Crisp ratchet teeth: fast attack, dry body and a very short release.
   flip:bake(.035,(t,n,l)=>Math.min(1,t*10000)*(.64*(n-l)*Math.exp(-t*540)+.11*(Math.sin(TAU*340*t)+.25*Math.sin(TAU*920*t))*Math.exp(-t*210))),
   flipRelease:bake(.045,(t,n,l)=>Math.min(1,t*9000)*(.4*(n-l)*Math.exp(-t*380)+.13*Math.sin(TAU*260*t)*Math.exp(-t*180))),
@@ -49,7 +51,7 @@ export class LoomAudio{
  unlock(){if(this.disposed||!this.enabled||document.hidden)return;this.prepare();if(!this.context)return;try{
  const c=this.context;if(this.suspendTimer!==null){clearTimeout(this.suspendTimer);this.suspendTimer=null;for(const v of this.nodes){try{v.source.stop();}catch{}v.source.onended?.();}}return c.resume().then(()=>{if(this.disposed||!this.enabled||document.hidden)return;this.master.gain.cancelScheduledValues(c.currentTime);this.master.gain.setTargetAtTime(.38,c.currentTime,.55);if(this.timer===null){this.score.reset(c.currentTime);this.schedule();}}).catch(()=>{});
  }catch{}}
- play(name,time,volume=1,rate=1,music=false,pan=0,glide=0,timbre=null){
+ play(name,time,volume=1,rate=1,music=false,pan=0,glide=0,timbre=null,filterSpec=null){
  const c=this.context;if(!c||c.state!=='running'||!this.enabled||this.nodes.size>=28)return;
  const at=Math.max(c.currentTime,time),source=c.createBufferSource(),gain=c.createGain();source.buffer=this.bank[name];source.playbackRate.value=rate;
  if(glide){source.playbackRate.setValueAtTime(rate*(1+glide),at);source.playbackRate.exponentialRampToValueAtTime(rate,at+.22);}
@@ -68,7 +70,7 @@ export class LoomAudio{
   }
   filter=c.createBiquadFilter();filter.type='lowpass';filter.frequency.setValueAtTime(timbre.cutoff,at);filter.frequency.exponentialRampToValueAtTime(timbre.cutoff*.6,at+duration);source.connect(filter);filter.connect(gain);
   noise=c.createBufferSource();noise.buffer=this.bank.air;noise.loop=true;noiseGain=c.createGain();noiseGain.gain.value=timbre.noiseMix;noise.connect(noiseGain);noiseGain.connect(filter);noise.start(at,2+(phase/(Math.PI*2))*2);end=at+duration+.02;
- }else source.connect(gain);
+ }else if(filterSpec){filter=c.createBiquadFilter();filter.type='bandpass';filter.frequency.value=filterSpec.frequency;filter.Q.value=filterSpec.q;source.connect(filter);filter.connect(gain);}else source.connect(gain);
  let stereo=null;if(c.createStereoPanner){stereo=c.createStereoPanner();stereo.pan.value=pan;gain.connect(stereo);stereo.connect(music?this.music:this.effects);}else gain.connect(music?this.music:this.effects);
  const voice={source,gain,music,name,filter,noise,timbre};this.nodes.add(voice);source.onended=()=>{try{noise?.stop();}catch{}source.disconnect();noise?.disconnect();noiseGain?.disconnect();filter?.disconnect();gain.disconnect();stereo?.disconnect();this.nodes.delete(voice);};source.start(at);if(end!==null)source.stop(end);return voice;
  }
@@ -102,8 +104,9 @@ export class LoomAudio{
   let stopped=false,ready=false,last=-Infinity;
   this.unlock()?.then(()=>{if(!stopped)ready=true;});
   const stop=()=>{stopped=true;};
-  stop.tick=phase=>{if(stopped||!ready||!this.enabled||document.hidden||!this.context)return;const now=this.context.currentTime;if(now-last<.045)return;last=now;
-   this.play('flip',now,phase==='release'?.035:.045,phase==='release'?1.65:2.15);
+  stop.tick=(phase,detail={})=>{if(stopped||!ready||!this.enabled||document.hidden||!this.context)return;const now=this.context.currentTime;if(now-last<.045)return;last=now;
+   const release=phase==='release',tone=Math.max(0,Math.min(1,detail.tone??.5)),variation=Math.random(),rate=(release?.85:1.25)+tone*(release?.3:.6)+variation*.12;
+   this.play(release?'scanDither':'scanClick',now,release?.06:.055,rate,false,Math.max(-.4,Math.min(.4,(detail.pan??0)*.3)),0,null,{frequency:(release?1300:2400)+tone*2300+variation*1100,q:.5+variation*.5});
   };return stop;
  }
 
