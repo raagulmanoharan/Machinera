@@ -25,16 +25,18 @@ test('random reveal covers each cell once, and actual yarn matches exit last',()
  const cells=Array.from({length:40},(_,i)=>({rgb:[i*6,70,200-i*4]}));let seed=42;
  const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
  const plan=mosaicSequence(cells,[{rgb:cells[7].rgb},{rgb:cells[28].rgb}],random);
- assert.equal(new Set(plan.map(p=>p.reveal)).size,40);
+ assert.equal(new Set(plan.map(p=>p.reveal)).size,40);const times=plan.map(p=>p.reveal).sort((a,b)=>a-b);assert.ok(times[1]-times[0]>times.at(-1)-times.at(-2),'Random reveal starts gently before picking up pace');assert.ok(Math.abs(times.at(-1)-4800)<1e-8);
  assert.deepEqual(plan.flatMap((p,i)=>p.chosen?[i]:[]),[7,28]);
  assert.notDeepEqual(plan.map(p=>p.reveal),[...plan.map(p=>p.reveal)].sort((a,b)=>a-b));
  const others=plan.filter(p=>!p.chosen),chosen=plan.filter(p=>p.chosen);
  assert.ok(Math.max(...others.map(p=>p.exit+p.duration))<Math.min(...chosen.map(p=>p.exit)),'Every unselected block clears before yarn blocks dissolve');
  assert.ok(new Set(others.map(p=>p.exit)).size>30,'Exits are staggered rather than simultaneous');
- assert.ok(Math.max(...plan.map(p=>p.exit+p.duration))<6300);
+ assert.ok(Math.max(...plan.map(p=>p.exit+p.duration))<7900);
 });
 test('rug starts fully above the screen and slides down smoothly into its final position',()=>{
  let previous=-844;
  for(let i=0;i<=1000;i++){const p=revealPose(i/1000,844);assert.ok(p.rugY>=previous-1e-8);assert.equal(p.photoY,0);assert.equal(p.uiOpacity,0);previous=p.rugY;}
  assert.equal(revealPose(0,844).rugY,-844);assert.ok(Math.abs(revealPose(1,844).rugY)<1e-9);
 });
+
+test('printing slide keeps an even middle speed with gentle start and finish',()=>{const step=t=>revealPose(t+.001,844).rugY-revealPose(t,844).rugY;assert.ok(Math.abs(step(.3)-step(.6))<1e-7);assert.ok(step(0)<step(.3)*.01);assert.ok(step(.999)<step(.3)*.01);});

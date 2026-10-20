@@ -21,9 +21,13 @@ export function mosaicSequence(cells,palette,random=Math.random){
  }
  const order=cells.map((_,i)=>i);for(let i=order.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
  const ranks=[];order.forEach((i,rank)=>ranks[i]=rank);
- return cells.map((_,i)=>({chosen:chosen.has(i),reveal:ranks[i]*3200/cells.length,exit:(chosen.has(i)?5300:3700)+random()*(chosen.has(i)?350:650),duration:350+random()*200}));
+ return cells.map((_,i)=>({chosen:chosen.has(i),reveal:(Math.sqrt(1+3*ranks[i]/Math.max(1,cells.length-1))-1)*4800,exit:(chosen.has(i)?6900:5300)+random()*(chosen.has(i)?350:650),duration:350+random()*200}));
 }
-export function revealPose(t,height){return{photoY:0,rugY:-(1-ease(t))*height,uiOpacity:0};}
+export function revealPose(t,distance){
+ t=clamp(t);const ramp=.18,integral=x=>x*x*x-.5*x*x*x*x;
+ const feed=t<ramp?ramp*integral(t/ramp)/(1-ramp):t>1-ramp?1-ramp*integral((1-t)/ramp)/(1-ramp):(t-ramp/2)/(1-ramp);
+ return{photoY:0,rugY:-(1-feed)*distance,uiOpacity:0};
+}
 export class PhotoRugBridge{
  constructor(stage){this.stage=stage;this.frame=null;this.active=false;}
  begin(preview,lens,{source=preview,prepared=Promise.resolve(),onPrepared=()=>{},getRugBounds=()=>null,onScanStart=()=>()=>{}}={}){
@@ -35,9 +39,13 @@ export class PhotoRugBridge{
   this.scan=createMosaic(holder,source,lens,prepared,onScanStart,phase=>this.stage.dataset.bridgePhase=phase);const current=()=>this.active&&this.token===token;
   Promise.all([prepared,this.scan.finished]).then(()=>{if(current())return onPrepared();}).then(()=>{
    if(!current())return;this.scan.hideStatus();this.capture.classList.add('capture-revealing');this.stage.dataset.bridgePhase='abstracted';
-   const bounds=getRugBounds();if(bounds){this.stage.style.clipPath=`inset(${Math.max(0,bounds.y-3)}px ${Math.max(0,innerWidth-bounds.x-bounds.width-3)}px ${Math.max(0,this.height-bounds.y-bounds.height-3)}px ${Math.max(0,bounds.x-3)}px)`;this.stage.style.zIndex='6';}
+   const bounds=getRugBounds();this.enterDistance=bounds?bounds.y+bounds.height+12:this.height;
+   // A fixed scroll root is its own stacking context: lift it above the camera,
+   // not just the canvas inside it, so the travelling rug is actually visible.
+   const root=this.stage.closest('#carpetScroll');if(root){const z=root.style.zIndex,background=root.style.background;root.style.zIndex='6';root.style.background='transparent';this.restoreRoot=()=>{root.style.zIndex=z;root.style.background=background;};}
+   if(bounds){this.stage.style.clipPath=`inset(${Math.max(0,bounds.y-3)}px ${Math.max(0,innerWidth-bounds.x-bounds.width-3)}px ${Math.max(0,this.height-bounds.y-bounds.height-3)}px ${Math.max(0,bounds.x-3)}px)`;this.stage.style.zIndex='6';}
    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;let elapsed=0,last=null;
-   const tick=time=>{if(!current())return;elapsed+=last===null?0:Math.min(50,time-last);last=time;const t=reduced?1:clamp(elapsed/1800),p=revealPose(t,this.height,this.photoHeight);
+   const tick=time=>{if(!current())return;elapsed+=last===null?0:Math.min(50,time-last);last=time;const t=reduced?1:clamp(elapsed/3200),p=revealPose(t,this.enterDistance);
     holder.style.transform=`translate3d(0,${p.photoY}px,0)`;this.stage.style.transform=`translate3d(0,${p.rugY}px,0)`;
     for(const element of this.capture.querySelectorAll('.camera-panel,.finder-markers'))element.style.opacity=p.uiOpacity;
     this.stage.dataset.bridgeProgress=t.toFixed(3);if(t>0)this.stage.dataset.bridgePhase='revealing';
@@ -48,7 +56,7 @@ export class PhotoRugBridge{
  }
  finish(){const done=this.resolve;this.resolve=null;this.dispose();done?.();}
  dispose(){
-  this.token=null;if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;this.scan?.cancel();this.scan=null;
+  this.token=null;this.restoreRoot?.();this.restoreRoot=null;if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=null;this.scan?.cancel();this.scan=null;
   if(this.holder){for(const canvas of this.holder.querySelectorAll('canvas'))canvas.width=canvas.height=0;this.holder.remove();this.holder=null;}
   if(this.capture){for(const element of this.capture.querySelectorAll('.camera-panel,.finder-markers'))element.style.removeProperty('opacity');this.capture.classList.remove('capture-decoding','capture-revealing');this.capture=null;}
   for(const property of ['transform','pointer-events','clip-path','z-index'])this.stage.style.removeProperty(property);this.stage.classList.remove('memory-transition');this.active=false;
@@ -74,14 +82,14 @@ function createMosaic(holder,source,lens,prepared,onScanStart,setPhase){
  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;let frame=null,elapsed=0,last=null,cancelled=false,resolve,stopSound=()=>{},previous=-1;
  const finished=new Promise(done=>resolve=done);if(!reduced)stopSound=onScanStart()??(()=>{});
  const tick=time=>{
-  if(cancelled)return;const dt=last===null?0:Math.min(50,time-last);last=time;elapsed=reduced?6300:elapsed+dt;
-  if(!paletteReady)elapsed=Math.min(elapsed,3380);
-  const cleared=elapsed>=3380;if(cleared)holder.firstChild.style.visibility='hidden';
+  if(cancelled)return;const dt=last===null?0:Math.min(50,time-last);last=time;elapsed=reduced?7900:elapsed+dt;
+  if(!paletteReady)elapsed=Math.min(elapsed,5100);
+  const cleared=elapsed>=5100;if(cleared)holder.firstChild.style.visibility='hidden';
   ctx.clearRect(0,0,width,height);const active=new Set();let event=false;
   for(let i=0;i<cells.length;i++){
    const c=cells[i],plan=sequence[i],age=elapsed-plan.reveal,dissolve=clamp((elapsed-plan.exit)/plan.duration);
    if((plan.reveal>previous&&plan.reveal<=elapsed)||(plan.exit>previous&&plan.exit<=elapsed))event=true;
-   if(age<0||dissolve===1)continue;active.add(i);const fill=clamp((age-55)/90);
+   if(age<0||dissolve===1)continue;active.add(i);const fill=ease((age-80)/180);
    ctx.globalAlpha=fill;ctx.fillStyle=`rgb(${c.rgb.join(',')})`;ctx.fillRect(c.x,c.y,c.width,c.height);
    ctx.globalAlpha=fill*.07;ctx.globalCompositeOperation='soft-light';ctx.fillStyle=grain;ctx.fillRect(c.x,c.y,c.width,c.height);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
   }
@@ -96,8 +104,8 @@ function createMosaic(holder,source,lens,prepared,onScanStart,setPhase){
   for(const i of active){const c=cells[i],p=sequence[i],level=Math.floor(clamp((elapsed-p.exit)/p.duration)*32);if(level){ctx.fillStyle=patterns[level];ctx.fillRect(c.x-.5,c.y-.5,c.width+1,c.height+1);}}
   ctx.globalCompositeOperation='source-over';
   if(event&&!reduced)stopSound.tick?.(cleared?'release':'reveal');previous=elapsed;
-  if(cleared){status.textContent=elapsed<5300?'Selecting yarn colours…':'Preparing the weave…';setPhase(elapsed<5300?'selecting-yarns':'releasing-yarns');const panel=lens.closest('#capture').querySelector('.camera-panel');if(panel)panel.style.opacity=1-ease((elapsed-3380)/600);}
-  if(paletteReady&&elapsed>=6300){stopSound();resolve();}else frame=requestAnimationFrame(tick);
+  if(cleared){status.textContent=elapsed<6900?'Selecting yarn colours…':'Preparing the weave…';setPhase(elapsed<6900?'selecting-yarns':'releasing-yarns');const panel=lens.closest('#capture').querySelector('.camera-panel');if(panel)panel.style.opacity=1-ease((elapsed-5100)/600);}
+  if(paletteReady&&elapsed>=7900){stopSound();resolve();}else frame=requestAnimationFrame(tick);
  };
  frame=requestAnimationFrame(tick);
  return{finished,hideStatus(){status.hidden=true;},cancel(){cancelled=true;if(frame!==null)cancelAnimationFrame(frame);stopSound();status.remove();resolve();}};
