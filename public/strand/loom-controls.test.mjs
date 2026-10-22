@@ -16,3 +16,19 @@ assert.equal(controls.busy,false);
 console.log('Flip advances on rendered frames, caps jumps and resets safely');
 
 assert.equal(flips,2);assert.equal(stops,2,'Completed and cancelled turns both release their sound');await buttons.get('#regenerateMemory').onclick();assert.equal(regenerations,1,'Accepted regeneration triggers its effect exactly once');
+
+// Printing starts on the real reverse, then uses the same staggered turn as tapping.
+const sides=[],angles=[],directions=[];
+cloth.setBack=value=>sides.push(value);cloth.setTurn=value=>angles.push(value);
+cloth.setFlipProgress=(progress,fromBack)=>{directions.push(fromBack);return progress;};
+controls.preparePrint();
+assert.equal(sides.at(-1),true);assert.equal(angles.at(-1),Math.PI);
+assert.equal(controls.busy,false,'Printing itself does not start a turn');
+controls.revealPrint();controls.revealPrint();
+assert.equal(controls.busy,true);
+for(let i=0;i<58;i++)controls.update(1/30);
+assert.ok(directions.every(Boolean),'Reveal turns from the photo side');
+assert.equal(sides.at(-1),false);assert.equal(controls.busy,false);
+controls.preparePrint();controls.reset();controls.revealPrint();
+assert.equal(controls.busy,false,'Cancelled capture cannot start a late reveal');
+console.log('Photo-first printing reveals the rug once and cancels safely');
