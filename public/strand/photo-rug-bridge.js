@@ -1,3 +1,4 @@
+import {balanceColour} from './photo-white-balance.js?v=236';
 import {oklab,dyeDistance} from './yarn-palette.js?v=196';
 const clamp=t=>Math.max(0,Math.min(1,t));
 const ease=t=>{t=clamp(t);return t*t*t*(t*(t*6-15)+10);};
@@ -77,7 +78,7 @@ function createMosaic(holder,source,lens,prepared,onScanStart,setPhase){
  };
  const grain=pattern(-1);for(let i=0;i<=32;i++)patterns.push(pattern(i));
  let sequence=mosaicSequence(cells,[]),paletteReady=false;
- Promise.resolve(prepared).then(data=>{if(cancelled)return;const dyes=mosaicSequence(cells,data?.palette??[]);sequence=sequence.map((cell,i)=>({...cell,chosen:dyes[i].chosen,exit:dyes[i].exit,duration:dyes[i].duration}));paletteReady=true;},()=>{});
+ Promise.resolve(prepared).then(data=>{if(cancelled)return;if(data?.whiteBalance)for(const cell of cells)cell.rgb=balanceColour(cell.rgb,data.whiteBalance).map(Math.round);const dyes=mosaicSequence(cells,data?.palette??[]);sequence=sequence.map((cell,i)=>({...cell,chosen:dyes[i].chosen,exit:dyes[i].exit,duration:dyes[i].duration}));paletteReady=true;},()=>{});
  const status=document.createElement('p');status.className='scan-status';status.setAttribute('role','status');status.textContent='Extracting colours…';lens.closest('#capture').append(status);
  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;let frame=null,elapsed=0,last=null,cancelled=false,resolve,stopSound=()=>{},previous=-1;
  const finished=new Promise(done=>resolve=done);if(!reduced)stopSound=onScanStart()??(()=>{});
