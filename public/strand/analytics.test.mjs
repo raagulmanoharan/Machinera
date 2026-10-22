@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+const calls=[],scripts=[],listeners={};
+globalThis.window={};globalThis.document={referrer:'https://example.org/private/path?secret=yes',head:{append:s=>scripts.push(s)},createElement:()=>({dataset:{}}),addEventListener:(name,fn)=>listeners[name]=fn};
+Object.defineProperty(globalThis,'navigator',{value:{doNotTrack:'0'},configurable:true});
+const {trackAction}=await import('./analytics.js');
+assert.equal(scripts.length,1);assert.equal(window.goatcounter.referrer(),'https://example.org');
+trackAction('rug-generated');trackAction('photo:private');
+window.goatcounter.count=event=>calls.push(event);scripts[0].onload();
+assert.equal(calls.length,2);assert.equal(calls[1].path,'rug-generated');assert.equal(calls[1].event,true);
+listeners.click({target:{closest:()=>({id:'rugFlip',disabled:false})}});
+listeners.click({target:{closest:()=>({id:'saveMemory',disabled:true})}});
+assert.equal(calls.length,3);assert.equal(calls.at(-1).path,'flip');
+window.goatcounter.count=()=>{throw Error('Network blocked');};assert.doesNotThrow(()=>trackAction('save'));
+navigator.doNotTrack='1';window.goatcounter.count=event=>calls.push(event);trackAction('save');assert.equal(calls.length,3);
+console.log('Analytics allow only fixed actions, respect DNT and never interrupt the app');
