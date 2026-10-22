@@ -12,3 +12,18 @@ test('resting faces use an explicit side, and twisting releases the geometric fa
  cloth.setBack(true);cloth.setTurn(Math.PI);assert.equal(cloth.uniforms.streamPhotoSide.value,1);assert.equal(cloth.uniforms.streamTurning.value,0);
  cloth.setBack(false);cloth.setTurn(0);assert.equal(cloth.uniforms.streamPhotoSide.value,0);assert.equal(cloth.uniforms.streamTurning.value,0);
 });
+
+test('real front and reverse textures own independent Three.js image sources',async()=>{
+ const T=await import('three');
+ const cloth=new StreamCloth(new T.Scene(),{capabilities:{getMaxAnisotropy:()=>1}});
+ assert.notEqual(cloth.texture.source,cloth.photoTexture.source,'Cloning a texture shares its source and lets the photo overwrite the front');
+ assert.notEqual(cloth.texture.image.data,cloth.photoTexture.image.data);
+ const entry=cloth.archive.append({palette:[{rgb:[220,35,25],share:.5},{rgb:[25,45,210],share:.5}]},3.8,null,null,{independent:true});
+ entry.photoYarns={width:2,height:2,indices:new Uint8Array([0,1,1,0])};
+ cloth.paletteKey=null;cloth.rebuildPalette();
+ const front=cloth.texture.image.data.slice(),weft=cloth.weftTexture.image.data.slice();
+ entry.photoYarns.indices.fill(1);cloth.paletteKey=null;cloth.rebuildPalette();
+ assert.deepEqual(cloth.texture.image.data,front,'Changing the photo cannot change front warp dyes');
+ assert.deepEqual(cloth.weftTexture.image.data,weft,'Changing the photo cannot change front weft dyes');
+ cloth.photoTexture.image.data.fill(0);assert.deepEqual(cloth.texture.image.data,front);
+});

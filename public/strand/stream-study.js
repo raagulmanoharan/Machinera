@@ -19,7 +19,7 @@ import {createStreamPerformance} from './stream-performance.js?v=156';
 import {createStreamPipeline} from './stream-render-pipeline.js?v=156';
 import { loadRoomEnvironment } from './room-lighting.js?v=156';
 import { addTextileLights } from './textile-light-rig.js?v=156';
-import { StreamCloth } from './stream-cloth.js?v=232';
+import { StreamCloth } from './stream-cloth.js?v=234';
 import { FramePacer } from './frame-pacer.js?v=156';
 const stage=document.querySelector('#stage'),status=document.querySelector('#photoStatus'),capture=document.querySelector('#capture'),video=document.querySelector('#viewfinder'),preview=document.querySelector('#preview');
 const renderer=new T.WebGLRenderer({antialias:false,depth:false,stencil:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,deviceProfile.canvasDpr));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=1.0;renderer.info.autoReset=false;renderer.shadowMap.enabled=false;renderer.shadowMap.type=T.PCFShadowMap;renderer.shadowMap.autoUpdate=false;stage.append(renderer.domElement);
