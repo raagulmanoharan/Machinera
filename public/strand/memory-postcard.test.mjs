@@ -7,3 +7,5 @@ assert.ok(details.inventory.includes(`${entry.weft.length} weft picks`));assert.
 assert.match(details.inventory,/heavy yarn colours/);assert.ok(!details.inventory.includes('photo-derived'));assert.match(details.code,/^[0-9A-F]{8}$/);assert.equal(postcardDetails(restored.entries[1],1).code,details.code);const changed=structuredClone(snapshotWeave(entry));changed.palette[0].rgb[0]++;assert.notEqual(postcardDetails(changed,1).code,details.code);
 
 const measure={measureText:s=>({width:s.length})};assert.deepEqual(postcardLines(measure,'one two three four five',19),['one two three','four five']);
+
+assert.ok(details.paragraph.includes(`${entry.warp.length} warp threads`));assert.ok(details.paragraph.includes(`${entry.weft.length} weft rows`));assert.ok(details.paragraph.includes(`${entry.plan.draft.shafts}-shaft`));

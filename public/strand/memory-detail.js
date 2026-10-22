@@ -1,6 +1,6 @@
 import {FIRST_PRINT_LENGTH} from './print-sections.js?v=156';
-import {preserveMemoryView} from './postcard-capture.js?v=218';
-import {postcardDetails} from './memory-postcard.js?v=201';
+import {preserveMemoryView} from './postcard-capture.js?v=232';
+import {postcardDetails} from './memory-postcard.js?v=232';
 // The modal borrows the same yarn scene; closing restores the original loom.
 export function setupMemoryDetail({renderer,pipeline,camera,getCloth,render,downloadButton,onFlip=()=>()=>{}}){
  const body=document.querySelector('#memoryDetail'),button=document.querySelector('#memoryDetailFlip'),copy=document.querySelector('#memoryDetailCopy');
@@ -14,7 +14,7 @@ export function setupMemoryDetail({renderer,pipeline,camera,getCloth,render,down
  return{get isOpen(){return !!state;},get selection(){return state?.selection;},resize,close,
  open(selection){close();const cloth=getCloth(),restore=preserveMemoryView({renderer,pipeline,camera,cloth});state={...selection,selection,restore,parent:renderer.domElement.parentElement,back:false,turn:null,last:0,width:innerWidth,height:innerHeight};
   const details=postcardDetails(selection.entry,selection.index);copy.replaceChildren();
-  for(const text of [selection.label,details.weave,details.pattern,details.description,details.inventory]){const p=document.createElement('p');p.textContent=text;copy.append(p);}
+  for(const text of [selection.label,details.paragraph]){const p=document.createElement('p');p.textContent=text;copy.append(p);}
   const footer=document.createElement('footer'),brand=document.createElement('span'),code=document.createElement('span');brand.textContent='MACHINERA';code.textContent=details.code;footer.append(brand,code);copy.append(footer);
   body.hidden=false;button.append(renderer.domElement);cloth.archive=selection.archive;cloth.scrollOffset=cloth.archive.length-selection.entry.end;cloth.story.streamRemaining.value=0;cloth.story.streamHead.value=selection.entry.end;cloth.sim.top=selection.entry.length/2;cloth.group.scale.set(1,1,FIRST_PRINT_LENGTH/selection.entry.length);cloth.setTurn(0);cloth.setBack(false);cloth.paletteKey=null;cloth.rebuildPalette();cloth.setLength(selection.entry.length);sync();resize();
  },
